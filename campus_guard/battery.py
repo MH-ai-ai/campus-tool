@@ -113,6 +113,7 @@ class BatteryMonitor:
         self.tracker = tracker
         self.was_plugged: bool | None = None
         self.low_battery_notified = False
+        self.notified_thresholds: set[int] = set()
         self.auto_shutdown_triggered = False
         self.running = True
 
@@ -133,28 +134,38 @@ class BatteryMonitor:
         if self.was_plugged and not plugged:
             self.tracker.record_outage()
             self.low_battery_notified = False
+            self.notified_thresholds.clear()
             self.auto_shutdown_triggered = False
             log.warning("检测到断电！")
             self.notify(f"⚠️ 断电警告！\n当前电量: {percent}%\n请尽快接通电源。")
 
         if not self.was_plugged and plugged:
             self.low_battery_notified = False
+            self.notified_thresholds.clear()
             self.auto_shutdown_triggered = False
             log.info("供电恢复")
             self.notify(f"✅ 已恢复供电\n当前电量: {percent}%")
 
         if not plugged:
             cfg = get_config_dict()
-            threshold = int(cfg.get("low_battery_threshold", 30))
-            if percent <= threshold and not self.low_battery_notified:
-                self.low_battery_notified = True
-                log.warning("电量低: %s%%", percent)
-                self.notify(f"🔴 电量低！当前 {percent}%\n请立即接通电源。")
+            warning_thresholds = cfg.get("battery_warning_thresholds", [50, 30, 20])
+            thresholds = sorted({int(t) for t in warning_thresholds}, reverse=True)
+            for threshold in thresholds:
+                if percent <= threshold and threshold not in self.notified_thresholds:
+                    self.notified_thresholds.add(threshold)
+                    if threshold <= 20:
+                        level = "🚨 电量危险"
+                    elif threshold <= 30:
+                        level = "🔴 电量偏低"
+                    else:
+                        level = "🟠 电量提醒"
+                    log.warning("电量达到阈值: %s%% <= %s%%", percent, threshold)
+                    self.notify(f"{level}！当前 {percent}%（阈值 {threshold}%）")
 
-            shutdown_threshold = int(cfg.get("auto_shutdown_threshold", 10))
+            shutdown_threshold = int(cfg.get("auto_shutdown_threshold", 20))
             if percent <= shutdown_threshold and not self.auto_shutdown_triggered:
                 self.auto_shutdown_triggered = True
-                delay = int(cfg.get("auto_shutdown_delay", 120))
+                delay = int(cfg.get("auto_shutdown_delay", 60))
                 msg = (
                     f"🚨 电量极低 ({percent}%)！\n"
                     f"电脑将在 {delay} 秒后自动关机（电量 ≤{shutdown_threshold}%）\n"

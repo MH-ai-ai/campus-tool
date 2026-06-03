@@ -9,10 +9,14 @@
   "campus_wifi_ssids": [],
   "wlan_ac_ip": "10.255.250.74",
   "low_battery_threshold": 30,
+  "battery_warning_thresholds": [50, 30, 20],
   "campus_password": "",
-  "network_check_interval_seconds": 30,
+  "network_check_interval_seconds": 2,
   "telegram_user_id": 0,
-  "auto_shutdown_threshold": 10,
-  "auto_shutdown_delay": 120,
+  "auto_shutdown_threshold": 20,
+  "auto_shutdown_delay": 60,
+  "reconnect_max_retries": 3,
+  "reconnect_verify_delay_seconds": 3,
+  "reconnect_fast_retry_seconds": 2,
   "bot_watchdog_stale_seconds": 300
 }

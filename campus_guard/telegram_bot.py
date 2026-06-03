@@ -28,6 +28,25 @@ if TYPE_CHECKING:
 log = get_logger()
 
 
+def bot_command_specs() -> tuple[tuple[str, str], ...]:
+    return (
+        ("status", "📊 查看电量·电源·网络状态"),
+        ("network", "🌐 查看网络、网关、代理和 Clash/TUN 状态"),
+        ("battery", "🔋 查看电量、供电和关机阈值"),
+        ("shutdown", "⚠️ 远程关机（需确认）"),
+        ("cancel_shutdown", "✅ 取消关机倒计时"),
+        ("reconnect", "🔄 手动重连校园网"),
+        ("lock", "🔒 锁屏"),
+        ("screenshot", "📸 截取屏幕（需确认）"),
+        ("ip", "🌐 查看 IP 地址"),
+        ("ping", "🏓 测试连接"),
+        ("log", "📜 查看最近日志"),
+        ("restart", "🔁 重启程序"),
+        ("config", "⚙️ 查看配置"),
+        ("help", "📖 查看帮助"),
+    )
+
+
 class TelegramBot:
     def __init__(
         self,
@@ -41,6 +60,7 @@ class TelegramBot:
         self.app = None
         self.loop: asyncio.AbstractEventLoop | None = None
         self._message_queue: list[str] = []
+        self._max_message_queue = 50
         self._start_time = time.time()
         self.pending_confirmations: dict[int, dict] = {}
         self._last_update_time = time.time()
@@ -88,9 +108,12 @@ class TelegramBot:
 
         active_app = app or self.app
         active_app.add_handler(CommandHandler("status", self._touch_update(self._cmd_status)))
+        active_app.add_handler(CommandHandler("network", self._touch_update(self._cmd_network)))
+        active_app.add_handler(CommandHandler("battery", self._touch_update(self._cmd_battery)))
         active_app.add_handler(CommandHandler("shutdown", self._touch_update(self._cmd_shutdown)))
         active_app.add_handler(CommandHandler("reconnect", self._touch_update(self._cmd_reconnect)))
         active_app.add_handler(CommandHandler("cancel", self._touch_update(self._cmd_cancel_shutdown)))
+        active_app.add_handler(CommandHandler("cancel_shutdown", self._touch_update(self._cmd_cancel_shutdown)))
         active_app.add_handler(CommandHandler("help", self._touch_update(self._cmd_help)))
         active_app.add_handler(CommandHandler("lock", self._touch_update(self._cmd_lock)))
         active_app.add_handler(CommandHandler("screenshot", self._touch_update(self._cmd_screenshot)))
@@ -134,24 +157,12 @@ class TelegramBot:
                 return
 
         await self.app.bot.set_my_commands([
-            BotCommand("status", "📊 查看电量·电源·网络状态"),
-            BotCommand("shutdown", "⚠️ 远程关机（需确认）"),
-            BotCommand("cancel", "✅ 取消关机"),
-            BotCommand("reconnect", "🔄 手动重连校园网"),
-            BotCommand("lock", "🔒 锁屏"),
-            BotCommand("screenshot", "📸 截取屏幕（需确认）"),
-            BotCommand("ip", "🌐 查看 IP 地址"),
-            BotCommand("ping", "🏓 测试连接"),
-            BotCommand("log", "📜 查看最近日志"),
-            BotCommand("restart", "🔁 重启程序"),
-            BotCommand("config", "⚙️ 查看配置"),
-            BotCommand("help", "📖 查看帮助"),
+            BotCommand(command, description)
+            for command, description in bot_command_specs()
         ])
         log.info("Telegram Bot 已启动，命令菜单已注册")
 
-        for msg in self._message_queue:
-            await self._send_message(msg)
-        self._message_queue.clear()
+        await self._flush_message_queue()
 
         self._schedule_daily_report()
         self._schedule_weekly_report()
@@ -197,20 +208,44 @@ class TelegramBot:
 
     def send_notification(self, text: str) -> None:
         if self.loop and self.app:
-            asyncio.run_coroutine_threadsafe(self._send_message(text), self.loop)
+            asyncio.run_coroutine_threadsafe(self._send_or_queue(text), self.loop)
         else:
-            self._message_queue.append(text)
+            self._queue_message(text)
             log.info("消息已排队（Bot 未就绪）: %s", text[:50])
 
-    async def _send_message(self, text: str) -> None:
+    def _queue_message(self, text: str) -> None:
+        if text in self._message_queue:
+            return
+        self._message_queue.append(text)
+        if len(self._message_queue) > self._max_message_queue:
+            self._message_queue = self._message_queue[-self._max_message_queue :]
+
+    async def _send_or_queue(self, text: str) -> None:
+        await self._flush_message_queue()
+        if not await self._send_message(text):
+            self._queue_message(text)
+
+    async def _flush_message_queue(self) -> None:
+        if not self._message_queue:
+            return
+        pending = list(self._message_queue)
+        self._message_queue.clear()
+        for msg in pending:
+            if not await self._send_message(msg):
+                self._queue_message(msg)
+                break
+
+    async def _send_message(self, text: str) -> bool:
         try:
             await self.app.bot.send_message(
                 chat_id=self._config()["telegram_user_id"],
                 text=text,
                 parse_mode=None,
             )
+            return True
         except Exception as err:
             log.error("发送消息失败: %s", err)
+            return False
 
     def _is_authorized(self, update) -> bool:
         return is_authorized(update, int(self._config()["telegram_user_id"]))
@@ -284,6 +319,29 @@ class TelegramBot:
         ]
         await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
 
+    async def _cmd_network(self, update, context) -> None:
+        if not self._is_authorized(update):
+            return
+        if not self.network:
+            await update.message.reply_text("🌐 网络监控尚未初始化")
+            return
+        await update.message.reply_text(f"🌐 网络状态\n{'─' * 20}\n{self.network.get_status()}")
+
+    async def _cmd_battery(self, update, context) -> None:
+        if not self._is_authorized(update):
+            return
+        cfg = self._config()
+        thresholds = ", ".join(str(t) for t in cfg.get("battery_warning_thresholds", [50, 30, 20]))
+        shutdown_threshold = cfg.get("auto_shutdown_threshold", 20)
+        shutdown_delay = cfg.get("auto_shutdown_delay", 60)
+        status = self.battery.get_status() if self.battery else "电池监控尚未初始化"
+        await update.message.reply_text(
+            f"🔋 电量状态\n{'─' * 20}\n"
+            f"{status}\n"
+            f"提醒阈值: {thresholds}%\n"
+            f"自动关机: ≤{shutdown_threshold}% 后 {shutdown_delay}s"
+        )
+
     async def _handle_callback(self, update, context) -> None:
         if not self._is_authorized(update):
             return
@@ -326,7 +384,7 @@ class TelegramBot:
             await query.message.reply_text("🔄 正在尝试重连校园网...")
             success, msg = campus_login()
             if success:
-                time.sleep(3)
+                await asyncio.sleep(3)
                 gw_ok = check_campus_gateway()
                 inet_ok = check_internet()
                 if gw_ok and inet_ok:
@@ -501,8 +559,10 @@ class TelegramBot:
         await update.message.reply_text(
             "📖 Campus Guard 命令\n\n"
             "/status — 查看电量、电源、网络状态\n"
+            "/network — 查看网络、网关、代理和 Clash/TUN 状态\n"
+            "/battery — 查看电量阈值和关机策略\n"
             "/shutdown — 远程关机（需确认）\n"
-            "/cancel — 取消关机\n"
+            "/cancel_shutdown — 取消关机\n"
             "/reconnect — 手动重连校园网\n"
             "/lock — 锁定屏幕\n"
             "/screenshot — 截取屏幕（需确认）\n"

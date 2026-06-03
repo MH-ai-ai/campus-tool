@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from logging import NullHandler
 from logging.handlers import RotatingFileHandler
 
 from .paths import LOG_PATH
@@ -10,13 +11,21 @@ LOGGER_NAME = "CampusGuard"
 
 
 def get_logger() -> logging.Logger:
-    return logging.getLogger(LOGGER_NAME)
+    logger = logging.getLogger(LOGGER_NAME)
+    logger.propagate = False
+    if not logger.handlers:
+        logger.addHandler(NullHandler())
+    return logger
 
 
 def setup_logging() -> logging.Logger:
     logger = get_logger()
-    if logger.handlers:
+    real_handlers = [handler for handler in logger.handlers if not isinstance(handler, NullHandler)]
+    if real_handlers:
         return logger
+    logger.handlers = [
+        handler for handler in logger.handlers if not isinstance(handler, NullHandler)
+    ]
 
     logger.setLevel(logging.INFO)
     formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s")

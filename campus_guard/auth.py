@@ -62,11 +62,12 @@ def campus_login(config: Config | None = None) -> tuple[bool, str]:
     active_config = config or get_config()
     try:
         params = build_auth_params(active_config, get_local_ip(), get_local_mac())
-        resp = requests.get(
+        session = requests.Session()
+        session.trust_env = False
+        resp = session.get(
             active_config.campus_auth_url,
             params=params,
             timeout=10,
-            proxies={"http": None, "https": None},
         )
         success, msg = parse_drcom_response(resp.text)
         if success:

@@ -39,11 +39,12 @@ def monitor_loop(
 ) -> None:
     cfg = get_config_dict()
     bat_interval = int(cfg.get("check_interval_seconds", 5))
-    net_interval = int(cfg.get("network_check_interval_seconds", 30))
+    net_interval = int(cfg.get("network_check_interval_seconds", 2))
     disk_interval = 600
-    net_counter = 0
-    config_counter = 0
-    disk_counter = 0
+    next_battery_check = 0.0
+    next_network_check = 0.0
+    next_config_check = time.monotonic() + config_check_interval
+    next_disk_check = time.monotonic() + disk_interval
 
     log.info(
         "监控循环启动: 电池检查=%ds, 网络检查=%ds, 磁盘检查=%ds",
@@ -53,23 +54,26 @@ def monitor_loop(
     )
 
     while battery.running and network.running:
+        now = time.monotonic()
         try:
-            battery.check()
-            net_counter += bat_interval
-            if net_counter >= net_interval:
+            if now >= next_battery_check:
+                battery.check()
+                next_battery_check = now + bat_interval
+            if now >= next_network_check:
                 network.check()
-                net_counter = 0
-            config_counter += bat_interval
-            if config_counter >= config_check_interval:
+                next_network_check = now + net_interval
+            if now >= next_config_check:
                 check_config_reload()
-                config_counter = 0
-            disk_counter += bat_interval
-            if disk_counter >= disk_interval:
+                cfg = get_config_dict()
+                bat_interval = int(cfg.get("check_interval_seconds", bat_interval))
+                net_interval = int(cfg.get("network_check_interval_seconds", net_interval))
+                next_config_check = now + config_check_interval
+            if now >= next_disk_check:
                 check_disk_space(battery.notify)
-                disk_counter = 0
+                next_disk_check = now + disk_interval
         except Exception as err:
             log.error("监控循环异常: %s", err, exc_info=True)
-        time.sleep(bat_interval)
+        time.sleep(0.5)
 
     log.warning("监控循环已退出")
 

@@ -50,7 +50,6 @@ from .system import (
     get_disk_free_gb,
     get_local_ip,
     get_memory_usage,
-    get_public_ip,
     get_wifi_info,
     reconnect_wifi,
 )
@@ -99,11 +98,20 @@ class StatusTab(QWidget):
             lines.append(f"🔋 电池: {plug} — {bat.percent}%")
             lines.append(f"   剩余时间: {BatteryMonitor._format_time(bat.secsleft)}")
 
-        lines.append(f"📶 WiFi: {get_wifi_info()}")
+        snapshot = self.network.last_snapshot
         net_icon = "🟢 在线" if self.network.is_online else "🔴 离线"
         lines.append(f"🌐 网络: {net_icon}")
-        lines.append(f"🌐 公网 IP: {get_public_ip()}")
-        lines.append(f"🏠 局域网 IP: {get_local_ip()}")
+        if snapshot:
+            lines.append(f"📶 WiFi: {snapshot.wifi_info}")
+            lines.append(f"🏠 局域网 IP: {snapshot.local_ip}")
+            lines.append(f"🚪 网关: {'OK' if snapshot.gateway_ok else '不可达'}")
+            lines.append(f"🌏 直连外网: {'OK' if snapshot.internet_direct_ok else '不通'}")
+            lines.append(f"🧭 代理外网: {'OK' if snapshot.internet_proxy_ok else '不通'}")
+            lines.append(f"🛡️ Clash/TUN: {'检测到' if snapshot.clash_tun else '未检测到'}")
+        else:
+            lines.append(f"📶 WiFi: {get_wifi_info()}")
+            lines.append(f"🏠 局域网 IP: {get_local_ip()}")
+        lines.append(f"🧾 最近事件: {self.network.last_event}")
         try:
             lines.append(f"💾 磁盘剩余: {get_disk_free_gb():.1f} GB")
         except Exception:
@@ -320,12 +328,20 @@ class SettingsTab(QWidget):
         form.addRow("campus_wifi_ssids (逗号分隔)", ssid_text)
         self.fields["campus_wifi_ssids"] = ssid_text
 
+        thresholds = raw_cfg.get("battery_warning_thresholds", [50, 30, 20])
+        threshold_text = QLineEdit(", ".join(str(t) for t in thresholds))
+        form.addRow("battery_warning_thresholds (逗号分隔)", threshold_text)
+        self.fields["battery_warning_thresholds"] = threshold_text
+
         for key, default in [
             ("check_interval_seconds", 5),
-            ("network_check_interval_seconds", 30),
+            ("network_check_interval_seconds", 2),
             ("low_battery_threshold", 30),
-            ("auto_shutdown_threshold", 10),
-            ("auto_shutdown_delay", 120),
+            ("auto_shutdown_threshold", 20),
+            ("auto_shutdown_delay", 60),
+            ("reconnect_max_retries", 3),
+            ("reconnect_verify_delay_seconds", 3),
+            ("reconnect_fast_retry_seconds", 2),
         ]:
             spin = QSpinBox()
             spin.setRange(1, 3600)
@@ -375,12 +391,24 @@ class SettingsTab(QWidget):
             ssid_raw = self.fields["campus_wifi_ssids"].text()
             cfg["campus_wifi_ssids"] = [s.strip() for s in ssid_raw.split(",") if s.strip()]
 
+            threshold_raw = self.fields["battery_warning_thresholds"].text()
+            try:
+                cfg["battery_warning_thresholds"] = [
+                    int(s.strip()) for s in threshold_raw.split(",") if s.strip()
+                ]
+            except ValueError:
+                self.status_label.setText("❌ battery_warning_thresholds 必须是数字列表")
+                return
+
             for key in [
                 "check_interval_seconds",
                 "network_check_interval_seconds",
                 "low_battery_threshold",
                 "auto_shutdown_threshold",
                 "auto_shutdown_delay",
+                "reconnect_max_retries",
+                "reconnect_verify_delay_seconds",
+                "reconnect_fast_retry_seconds",
             ]:
                 cfg[key] = self.fields[key].value()
             cfg["autostart"] = self.fields["autostart"].isChecked()
@@ -415,12 +443,21 @@ class SettingsTab(QWidget):
             if "campus_wifi_ssids" in self.fields:
                 self.fields["campus_wifi_ssids"].setText(", ".join(str(s) for s in ssids))
 
+            thresholds = raw_cfg.get("battery_warning_thresholds", [50, 30, 20])
+            if "battery_warning_thresholds" in self.fields:
+                self.fields["battery_warning_thresholds"].setText(
+                    ", ".join(str(t) for t in thresholds)
+                )
+
             for key, default in [
                 ("check_interval_seconds", 5),
-                ("network_check_interval_seconds", 30),
+                ("network_check_interval_seconds", 2),
                 ("low_battery_threshold", 30),
-                ("auto_shutdown_threshold", 10),
-                ("auto_shutdown_delay", 120),
+                ("auto_shutdown_threshold", 20),
+                ("auto_shutdown_delay", 60),
+                ("reconnect_max_retries", 3),
+                ("reconnect_verify_delay_seconds", 3),
+                ("reconnect_fast_retry_seconds", 2),
             ]:
                 if key in self.fields:
                     self.fields[key].setValue(int(raw_cfg.get(key, default)))
@@ -510,6 +547,6 @@ class MainWindow(QMainWindow):
     def _quit_app(self) -> None:
         log.info("用户退出程序")
         self.battery.running = False
-        self.network.running = False
+        self.network.stop()
         self.tray.hide()
         QApplication.quit()

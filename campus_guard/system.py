@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import socket
 import subprocess
+import time
 import uuid
 
 import psutil
@@ -12,6 +13,8 @@ from .logging_setup import get_logger
 
 
 log = get_logger()
+_wifi_info_cache: tuple[float, str] = (0.0, "未知")
+_wifi_signal_cache: tuple[float, int] = (0.0, -1)
 
 
 def decode_subprocess_output(raw: bytes) -> str:
@@ -64,9 +67,11 @@ def tcp_check(host: str, port: int, timeout: int = 3) -> bool:
         return False
 
 
-def http_check(url: str, timeout: int = 3) -> bool:
+def http_check(url: str, timeout: int = 3, trust_env: bool = False) -> bool:
     try:
-        resp = requests.head(url, timeout=timeout, proxies={"http": None, "https": None})
+        session = requests.Session()
+        session.trust_env = trust_env
+        resp = session.head(url, timeout=timeout)
         return resp.status_code < 500
     except Exception:
         return False
@@ -82,10 +87,32 @@ def check_internet() -> bool:
         return True
     if tcp_check("114.114.114.114", 53):
         return True
-    return http_check("http://www.baidu.com")
+    return http_check("http://www.baidu.com", trust_env=False)
+
+
+def check_proxy_internet() -> bool:
+    return http_check("https://api.telegram.org", timeout=3, trust_env=True)
+
+
+def is_clash_tun_ip(ip: str) -> bool:
+    return ip.startswith("198.18.") or ip.startswith("198.19.")
+
+
+def is_wifi_link_up() -> bool:
+    for name, stats in psutil.net_if_stats().items():
+        lowered = name.lower()
+        if any(marker in lowered for marker in ("wlan", "wi-fi", "wifi", "wireless")):
+            if stats.isup:
+                return True
+    return is_wifi_connected()
 
 
 def get_wifi_signal_percent() -> int:
+    global _wifi_signal_cache
+    now = time.time()
+    cached_at, cached_value = _wifi_signal_cache
+    if now - cached_at < 10:
+        return cached_value
     try:
         result = subprocess.run(
             ["netsh", "wlan", "show", "interfaces"],
@@ -98,13 +125,20 @@ def get_wifi_signal_percent() -> int:
             stripped = line.strip()
             if "信号" in stripped or "Signal" in stripped:
                 value = stripped.split(":", 1)[1].strip().replace("%", "")
-                return int(value)
+                signal = int(value)
+                _wifi_signal_cache = (now, signal)
+                return signal
     except Exception:
         return -1
     return -1
 
 
 def get_wifi_info() -> str:
+    global _wifi_info_cache
+    now = time.time()
+    cached_at, cached_value = _wifi_info_cache
+    if now - cached_at < 10:
+        return cached_value
     try:
         result = subprocess.run(
             ["netsh", "wlan", "show", "interfaces"],
@@ -121,7 +155,9 @@ def get_wifi_info() -> str:
                 ssid = stripped.split(":", 1)[1].strip()
             elif "信号" in stripped or "Signal" in stripped:
                 signal = stripped.split(":", 1)[1].strip()
-        return f"{ssid} ({signal})"
+        info = f"{ssid} ({signal})"
+        _wifi_info_cache = (now, info)
+        return info
     except Exception as err:
         log.error("获取 WiFi 信息失败: %s", err)
         return "未知"
