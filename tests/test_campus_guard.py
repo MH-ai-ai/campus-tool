@@ -1,15 +1,18 @@
 import importlib
 import asyncio
+from pathlib import Path
+from tempfile import TemporaryDirectory
 import unittest
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
+import campus_guard.config as config_module
+import campus_guard.runtime as runtime
 from campus_guard import Config, GuardState, build_auth_params, get_tray_color, is_authorized
 from campus_guard.battery import BatteryMonitor, BatteryTracker
 from campus_guard.config import update_runtime_config
 from campus_guard.models import ConnectivityState
 from campus_guard.network import NetworkMonitor
-from campus_guard import runtime
 from campus_guard.system import is_clash_tun_ip
 from campus_guard.telegram_bot import TelegramBot, bot_command_specs
 
@@ -68,6 +71,26 @@ class CampusGuardTests(unittest.TestCase):
         self.assertEqual(config.battery_warning_thresholds, (50, 30, 20))
         self.assertEqual(config.auto_shutdown_threshold, 20)
         self.assertEqual(config.auto_shutdown_delay, 60)
+
+    def test_missing_config_is_created_from_example(self):
+        with TemporaryDirectory() as tmp:
+            app_dir = Path(tmp)
+            config_path = app_dir / "config.json"
+            example_path = app_dir / "config.example.json"
+            example_path.write_text(
+                '{"telegram_user_id": 0, "network_check_interval_seconds": 2}',
+                encoding="utf-8",
+            )
+
+            with (
+                patch.object(config_module, "APP_DIR", app_dir),
+                patch.object(config_module, "CONFIG_PATH", config_path),
+            ):
+                data = config_module.load_config_raw()
+
+            self.assertTrue(config_path.exists())
+            self.assertEqual(data["telegram_user_id"], 0)
+            self.assertEqual(data["network_check_interval_seconds"], 2)
 
     def test_clash_tun_detection(self):
         self.assertTrue(is_clash_tun_ip("198.18.0.12"))
@@ -150,6 +173,16 @@ class CampusGuardTests(unittest.TestCase):
             await bot._flush_message_queue()
             self.assertEqual(bot._message_queue, [])
             self.assertEqual(fake_bot.sent[0][1], "断网")
+
+        asyncio.run(run_case())
+
+    def test_telegram_start_skips_when_token_is_missing(self):
+        async def run_case():
+            update_runtime_config({"telegram_bot_token": "", "telegram_user_id": 42})
+            bot = TelegramBot(None, None, BatteryTracker())
+            with patch.object(bot, "_build_app") as build_app:
+                await bot.start()
+            build_app.assert_not_called()
 
         asyncio.run(run_case())
 

@@ -129,6 +129,14 @@ class TelegramBot:
     async def start(self) -> None:
         from telegram import BotCommand
 
+        cfg = self._config()
+        if not str(cfg.get("telegram_bot_token", "")).strip():
+            log.warning("Telegram Bot token 未配置，跳过 Bot 启动")
+            return
+        if not int(cfg.get("telegram_user_id", 0)):
+            log.warning("telegram_user_id 未配置，跳过 Bot 启动")
+            return
+
         self.app = self._build_app()
         self._register_handlers()
         self.loop = asyncio.get_event_loop()

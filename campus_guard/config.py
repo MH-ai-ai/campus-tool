@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import json
 import os
+from pathlib import Path
 from typing import Any
 
 from .logging_setup import get_logger
 from .models import Config
-from .paths import CONFIG_PATH, KEY_PATH
+from .paths import APP_DIR, CONFIG_PATH, KEY_PATH
 
 
 SENSITIVE_FIELDS = ("campus_password", "telegram_bot_token")
@@ -14,6 +15,30 @@ SENSITIVE_FIELDS = ("campus_password", "telegram_bot_token")
 _runtime_config: dict[str, Any] = {}
 _config_mtime: float | None = None
 log = get_logger()
+
+
+def _default_config_dict() -> dict[str, Any]:
+    return Config.from_mapping({}).to_dict()
+
+
+def ensure_config_file() -> None:
+    if CONFIG_PATH.exists():
+        return
+
+    example_path = Path(APP_DIR) / "config.example.json"
+    if example_path.exists():
+        CONFIG_PATH.write_text(
+            example_path.read_text(encoding="utf-8"),
+            encoding="utf-8",
+        )
+        log.warning("config.json 不存在，已从模板创建: %s", CONFIG_PATH)
+        return
+
+    CONFIG_PATH.write_text(
+        json.dumps(_default_config_dict(), indent=2, ensure_ascii=False),
+        encoding="utf-8",
+    )
+    log.warning("config.json 不存在，已创建默认配置: %s", CONFIG_PATH)
 
 
 def _load_or_generate_key() -> bytes:
@@ -32,6 +57,7 @@ def _load_or_generate_key() -> bytes:
 
 
 def load_config_raw() -> dict[str, Any]:
+    ensure_config_file()
     with open(CONFIG_PATH, "r", encoding="utf-8") as f:
         data = json.load(f)
     if not isinstance(data, dict):

@@ -83,7 +83,7 @@ Copy-Item config.example.json config.json
 dist\CampusGuard\CampusGuard.exe
 ```
 
-`dist/` 和 `build/` 已被 `.gitignore` 忽略，不会上传到公共仓库。打包版需要在 `dist\CampusGuard\` 中放置本地 `config.json`，详见 [docs/packaging.md](docs/packaging.md)。
+`dist/` 和 `build/` 已被 `.gitignore` 忽略，不会上传到公共仓库。打包版首次运行时会在 `dist\CampusGuard\` 中自动创建本地 `config.json` 模板，详见 [docs/packaging.md](docs/packaging.md)。
 
 ## Telegram 命令
 

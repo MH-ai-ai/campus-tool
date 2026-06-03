@@ -37,7 +37,7 @@
 dist\CampusGuard\CampusGuard.exe
 ```
 
-脚本还会把 `config.example.json` 复制到 `dist\CampusGuard\`，方便在打包目录中创建本地配置。
+脚本还会把 `config.example.json` 复制到 `dist\CampusGuard\`，方便打包版首次运行时自动创建本地配置。
 
 如只想快速重新打包并跳过单元测试，可执行：
 
@@ -53,19 +53,13 @@ dist\CampusGuard\CampusGuard.exe
 cd dist\CampusGuard
 ```
 
-复制配置模板：
-
-```powershell
-Copy-Item config.example.json config.json
-```
-
-填写 `config.json` 中的本地配置，包括校园网账号、Bot token、Telegram 用户 ID 和校园 WiFi SSID。
-
 启动程序：
 
 ```powershell
 .\CampusGuard.exe
 ```
+
+如果 `config.json` 不存在，程序会先从同目录的 `config.example.json` 自动创建一个模板。首次启动后，请填写 `config.json` 中的本地配置，包括校园网账号、Bot token、Telegram 用户 ID 和校园 WiFi SSID，然后重启程序。Bot token 或 Telegram 用户 ID 为空时，桌面窗口仍会启动，但 Bot 线程会跳过。
 
 打包版运行时会把以下本地文件放在 `dist\CampusGuard\`：
 
