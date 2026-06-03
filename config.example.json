@@ -1,0 +1,18 @@
+{
+  "check_interval_seconds": 5,
+  "campus_auth_url": "http://10.200.84.3:801/eportal/portal/login",
+  "campus_gateway": "10.212.0.1",
+  "telegram_bot_token": "",
+  "autostart": true,
+  "campus_account": "",
+  "campus_wifi_ssid": "",
+  "campus_wifi_ssids": [],
+  "wlan_ac_ip": "10.255.250.74",
+  "low_battery_threshold": 30,
+  "campus_password": "",
+  "network_check_interval_seconds": 30,
+  "telegram_user_id": 0,
+  "auto_shutdown_threshold": 10,
+  "auto_shutdown_delay": 120,
+  "bot_watchdog_stale_seconds": 300
+}

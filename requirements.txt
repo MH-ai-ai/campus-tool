@@ -1,0 +1,7 @@
+psutil>=5.9.0
+python-telegram-bot>=20.0,<22.0
+requests>=2.31.0
+Pillow>=10.0.0
+cryptography>=41.0.0
+PyQt6>=6.5.0
+PyInstaller>=6.0.0
