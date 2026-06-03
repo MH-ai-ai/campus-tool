@@ -137,6 +137,7 @@ Telegram 的 slash command 名称必须使用英文、数字或下划线；Bot �
 
 - `PRODUCT.md`：产品目标、用户和原则。
 - `DESIGN.md`：当前桌面 UI 的设计约束。
+- [docs/manual-testing.md](docs/manual-testing.md)：桌面 App、Bot、网络、电量和资源占用的人工测试手册。
 - `config.example.json`：无敏感值配置模板。
 
 ## 隐私与提交
