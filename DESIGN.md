@@ -5,15 +5,15 @@
 
 ## Visual Direction
 - Register: product
-- Theme: tinted dark-neutral desktop utility，降低夜间刺眼感。
+- Theme: 系统原生 PyQt6 桌面工具，日志区使用低亮度深色背景，避免夜间刺眼。
 - Color strategy: restrained。网络正常用绿色，警告用琥珀色，断网/关机风险用红色；颜色只服务状态。
 - Typography: 系统字体，状态数字略大，正文紧凑。
-- Layout: 首页为状态总览 + 最近事件流；控制和设置分区直接呈现，不使用装饰性卡片堆叠。
+- Layout: 状态、控制、日志、设置四个标签页直接呈现；状态页展示网络、电池、资源和最近事件，不使用装饰性卡片堆叠。
 
 ## Components
-- Status strip: 网络、电池、Bot、资源四个状态块。
-- Event timeline: 断网、认证、重连、供电、电量阈值等最近事件。
-- Action bar: 手动重连、取消关机、刷新状态、打开日志。
+- Status panel: 网络、电池、资源占用、最近事件的紧凑文本总览。
+- Log panel: 增量读取本地日志，避免重复加载完整日志文件。
+- Control tab: 手动重连 WiFi、校园网认证、锁屏、截屏、重启和打开日志。
 - Settings form: 只展示会影响运行的配置，危险项保留明确标签。
 
 ## Interaction
