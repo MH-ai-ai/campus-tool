@@ -69,6 +69,22 @@ Copy-Item config.example.json config.json
 
 程序启动后会初始化日志、读取并加密本地配置、启动监控线程、启动 Telegram Bot 线程，并显示 PyQt6 主窗口。开启 `autostart` 时，会在 Windows Task Scheduler 注册自启动任务。
 
+## 打包
+
+生成本地 Windows 桌面程序：
+
+```powershell
+.\scripts\package_windows.ps1
+```
+
+打包产物位于：
+
+```text
+dist\CampusGuard\CampusGuard.exe
+```
+
+`dist/` 和 `build/` 已被 `.gitignore` 忽略，不会上传到公共仓库。打包版需要在 `dist\CampusGuard\` 中放置本地 `config.json`，详见 [docs/packaging.md](docs/packaging.md)。
+
 ## Telegram 命令
 
 Telegram 的 slash command 名称必须使用英文、数字或下划线；Bot 菜单使用英文命令名加中文描述。
@@ -137,6 +153,7 @@ Telegram 的 slash command 名称必须使用英文、数字或下划线；Bot �
 
 - `PRODUCT.md`：产品目标、用户和原则。
 - `DESIGN.md`：当前桌面 UI 的设计约束。
+- [docs/packaging.md](docs/packaging.md)：Windows 打包和打包版运行说明。
 - [docs/manual-testing.md](docs/manual-testing.md)：桌面 App、Bot、网络、电量和资源占用的人工测试手册。
 - `config.example.json`：无敏感值配置模板。
 

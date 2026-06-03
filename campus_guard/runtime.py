@@ -78,15 +78,22 @@ def monitor_loop(
     log.warning("监控循环已退出")
 
 
+def build_autostart_command() -> str:
+    if getattr(sys, "frozen", False):
+        return f'"{sys.executable}"'
+
+    script_path = str(APP_DIR / "campus_guard.pyw")
+    pythonw = os.path.join(os.path.dirname(sys.executable), "pythonw.exe")
+    if not os.path.exists(pythonw):
+        pythonw = sys.executable
+    return f'"{pythonw}" "{script_path}"'
+
+
 def setup_autostart() -> None:
     if platform.system() != "Windows":
         return
     try:
-        script_path = str(APP_DIR / "campus_guard.pyw")
-        pythonw = os.path.join(os.path.dirname(sys.executable), "pythonw.exe")
-        if not os.path.exists(pythonw):
-            pythonw = sys.executable
-        main_tr = f'"{pythonw}" "{script_path}"'
+        main_tr = build_autostart_command()
         subprocess.run(
             [
                 "schtasks",

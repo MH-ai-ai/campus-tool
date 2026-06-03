@@ -9,6 +9,7 @@ from campus_guard.battery import BatteryMonitor, BatteryTracker
 from campus_guard.config import update_runtime_config
 from campus_guard.models import ConnectivityState
 from campus_guard.network import NetworkMonitor
+from campus_guard import runtime
 from campus_guard.system import is_clash_tun_ip
 from campus_guard.telegram_bot import TelegramBot, bot_command_specs
 
@@ -162,6 +163,30 @@ class CampusGuardTests(unittest.TestCase):
         self.assertIn("电量", commands["battery"])
         for command in commands:
             self.assertRegex(command, r"^[a-z0-9_]{1,32}$")
+
+    def test_autostart_command_uses_exe_when_frozen(self):
+        with (
+            patch.object(
+                runtime.sys,
+                "executable",
+                r"C:\Apps\CampusGuard\CampusGuard.exe",
+            ),
+            patch.object(runtime.sys, "frozen", True, create=True),
+        ):
+            command = runtime.build_autostart_command()
+
+        self.assertEqual(command, r'"C:\Apps\CampusGuard\CampusGuard.exe"')
+
+    def test_autostart_command_uses_pythonw_launcher_in_source_mode(self):
+        with (
+            patch.object(runtime.sys, "executable", r"C:\Python312\python.exe"),
+            patch.object(runtime.sys, "frozen", False, create=True),
+            patch("campus_guard.runtime.os.path.exists", return_value=True),
+        ):
+            command = runtime.build_autostart_command()
+
+        self.assertIn(r'"C:\Python312\pythonw.exe"', command)
+        self.assertIn("campus_guard.pyw", command)
 
 
 if __name__ == "__main__":
