@@ -9,8 +9,8 @@
   <img src="https://img.shields.io/badge/Tests-37%20Passed-brightgreen?style=flat-square" alt="Tests" />
 </p>
 
-> 🎓 **专为 Windows 打造的全国高校校园网守护神器（以延安大学校园网为核心原型深度量身定制）。**  
-> 全面兼容国内各大高校主流认证体系（深澜 Srun 4000/Portal、城市热点 Dr.COM Web、锐捷 Ruijie 与通用 Web Portal）。具备掉线毫秒自愈、国内免梯（飞书/钉钉）报警、低电量安全关机守护，常驻内存仅 **4.8MB**，CPU 占用 **0.0%**。
+> **面向 Windows 的全国高校校园网自动认证与状态守护工具（以延安大学校园网为核心原型深度量身定制）。**  
+> 全面兼容国内各大高校主流认证体系（深澜 Srun 4000/Portal、城市热点 Dr.COM Web、锐捷 Ruijie 与通用 Web Portal）。具备掉线毫秒自愈、国内直连多通道（飞书/钉钉）告警、低电量安全关机守护，常驻内存仅 **4.8MB**，CPU 占用 **0.0%**。
 
 ---
 
