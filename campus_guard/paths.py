@@ -14,3 +14,4 @@ APP_DIR = app_dir()
 CONFIG_PATH = APP_DIR / "config.json"
 LOG_PATH = APP_DIR / "campus_guard.log"
 KEY_PATH = APP_DIR / "campus_guard.key"
+UNIVERSITIES_CACHE_PATH = APP_DIR / "universities.json"

@@ -12,6 +12,8 @@ dist/
 *.egg-info/
 
 config.json
+/universities.json
+!data/universities.json
 campus_guard.key
 campus_guard.log*
 screenshot_tmp.png

@@ -5,6 +5,7 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont
 from PyQt6.QtWidgets import (
     QCheckBox,
+    QComboBox,
     QFormLayout,
     QGroupBox,
     QHBoxLayout,
@@ -29,20 +30,18 @@ from ..config import (
     update_runtime_config,
 )
 from ..logging_setup import get_logger
+from ..universities import get_university_manager
 from .styles import _APPLE_COLORS, get_apple_font
 from .widgets import _Worker
 
-
 log = get_logger()
 
-# ---------------------------------------------------------------------------
-# macOS 偏好设置风格 Schema 定义
-# ---------------------------------------------------------------------------
-
 _SETTINGS_SCHEMA: list[tuple[str, str, str, str, dict]] = [
-    # 校园网凭据
-    ("campus_account", "校园网账号 / 学号", "🔑 账号与凭证", "text", {}),
-    ("campus_password", "校园网密码", "🔑 账号与凭证", "text", {"sensitive": True}),
+    # 校园网凭据与高校体系
+    ("university_name", "所属高校名称", "🏫 高校与认证体系", "text", {}),
+    ("auth_protocol", "核心协议体系", "🏫 高校与认证体系", "protocol_combo", {}),
+    ("campus_account", "校园网账号 / 学号", "🔑 账号与凭据", "text", {}),
+    ("campus_password", "校园网密码", "🔑 账号与凭据", "text", {"sensitive": True}),
     # 国内免梯推送平台
     ("feishu_webhook_url", "飞书机器人 Webhook 地址", "🚀 国内通知通道 (无需梯子)", "text", {}),
     ("dingtalk_webhook_url", "钉钉机器人 Webhook 地址", "🚀 国内通知通道 (无需梯子)", "text", {}),
@@ -51,9 +50,9 @@ _SETTINGS_SCHEMA: list[tuple[str, str, str, str, dict]] = [
     ("telegram_bot_token", "Telegram Bot Token", "✈️ Telegram 远程控制", "text", {"sensitive": True}),
     ("telegram_user_id", "Telegram 用户 ID", "✈️ Telegram 远程控制", "text", {}),
     # 网络与认证参数
-    ("campus_auth_url", "Dr.COM 认证接口 URL", "🌐 网络与认证", "text", {}),
+    ("campus_auth_url", "认证接口 URL", "🌐 网络与认证", "text", {}),
     ("campus_gateway", "校园网网关 IP", "🌐 网络与认证", "text", {}),
-    ("wlan_ac_ip", "AC IP (Dr.COM 认证参数)", "🌐 网络与认证", "text", {}),
+    ("wlan_ac_ip", "AC IP (认证参数)", "🌐 网络与认证", "text", {}),
     ("campus_wifi_ssids", "校园 WiFi SSID 列表", "🌐 网络与认证", "csv", {}),
     ("trusted_home_ssids", "家庭 / 信任免认证 WiFi", "🌐 网络与认证", "csv", {}),
     ("forced_network_mode", "强制网络模式 (auto/campus/home)", "🌐 网络与认证", "text", {}),
@@ -74,6 +73,7 @@ _SETTINGS_SCHEMA: list[tuple[str, str, str, str, dict]] = [
 class _SettingsPage(QWidget):
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
+        self.uni_manager = get_university_manager()
         root = QVBoxLayout(self)
         root.setContentsMargins(28, 20, 28, 16)
         root.setSpacing(12)
@@ -85,10 +85,17 @@ class _SettingsPage(QWidget):
         header_bar.addWidget(header)
         header_bar.addStretch()
 
+        update_rules_btn = QPushButton("☁️ 更新高校规则库")
+        update_rules_btn.setObjectName("actionBtn")
+        update_rules_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        update_rules_btn.setToolTip("从远程仓库静默拉取最新的全国高校校园网认证规则")
+        update_rules_btn.clicked.connect(self._sync_remote_rules)
+        header_bar.addWidget(update_rules_btn)
+
         sniff_btn = QPushButton("🔍 自动嗅探填入网络参数")
         sniff_btn.setObjectName("actionBtn")
         sniff_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        sniff_btn.setToolTip("自动发起未加密 HTTP 探针，捕获校园网重定向并填入认证 URL 与网关")
+        sniff_btn.setToolTip("自动发起未加密 HTTP 探针，捕获校园网重定向并智能识别高校体系")
         sniff_btn.clicked.connect(self._auto_sniff_and_fill)
         header_bar.addWidget(sniff_btn)
         root.addLayout(header_bar)
@@ -100,6 +107,28 @@ class _SettingsPage(QWidget):
         scroll_layout = QVBoxLayout(scroll_widget)
         scroll_layout.setContentsMargins(0, 0, 0, 16)
         scroll_layout.setSpacing(14)
+
+        # 高校快捷预设载入卡片
+        preset_box = QGroupBox("🏫 全国高校模板预设快捷载入")
+        preset_layout = QHBoxLayout()
+        preset_layout.setContentsMargins(16, 12, 16, 12)
+        preset_layout.setSpacing(10)
+
+        self.preset_combo = QComboBox()
+        self.preset_combo.setMinimumWidth(320)
+        self.all_profiles = self.uni_manager.get_all_profiles()
+        for p in self.all_profiles:
+            self.preset_combo.addItem(f"{p.name}  [{p.protocol.upper()}]", p.id)
+        preset_layout.addWidget(self.preset_combo)
+
+        apply_preset_btn = QPushButton("填入此校预设参数")
+        apply_preset_btn.setObjectName("capsuleBtn")
+        apply_preset_btn.clicked.connect(self._apply_selected_preset)
+        preset_layout.addWidget(apply_preset_btn)
+        preset_layout.addStretch()
+
+        preset_box.setLayout(preset_layout)
+        scroll_layout.addWidget(preset_box)
 
         self.fields: dict[str, QWidget] = {}
         raw_cfg = load_config_dict()
@@ -149,8 +178,46 @@ class _SettingsPage(QWidget):
 
         self._worker: _Worker | None = None
 
+    def _apply_selected_preset(self) -> None:
+        idx = self.preset_combo.currentIndex()
+        if 0 <= idx < len(self.all_profiles):
+            p = self.all_profiles[idx]
+            if "university_name" in self.fields:
+                self.fields["university_name"].setText(p.name)
+            if "auth_protocol" in self.fields:
+                combo = self.fields["auth_protocol"]
+                if isinstance(combo, QComboBox):
+                    c_idx = combo.findData(p.protocol)
+                    if c_idx >= 0:
+                        combo.setCurrentIndex(c_idx)
+            if "campus_auth_url" in self.fields:
+                self.fields["campus_auth_url"].setText(p.auth_url)
+            if "campus_gateway" in self.fields and p.gateway:
+                self.fields["campus_gateway"].setText(p.gateway)
+            if "wlan_ac_ip" in self.fields:
+                self.fields["wlan_ac_ip"].setText(p.ac_ip)
+            if "campus_wifi_ssids" in self.fields and p.wifi_ssids:
+                self.fields["campus_wifi_ssids"].setText(", ".join(p.wifi_ssids))
+
+            self.status_label.setText(f"📋 已载入 [{p.name}] 模板参数，请填写账号密码后保存")
+            self.status_label.setStyleSheet(f"color: {_APPLE_COLORS['accent']};")
+
     def _create_widget(self, wtype: str, key: str, cfg: dict, extra: dict) -> QWidget:
         val = cfg.get(key, "")
+        if wtype == "protocol_combo":
+            w = QComboBox()
+            protocols = [
+                ("城市热点 Dr.COM / ePortal", "drcom"),
+                ("深澜软件 Srun 4000 / Portal", "srun"),
+                ("锐捷网络 Ruijie ePortal / SAM", "ruijie"),
+                ("通用 Web Portal 表单", "portal"),
+            ]
+            for name, val_proto in protocols:
+                w.addItem(name, val_proto)
+            curr = str(val or "drcom").lower()
+            idx = w.findData(curr)
+            w.setCurrentIndex(idx if idx >= 0 else 0)
+            return w
         if wtype == "text":
             w = QLineEdit(str(val) if val is not None else "")
             if extra.get("sensitive") or key in SENSITIVE_FIELDS or "password" in key or "secret" in key:
@@ -175,6 +242,8 @@ class _SettingsPage(QWidget):
 
     def _read_field(self, key: str, wtype: str) -> object:
         w = self.fields[key]
+        if wtype == "protocol_combo" and isinstance(w, QComboBox):
+            return w.currentData() or "drcom"
         if wtype == "text":
             return w.text().strip()
         if wtype == "csv":
@@ -201,7 +270,7 @@ class _SettingsPage(QWidget):
             update_runtime_config(decrypt_config(encrypted_cfg))
             self.status_label.setText(f"✅ 配置已保存并在后台生效 — {datetime.now().strftime('%H:%M:%S')}")
             self.status_label.setStyleSheet(f"color: {_APPLE_COLORS['success']};")
-            log.info("配置已通过苹果风设置页成功保存")
+            log.info("配置已通过偏好设置页成功保存")
         except ValueError as err:
             self.status_label.setText(f"❌ 输入格式错误: {err}")
             self.status_label.setStyleSheet(f"color: {_APPLE_COLORS['danger']};")
@@ -218,7 +287,10 @@ class _SettingsPage(QWidget):
                 if w is None:
                     continue
                 val = raw_cfg.get(key, "")
-                if wtype == "text":
+                if wtype == "protocol_combo" and isinstance(w, QComboBox):
+                    idx = w.findData(str(val or "drcom").lower())
+                    w.setCurrentIndex(idx if idx >= 0 else 0)
+                elif wtype == "text":
                     w.setText(str(val) if val is not None else "")
                 elif wtype == "csv":
                     items = val if isinstance(val, list) else []
@@ -236,8 +308,37 @@ class _SettingsPage(QWidget):
             self.status_label.setText(f"❌ 加载失败: {err}")
             self.status_label.setStyleSheet(f"color: {_APPLE_COLORS['danger']};")
 
+    def _sync_remote_rules(self) -> None:
+        self.status_label.setText("☁️ 正在检查远程高校规则库更新...")
+        self.status_label.setStyleSheet(f"color: {_APPLE_COLORS['accent']};")
+
+        def _do():
+            return self.uni_manager.sync_from_remote()
+
+        def _done(result):
+            self._worker = None
+            if isinstance(result, Exception):
+                self.status_label.setText(f"❌ 规则同步异常: {result}")
+                self.status_label.setStyleSheet(f"color: {_APPLE_COLORS['danger']};")
+                return
+            ok, msg = result
+            if ok:
+                self.all_profiles = self.uni_manager.get_all_profiles()
+                self.preset_combo.clear()
+                for p in self.all_profiles:
+                    self.preset_combo.addItem(f"{p.name}  [{p.protocol.upper()}]", p.id)
+                self.status_label.setText(f"🎉 {msg}")
+                self.status_label.setStyleSheet(f"color: {_APPLE_COLORS['success']};")
+            else:
+                self.status_label.setText(f"ℹ️ {msg}")
+                self.status_label.setStyleSheet(f"color: {_APPLE_COLORS['warning']};")
+
+        self._worker = _Worker(_do, parent=self)
+        self._worker.finished.connect(_done)
+        self._worker.start()
+
     def _auto_sniff_and_fill(self) -> None:
-        self.status_label.setText("🔍 正在探测 Captive Portal 重定向...")
+        self.status_label.setText("🔍 正在探测 Captive Portal 重定向与特征识别...")
         self.status_label.setStyleSheet(f"color: {_APPLE_COLORS['accent']};")
 
         def _done(result):
@@ -252,21 +353,29 @@ class _SettingsPage(QWidget):
                 self.status_label.setText("")
                 return
 
-            # 填入表单字段
             filled_count = 0
-            for k in ("campus_auth_url", "campus_gateway", "wlan_ac_ip"):
+            for k in ("campus_auth_url", "campus_gateway", "wlan_ac_ip", "university_name"):
                 if k in detected and k in self.fields:
-                    self.fields[k].setText(detected[k])
+                    self.fields[k].setText(str(detected[k]))
                     filled_count += 1
+
+            if "auth_protocol" in detected and "auth_protocol" in self.fields:
+                proto_combo = self.fields["auth_protocol"]
+                if isinstance(proto_combo, QComboBox):
+                    idx = proto_combo.findData(detected["auth_protocol"])
+                    if idx >= 0:
+                        proto_combo.setCurrentIndex(idx)
+                        filled_count += 1
+
             if "campus_wifi_ssid" in detected and "campus_wifi_ssids" in self.fields:
                 cur = self.fields["campus_wifi_ssids"].text().strip()
-                ssid = detected["campus_wifi_ssid"]
+                ssid = str(detected["campus_wifi_ssid"])
                 if ssid and ssid not in cur:
                     new_val = f"{cur}, {ssid}" if cur else ssid
                     self.fields["campus_wifi_ssids"].setText(new_val)
                     filled_count += 1
 
-            self.status_label.setText(f"🎉 成功自动填入 {filled_count} 项校园网参数，请点击「保存」生效")
+            self.status_label.setText(f"🎉 成功自动填入 {filled_count} 项校园网特征与参数，请点击「保存」生效")
             self.status_label.setStyleSheet(f"color: {_APPLE_COLORS['success']};")
 
         self._worker = _Worker(auto_detect_portal_config, parent=self)

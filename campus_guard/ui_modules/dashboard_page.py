@@ -156,7 +156,12 @@ class _NetworkCard(_AppleCard):
         tun_str = " · TUN" if (snap and snap.clash_tun) else ""
         if_str = f"[{snap.active_interface}] " if (snap and snap.active_interface) else ""
         gw_str = " · 网关畅通" if (snap and snap.gateway_ok) else ""
-        self._details.setText(f"📶 {wifi}\n🌐 {if_str}{ip}{tun_str}{gw_str}")
+        
+        cfg = get_config_dict()
+        uni_name = cfg.get("university_name", "延安大学")
+        proto = str(cfg.get("auth_protocol", "drcom")).upper()
+        campus_info = f"\n🏫 适配: {uni_name} [{proto}]" if (snap and snap.is_campus_network) else ""
+        self._details.setText(f"📶 {wifi}\n🌐 {if_str}{ip}{tun_str}{gw_str}{campus_info}")
 
 
 class _SystemCard(_AppleCard):
