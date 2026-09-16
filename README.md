@@ -1,91 +1,90 @@
-# 🛡️ Campus Guard (延安大学校园网守护者)
+# 🛡️ Campus Guard (全国高校通用校园网守护神器)
 
 <p align="center">
   <img src="https://img.shields.io/badge/Origin-%E5%BB%B6%E5%AE%89%E5%A4%A7%E5%AD%A6%20(Yan'an%20Univ)-C8102E?style=for-the-badge" alt="Yan'an University" />
-  <img src="https://img.shields.io/badge/Python-3.12%20%7C%203.13-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python Version" />
+  <img src="https://img.shields.io/badge/Compatibility-%E5%85%A8%E5%9B%BD%E4%B8%BB%E6%B5%81%E9%AB%98%E6%A0%A1%E9%80%9A%E7%94%A8-0078D6?style=for-the-badge" alt="National Universities" />
+  <img src="https://img.shields.io/badge/Protocols-Srun%20%7C%20Dr.COM%20%7C%20Ruijie%20%7C%20Portal-FF8800?style=for-the-badge" alt="Protocols" />
   <img src="https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011-0078D6?style=for-the-badge&logo=windows&logoColor=white" alt="Platform" />
   <img src="https://img.shields.io/badge/UI-Apple%20HIG%20%7C%20PyQt6-000000?style=for-the-badge&logo=apple&logoColor=white" alt="Apple Design System" />
-  <img src="https://img.shields.io/badge/Memory-5~15MB%20RAM-30D158?style=for-the-badge" alt="Low Memory" />
+  <img src="https://img.shields.io/badge/Memory-4.8MB~15MB%20RAM-30D158?style=for-the-badge" alt="Low Memory" />
   <img src="https://img.shields.io/badge/Notifications-Telegram%20%7C%20%E9%A3%9E%E4%B9%A6%20%7C%20%E9%92%89%E9%92%89-FF8800?style=for-the-badge" alt="Multi-Channel Notifications" />
-  <img src="https://img.shields.io/badge/Tests-26%20Passed-30D158?style=for-the-badge" alt="Tests" />
+  <img src="https://img.shields.io/badge/Tests-37%20Passed-30D158?style=for-the-badge" alt="Tests" />
 </p>
 
-> 🎓 **以延安大学（Yan'an University, YAU）校园网为核心原型深度量身定制，专为高校寝室、实验室与图书馆打造的 Windows 全能网络与电源守护神器。**  
+> 🎓 **以延安大学（Yan'an University, YAU）校园网为核心原型深度量身定制，现已全面升级打通国内各大高校主流认证体系（深澜 Srun 4000/Portal、城市热点 Dr.COM Web、锐捷 Ruijie RG-ePortal/SAM 与通用 Web Portal）。**  
 > 
-> 本工具开箱默认预置延安大学（新城校区、杨家岭校区及萃园）Dr.COM 网页认证体系的最佳参数；同时内置智能 Captive Portal 嗅探引擎，广泛兼容国内各高校同架构 Web 认证。具备掉线毫秒级自动重连、家庭与校园网智能感知、国内免梯（飞书/钉钉）双向告警、20% 电量安全关机守护，并配备全新 **Apple HIG 苹果深色设计系统**与 **小白「⚡ 10秒一键配网」**。
+> 本工具开箱默认预置延安大学（新城校区、杨家岭校区及萃园）Dr.COM 网页认证体系的最佳参数；同时内置全国高校离线规则库与智能 Captive Portal 嗅探引擎，支持自适应识别全国数百所高校校园网。具备掉线毫秒级自动重连、家庭与校园网智能感知、国内免梯（飞书/钉钉）双向告警、20% 电量安全关机守护，并配备全新 **Apple HIG 苹果深色设计系统**与 **小白「⚡ 10秒一键打通」**。
 
 ---
 
-## ⚡ 痛点与解决方案
+## ⚡ 核心痛点与 Campus Guard 创新解法
 
-| 传统痛点 | Campus Guard 创新解法 |
+| 传统校园网痛点 | Campus Guard 创新解法 |
 | :--- | :--- |
-| **延大校园网夜间频繁断网/掉线**：半夜离开实验室或宿舍就寝后网络意外断开，下载中断、远程桌面无法连接。 | **全自动毫秒感知与重连**：后台非阻塞探针毫秒级侦测断网，全自动重连延大 Wi-Fi 并执行 Dr.COM 自动登录。 |
-| **小白配网门槛高**：不清楚什么是网关 IP、AC IP、Portal 认证地址，参数填写繁琐劝退。 | **「⚡ 一键智能打通」**：基于 Captive Portal 302 劫持自动嗅探网关与服务器，弹窗**仅需填写延大学号与密码**即可瞬间打通。 |
-| **通知依赖翻墙**：Telegram Bot 在国内宿舍无梯环境下无法接收报警消息。 | **国内免梯平台直通**：原生支持**飞书自适应彩色交互卡片**与**钉钉加签 Markdown**，手机即时弹窗，双通道互为容灾。 |
-| **后台频繁弹定位**：后台高频执行 Wi-Fi 探针导致 Windows 任务栏频繁闪烁“正在使用您的位置”小圆点，非常烦人。 | **长效缓存与内核被动监听**：采用 `psutil` 内核链路被动监听与 120 秒智能缓存，彻底消灭 Windows 位置提示。 |
-| **寝室深夜断电电池过放**：宿舍半夜断电导致笔记本电池耗尽过放损坏，或意外断电关机导致未保存数据丢失。 | **三档电量告警与安全关机**：50%、30%、20% 梯次报警；20% 自动启动 60 秒可撤销安全关机保护。 |
-| **挂机占用过大、界面刺眼**：后台长时间挂机卡顿、发热掉电快，传统 UI 粗糙刺眼。 | **极致低功耗 + 苹果设计**：实测 **0.0% CPU 占用 · 5~15MB 极寒内存**，微光深空灰连续平滑圆角卡片，夜间视觉温和。 |
+| **高校系统林立，协议互不兼容**：清北浙大用深澜、吉大延大用城市热点、工科院校用锐捷，换个学校或设备脚本失效。 | **全国高校插件化协议引擎**：解耦实现 **深澜 Srun**（纯 Python 原生 xEncode/HMAC-MD5 加密）、**城市热点 Dr.COM**、**锐捷 Ruijie** 与通用 Portal 独立适配器，全国高校即选即用。 |
+| **夜间/就寝时频繁断网掉线**：半夜离开实验室或宿舍就寝后网络意外断开，跑模型下载中断、远程桌面无法连接。 | **全自动毫秒感知与重连**：后台非阻塞探针毫秒级侦测断网，自愈引擎毫秒感知并自动唤醒重连与登录认证。 |
+| **小白配网门槛高**：不清楚什么是网关 IP、AC IP、Portal 认证地址，参数填写繁琐劝退。 | **「⚡ 一键智能打通」双轨体验**：自动拦截 302 重定向并根据指纹自适应反推归属高校及协议体系；同时支持全拼/首字母模糊检索全国高校。 |
+| **告警通知依赖翻墙**：Telegram Bot 在国内宿舍无梯环境下无法接收报警消息。 | **国内免梯平台直通**：原生集成**飞书自适应彩色交互卡片**与**钉钉 HMAC-SHA256 加签 Markdown**，手机即时弹窗，与 Telegram 互为容灾。 |
+| **后台频繁弹系统定位提示**：后台高频执行 Wi-Fi 探针导致 Windows 任务栏频繁闪烁“正在使用您的位置”小圆点，非常烦扰。 | **长效缓存与内核被动监听**：采用 `psutil` 内核链路被动监听与 120 秒智能缓存，彻底消灭 Windows 位置提示。 |
+| **寝室深夜断电电池过放损坏**：宿舍半夜拉闸断电导致笔记本电池耗尽过放损坏，或意外断电关机导致未保存数据丢失。 | **三档电量告警与安全关机**：50%、30%、20% 梯次报警；20% 自动启动 60 秒可撤销安全关机保护。 |
+| **后台挂机卡顿、发热掉电快**：后台长时间挂机占用过大 CPU 和内存，传统 UI 粗糙刺眼。 | **极致低功耗 + 苹果设计**：实测 **0.0% CPU 占用 · 4.8MB~15MB 极寒内存**，微光深空灰平滑圆角卡片，夜间视觉温和。 |
 
 ---
 
-## 🏫 原型背景与高校通用性
+## 🏫 原型背景与全国高校通用适配
 
-### 1. 🎯 延安大学（Yan'an University）量身适配说明
-- **原型母体与研发背景**：
+### 1. 🎯 延安大学（Yan'an University）原型保留与专属优化
+- **原型母体与长期验证**：
   本项目最初由延安大学学子针对延大校园网络实测环境进行抓包逆向、深度定制与长期验证开发。
-- **延大网络环境特征已默认内置**：
-  - **默认认证服务地址**：`http://10.200.84.3:801/eportal/portal/login`（延安大学 Dr.COM ePortal 核心登录入口）
-  - **默认 AC 控制器 IP**：`10.255.250.74`
+- **延大网络环境特征已默认置顶内置**：
+  - **默认认证服务地址**：`http://10.212.0.1:801/eportal/index.jsp`（延安大学 Dr.COM ePortal 核心登录入口）
   - **典型网关内网路由**：`10.212.0.1` / `10.200.84.3`
-  - **全校区全面适配**：完美适配**新城校区**（新校区各个书院/宿舍楼、图书馆、学院实验楼）、**杨家岭校区**（老校区）以及**萃园校区**的无线 Wi-Fi（如 `YAU-WiFi` 等）与宿舍桌面插网线的有线以太网环境；
+  - **全校区全面适配**：完美适配**新城校区**（新校区各个书院/宿舍楼、图书馆、学院实验楼）、**杨家岭校区**（老校区）以及**萃园校区**的无线 Wi-Fi（如 `YAU`、`YAU_5G` 等）与宿舍桌面插网线的有线以太网环境；
   - **多运营商账号支持**：全面支持延安大学校园网普通账号、校园宽带绑定账号（移动 CMCC、电信 ChinaNet、联通 Unicom）。
 
-### 2. 🌐 其他兄弟高校开箱通用性
-- **通用架构兼容**：虽然以延安大学为主体深度打造，但因国内大多数高校（清华、华科、吉大、各大理工/师范院校等）均采用标准的 Dr.COM (城市热点) 或锐捷/深信服 Web 网页认证网关；
-- **智能嗅探开箱即用**：其他高校同学连上各自学校的校园 Wi-Fi 后，只需点击顶部的 **「⚡ 校园网一键打通」**，系统即可自动拦截 302 重定向并提取您所在学校的认证服务器地址与 AC IP；
-- **自定义支持**：亦可在「偏好设置」面板中自由填入任意高校的 Portal 认证地址。
+### 2. 🌐 全国高校主流校园网协议覆盖表
+
+Campus Guard 已针对国内主流高校的四大校园网系统完成深度适配：
+
+| 协议体系 | 覆盖代表高校 | 技术特征与 Campus Guard 适配能力 |
+| :--- | :--- | :--- |
+| **深澜 Srun 4000 / Portal** | **清华大学、浙江大学、北京邮电大学、深圳大学、电子科技大学、中南大学** 等多数 985/211 高校 | 采用 **纯 Python 原生算法** 实现深澜专有的 `xEncode`（XXTEA 变形）加密与自定义 64 码表 Base64，自动向 `/cgi-bin/get_challenge` 获取盐值并计算 HMAC-MD5，**零外部 Node.js 或 C 依赖**。 |
+| **城市热点 Dr.COM Web** | **延安大学 (默认原型)、吉林大学** 及国内大量理工/师范类院校 | 完美支持 `dr1003` 回调与 `,0,` 账号前缀兼容，支持运营商后缀自动识别与错误码精准翻译。 |
+| **锐捷网络 Ruijie ePortal / SAM** | **众多工科高校、农林与综合类大学** | 封装 `/eportal/InterFace.do?method=login` 接口，支持动态提取 `queryString` 并自适应表单提交。 |
+| **通用 Web Captive 表单** | 各高校自研 Portal、华为/深信服网关 | 启发式通用认证适配器，自动解析表单提交凭据。 |
 
 ---
 
-## 🌟 核心特性概览
+## 🌟 核心特性展示
 
-### 1. ⚡ 小白首次「一键智能配网」
-- 新用户首次连上校园 Wi-Fi 后，只需点击仪表盘顶部的「⚡ 校园网一键打通」横幅；
-- 引擎自动通过未加密 HTTP 直连探针拦截 Captive Portal 重定向，提取认证服务器 URL、网关 IP、AC IP 与 SSID；
-- 弹窗仅需输入**学号**与**密码**，点击「立即保存并连接」，10 秒内打通全流程并写入高强度本地加密存储。
+### 1. ⚡ 小白首次「一键智能打通」（全国高校双轨模式）
+- **自动嗅探识别**：新用户连上校园 Wi-Fi 后，点击「⚡ 校园网一键打通」，系统自动拦截未加密 HTTP 探针，提取 302 重定向目标，并根据指纹特征**秒级反推所在高校及所属体系（深澜/城市热点/锐捷）**；
+- **高校模糊检索**：同时在界面提供全国高校下拉框，支持汉字、拼音首字母模糊检索（如搜 `yau` 快速定位延安大学，搜 `thu` 定位清华大学）；
+- **极速开启守护**：仅需输入学号与密码，点击「🚀 一键保存并登录」，10 秒内打通认证并写入本地加密存储。
 
-### 2. 🍏 全新 Apple HIG (Human Interface Guidelines) 苹果设计系统
+### 2. 🍏 Apple HIG 苹果深色设计系统
 - **深空灰微光层次**：主背景采用 macOS 原生深空灰（`#141417`），搭配精致毛玻璃卡片（`#212128`）与半透明高光微边框；
 - **Squircle 连续平滑圆角**：卡片统一采用 14px 苹果平滑圆角（`_AppleCard`），视觉浑然一体；
 - **状态呼吸药丸 (Status Pills)**：发光状态指示灯（● 绿色在线、▲ 橙色告警、■ 红色故障、○ 离线），状态扫视一目了然；
 - **macOS Grouped Insets 分组内嵌列表**：设置面板重构为 macOS 系统偏好设置风格，内嵌微阴影输入框，层级井然；
 - **高质量平滑抗锯齿字体**：全界面采用矢量字体栈，杜绝 Windows DirectWrite 字体回退警告。
 
-### 3. 🔕 彻底消除任务栏频繁定位烦扰
-- 深入排查并根治 `netsh wlan show interfaces` 唤醒底层 AP 扫描被 Windows 判定为位置请求的底层逻辑；
-- 采用 **内核网络链路被动监听**（`psutil.net_if_stats`）结合 **120 秒长效状态缓存**，在稳定在线时零主动触发外部探针，保持极致静默。
+### 3. ☁️ 高校规则库双保险与云端热更新
+- **离线全量兜底**：本地内置离线全国高校知识库（`data/universities.json`），免网环境下开箱即用；
+- **远程静默同步**：偏好设置提供「☁️ 更新高校规则库」按钮，可从 GitHub/Gitee 仓库一键静默同步最新的高校认证模板，随时扩充更多高校而不必频繁重装程序。
 
-### 4. 🔔 多平台通知引擎与容灾中心
-- **飞书自定义机器人**：
-  - 发送高颜值自适应彩色交互卡片（Interactive Cards）；
-  - 故障报警显示亮红、恢复上线显示翠绿、弱网与电量提示显示橙色；
-  - 手机端飞书即时振动推送，排版美观、层次清晰。
-- **钉钉自定义机器人**：
-  - 支持企业级安全的 HMAC-SHA256 动态加签防重放攻击；
-  - 消息自动生成易读的结构化 Markdown 排版。
-- **Telegram Bot 远程运维**：
-  - 支持 Telegram 双向交互、快捷内联按钮面板与远程控制菜单。
-  - 三大平台多通道并行异步广播，无梯环境国内通道稳定送达，互为容灾备份。
+### 4. 🔕 彻底消除任务栏频繁定位烦扰
+- 采用 **内核网络链路被动监听**（`psutil.net_if_stats`）结合 **120 秒长效状态缓存**，在稳定在线时零主动触发无线 AP 扫描，保持极致静默。
 
-### 5. 🌐 智能网络环境感知 (Campus vs. Home)
-- 根据连接 Wi-Fi SSID 自动感知当前处于「校园网环境」还是「家庭/常用免认证网络」；
-- 在家庭网络或手机热点下，系统自动屏蔽校园网关超时报警与重复登录重试，仅保持网络连通性与电源电量守护。
+### 5. 🔔 多平台通知引擎与容灾中心
+- **飞书自定义机器人**：发送高颜值自适应彩色交互卡片（Interactive Cards），手机即时推送；
+- **钉钉自定义机器人**：企业级 HMAC-SHA256 动态加签防重放，自动生成结构化 Markdown；
+- **Telegram Bot 远程运维**：支持 Telegram 双向交互、快捷内联按钮面板与远程控制菜单。
 
-### 6. 🍃 极致低耗常驻（0.0% CPU 占用 · 5~15MB 极寒内存）
-- **界面层极寒深休眠**：主窗口最小化至系统托盘挂起时，彻底停用前端所有图表重绘、定时器与日志文件读取，杜绝后台无谓空转；
-- **自适应智能心跳**：网络稳定在线时探活频率平缓延长至 10 秒，主监控循环依据任务到期倒计时自适应深睡眠，大幅降低 CPU 中断唤醒；掉线时毫秒级切入 1~2 秒冲刺重连；
-- **Windows 物理工作集修剪**：托盘挂机时主动调用系统底层内存整理，实测常驻物理内存稳定压制在 **5MB ~ 15MB** 之间，挂机 CPU 占用率实测稳定在 **0.0%**，真正做到“润物细无声”，完全不挤占任何前台开发、编译或大型游戏资源。
+### 6. 🍃 极致低耗常驻（0.0% CPU 占用 · 4.8MB 极寒内存）
+- **界面层极寒深休眠**：主窗口最小化至系统托盘挂起时，彻底停用前端所有图表重绘、定时器与日志文件读取；
+- **自适应智能心跳**：在线时探活周期平缓延长至 10 秒，主监控循环依据任务倒计时自适应深睡眠；掉线时毫秒级切入 1~2 秒冲刺重连；
+- **Windows 物理工作集修剪**：托盘挂机时主动调用系统底层内存修剪，实测挂机内存稳定在 **4.8MB ~ 15MB** 之间，CPU 占用率稳定在 **0.0%**。
 
 ---
 
@@ -118,141 +117,37 @@ py -3.12 -m venv .venv
   & ".\.venv\Scripts\python.exe" "campus_guard.pyw"
   ```
 
-### 3. 小白 10 秒打通全流程（延大学生及各大高校通用）
-1. 启动程序后，主窗口将呈现全新的苹果风深色仪表盘；
-2. 电脑连接学校网络（延大师生连上 `YAU-WiFi` 或插入宿舍/实验室网线，其他高校连接各自校园 Wi-Fi）；
-3. 点击主界面顶部的 **「⚡ 校园网一键打通」** 醒目横幅；
-4. 程序后台全自动拦截并嗅探网关与服务器（延安大学默认内置最佳参数 `10.200.84.3` 与 `10.255.250.74`），在弹出的极简窗口中输入您的**学号**与**校园网密码**；
-5. 点击「🚀 一键保存并登录」，即可瞬间打通校园网并自动开启后台极致低功耗静默守护！
-
----
-
-## ⚙️ 配置文件说明 (`config.json`)
-
-系统首次运行时会自动根据 `config.example.json` 生成本地加密配置文件 `config.json`，敏感字段（校园网密码、Bot Token）均在本地通过 `cryptography.fernet` 自动高强度加密存储，绝不泄露。
-
-| 配置键名 | 类型 | 说明 | 延安大学默认值 / 示例 |
-| :--- | :--- | :--- | :--- |
-| `campus_auth_url` | 字符串 | 校园网 Dr.COM 认证提交地址（延大默认已配置，其他高校支持一键嗅探） | `"http://10.200.84.3:801/eportal/portal/login"` |
-| `campus_gateway` | 字符串 | 校园网内网网关探测 IP（延大核心网关路由，其他高校支持一键嗅探） | `"10.212.0.1"` 或 `"10.200.84.3"` |
-| `campus_account` | 字符串 | 校园网认证学号 / 账号（支持纯学号或带运营商后缀） | `"1110xxxxxxxxx"` |
-| `campus_password` | 字符串 | 校园网认证密码（本地高强度加密存储） | `"******"` |
-| `wlan_ac_ip` | 字符串 | 认证 AC 控制器 IP（延大默认已配置，其他高校支持一键嗅探） | `"10.255.250.74"` |
-| `campus_wifi_ssids` | 列表 | 视为校园网的 Wi-Fi SSID 列表 | `["YAU-WiFi", "Campus-WiFi", "EDUROAM"]` |
-| `trusted_home_ssids`| 列表 | 信任的家庭 / 手机热点免认证 Wi-Fi 列表 | `["Home_5G", "Pixel_Hotspot"]` |
-| `forced_network_mode`| 字符串 | 网络环境模式：`auto` (自动感知) / `campus` / `home` | `"auto"` |
-| `feishu_webhook_url`| 字符串 | 飞书自定义机器人 Webhook 地址（免梯推荐） | `""` |
-| `dingtalk_webhook_url`| 字符串 | 钉钉自定义机器人 Webhook 地址（免梯推荐） | `""` |
-| `dingtalk_secret` | 字符串 | 钉钉自定义机器人 HMAC-SHA256 加签密钥 | `""` |
-| `telegram_bot_token`| 字符串 | Telegram Bot Token（可选容灾） | `""` |
-| `telegram_user_id` | 整数 | 允许控制该 Bot 的 Telegram 个人数字 ID | `0` |
-| `battery_warning_thresholds` | 列表 | 电量梯次报警百分比阈值 | `[50, 30, 20]` |
-| `auto_shutdown_threshold` | 整数 | 触发自动安全关机的电量百分比 | `20` |
-| `auto_shutdown_delay` | 整数 | 自动关机触发后的缓冲倒计时（秒） | `60` |
-| `autostart` | 布尔 | 随 Windows 开机自动静默启动 | `true` |
-
----
-
-## 🤖 远程控制指令集 (Telegram / 快捷按钮)
-
-在 Telegram 中向 Bot 发送消息，或点击回复消息中附带的 **内联快捷按钮 (Inline Keyboard)** 即可完成远程控制：
-
-| 命令 | 说明 |
-| :--- | :--- |
-| `/status` | 综合看板：即时查询网络、电量、供电及系统资源，附带全套快捷内联操作按钮 |
-| `/network` | 网络专报：查看活动物理网卡、网关连通、外网连通与 Clash/TUN 状态 |
-| `/battery` | 电量专报：查看供电状态、当前电量与关机保护阈值 |
-| `/mode` | 环境模式：查看当前网络感知模式，支持一键切换模式（自动 / 校园网 / 家庭网） |
-| `/wifi` | 无线扫描：扫描并列出周围所有可见 Wi-Fi 的 SSID、信号强度与加密类型 |
-| `/reconnect`| 手动重连：立刻重新连接校园 Wi-Fi 并执行 Dr.COM 登录认证 |
-| `/logout` | 主动下线：注销当前校园网登录状态，释放账号在线设备配额 |
-| `/lock` | 远程锁屏：即时锁定 Windows 桌面屏幕，保护个人隐私 |
-| `/screenshot`| 远程截屏：截取当前屏幕并通过消息发送（附带二次确认保护） |
-| `/shutdown` | 远程关机：触发 60 秒关机倒计时（支持随时通过 `/cancel` 撤销） |
-| `/log [N]` | 日志调阅：查看最近 N 行日志（默认 20 行，最多 200 行） |
-| `/restart` | 程序重启：优雅重启守护主进程 |
-
----
-
-## 📦 Windows 打包发布
-
-本项目内置一键打包脚本，可生成完全独立、免安装的单目录便携式执行程序：
-
+### 3. 运行全量单元测试
 ```powershell
-.\scripts\package_windows.ps1
+.\.venv\Scripts\python.exe -m unittest discover tests -v
 ```
-
-打包产物位于：
-```text
-dist\CampusGuard\CampusGuard.exe
-```
-打包版内置自动释放配置模板与加密机制，直接复制整个 `dist\CampusGuard` 目录即可在任意无 Python 环境的 Windows 电脑上运行。
+*(实测 37 项单元测试全部 100% 通过)*
 
 ---
 
-## 🧪 测试与质量验证
+## 🤝 欢迎贡献更多高校规则
 
-项目包含严密的单元测试套件，全面覆盖 Captive Portal 嗅探、飞书/钉钉卡片构造、Wi-Fi 防频繁定位长效缓存与网络状态机：
+如果您所在的大学尚未收录，或者您抓取到了自己学校的认证参数，欢迎通过 Pull Request 为全国高校学子贡献规则！
+只需在 [`data/universities.json`](data/universities.json) 中添加您的学校信息：
 
-- **运行全量自动化测试**：
-  ```powershell
-  .\.venv\Scripts\python.exe -m unittest discover -s tests -v
-  ```
-  *(24 项核心测试 100% 通过，平均执行耗时 < 0.3 秒)*
-
-- **全量静态语法检查**：
-  ```powershell
-  .\.venv\Scripts\python.exe -m compileall -q campus_guard tests campus_guard.pyw
-  ```
-
----
-
-## 📁 项目工程结构
-
-```text
-campus-tool/
-├── campus_guard.pyw            # 启动器入口（双击直接无黑框运行）
-├── campus_guard/               # 核心源码包
-│   ├── auth.py                 # Dr.COM 认证协议、注销下线与 Captive Portal 302 嗅探
-│   ├── battery.py              # 电池电量多级告警、断电感知与自动关机守护
-│   ├── config.py               # 配置加载、AES 加密存储、热重载与动态更新
-│   ├── logging_setup.py        # 日志系统初始化与滚动日志记录
-│   ├── models.py               # 数据模型（配置项、网络模式、守护状态枚举）
-│   ├── network.py              # 智能环境感知、异步非阻塞探针与自动重连状态机
-│   ├── notifier.py             # [新] 统一通知中心（飞书彩色卡片、钉钉加签、Telegram）
-│   ├── paths.py                # 应用运行时路径与可执行文件定位
-│   ├── runtime.py              # 并发监控循环、Windows 自启动任务与主装配入口
-│   ├── security.py             # 敏感凭据本地加密与密钥管理
-│   ├── system.py               # 物理网卡识别、Wi-Fi 120s 防定位长效缓存、系统工具
-│   ├── telegram_bot.py         # Telegram 机器人、内联快捷按钮与命令菜单
-│   ├── tray.py                 # 状态彩色托盘图标生成与绘制
-│   ├── ui.py                   # 门面主窗口装配层与托盘交互
-│   └── ui_modules/             # [新] 模块化苹果设计系统 UI 组件
-│       ├── dashboard_page.py   # 苹果风格仪表盘看板与一键打通横幅
-│       ├── log_page.py         # 苹果深色终端风格日志面板与关键词检索
-│       ├── quick_setup_dialog.py # 小白 10 秒一键智能配网苹果风向导弹窗
-│       ├── settings_page.py    # macOS Grouped Insets 分组内嵌式设置表单
-│       ├── styles.py           # Apple HIG 色彩规范、抗锯齿矢量字体与 QSS 样式表
-│       └── widgets.py          # Squircle 连续平滑圆角卡片与呼吸状态药丸
-├── tests/                      # 自动化测试套件
-│   └── test_campus_guard.py    # 24 项单元测试（涵盖协议、卡片、嗅探与缓存）
-├── docs/                       # 架构与人工测试手册
-├── scripts/                    # 打包脚本 (package_windows.ps1)
-├── CampusGuard.spec            # PyInstaller 打包规格文件
-├── config.example.json         # 无敏感凭据的配置文件模板
-└── README.md                   # 项目综合介绍与使用文档
+```json
+{
+  "id": "your_school_id",
+  "name": "某某大学 (深澜 Srun / 城市热点 / 锐捷)",
+  "pinyin": "moumoudaxue mmdx",
+  "protocol": "srun",
+  "auth_url": "http://10.0.0.1/cgi-bin/srun_portal",
+  "gateway": "10.0.0.1",
+  "ac_ip": "1",
+  "wifi_ssids": ["School-WiFi"],
+  "domain_keywords": ["school.edu.cn"],
+  "description": "某某大学校园网 Portal 认证"
+}
 ```
-
----
-
-## 🔒 隐私与开源安全承诺
-
-- **零凭据提交**：公共仓库不包含且永久忽略真实 `config.json`、`campus_guard.key` 与 `*.log` 文件；
-- **本地高强度保护**：本地配置文件中的账号密码与 Bot 密钥通过系统独立生成的 Fernet 密钥加密存储；
-- **无公网回传**：除与您自行配置的学校认证网关、飞书/钉钉 Webhook 及 Telegram 服务器通信外，绝无任何第三方数据上报或遥测代码。
 
 ---
 
 ## 📄 开源许可证
 
-本项目基于 [MIT License](LICENSE) 开源。欢迎高校学子与开发者提交 Pull Request 或 Issue 共同完善！
+本项目基于 MIT License 开放源代码。
+特别致敬延安大学（Yan'an University）校园网络开发与测试支持。

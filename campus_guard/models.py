@@ -38,6 +38,10 @@ class Config:
     reconnect_verify_delay_seconds: int = 3
     reconnect_fast_retry_seconds: int = 2
     bot_watchdog_stale_seconds: int = 300
+    auth_protocol: str = "drcom"
+    university_id: str = "yau"
+    university_name: str = "延安大学 (默认 · Dr.COM)"
+    auth_extra_params: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
     def from_mapping(cls, data: Mapping[str, Any]) -> "Config":
@@ -93,6 +97,10 @@ class Config:
             bot_watchdog_stale_seconds=int(
                 data.get("bot_watchdog_stale_seconds", 300)
             ),
+            auth_protocol=str(data.get("auth_protocol", "drcom")),
+            university_id=str(data.get("university_id", "yau")),
+            university_name=str(data.get("university_name", "延安大学 (默认 · Dr.COM)")),
+            auth_extra_params=dict(data.get("auth_extra_params", {})),
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -122,6 +130,10 @@ class Config:
             "reconnect_verify_delay_seconds": self.reconnect_verify_delay_seconds,
             "reconnect_fast_retry_seconds": self.reconnect_fast_retry_seconds,
             "bot_watchdog_stale_seconds": self.bot_watchdog_stale_seconds,
+            "auth_protocol": self.auth_protocol,
+            "university_id": self.university_id,
+            "university_name": self.university_name,
+            "auth_extra_params": dict(self.auth_extra_params),
         }
 
 

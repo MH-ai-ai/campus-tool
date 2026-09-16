@@ -6,13 +6,17 @@ from PyInstaller.utils.hooks import collect_submodules
 hiddenimports = (
     collect_submodules("telegram")
     + collect_submodules("telegram.ext")
+    + collect_submodules("campus_guard")
 )
 
 a = Analysis(
     ["campus_guard.pyw"],
     pathex=[],
     binaries=[],
-    datas=[],
+    datas=[
+        ("data/universities.json", "data"),
+        ("config.example.json", "."),
+    ],
     hiddenimports=hiddenimports,
     hookspath=[],
     hooksconfig={},
