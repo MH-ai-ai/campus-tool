@@ -368,26 +368,13 @@ class _DashboardPage(QWidget):
 
         def _done(result):
             self._worker = None
-            if isinstance(result, Exception):
-                QMessageBox.warning(self, "探测出错", f"自动探测异常: {result}")
-                self.status_label.setText("")
-                return
-            ok, msg, detected = result
-            if not ok and not detected.get("campus_auth_url"):
-                # 如果没有捕获到 302，让用户决定是否仍打开手动弹窗
-                reply = QMessageBox.question(
-                    self,
-                    "未捕获重定向",
-                    f"{msg}\n\n当前可能已连通公网，或尚未连入学校 Wi-Fi。\n是否仍打开快速输入弹窗？",
-                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-                )
-                if reply != QMessageBox.StandardButton.Yes:
-                    self.status_label.setText("")
-                    return
+            detected: dict[str, str] = {}
+            if not isinstance(result, Exception):
+                _ok, _msg, detected = result
 
             dlg = QuickSetupDialog(detected, parent=self)
             if dlg.exec():
-                self.status_label.setText("✅ 校园网配置完成并已上线！")
+                self.status_label.setText("✅ 校园网配置已保存并尝试连接上线！")
                 self.status_label.setStyleSheet(f"color: {_APPLE_COLORS['success']};")
                 self.network.check()
             else:
@@ -398,43 +385,88 @@ class _DashboardPage(QWidget):
         self._worker.start()
 
     def _reconnect_wifi(self) -> None:
-        self.status_label.setText("📶 正在尝试重连 WiFi...")
+        self.status_label.setText("📶 正在尝试恢复与重连 WiFi...")
         self.status_label.setStyleSheet(f"color: {_APPLE_COLORS['accent']};")
-        cfg = get_config_dict()
-        ssids = cfg.get("campus_wifi_ssids", [])
-        if not ssids:
-            old = cfg.get("campus_wifi_ssid", "")
-            ssids = [old] if old else []
 
         def _do():
-            for ssid in ssids:
-                if reconnect_wifi(str(ssid)):
-                    return (True, ssid)
-            return (False, "")
+            cfg = get_config_dict()
+            candidates: list[str] = []
+
+            # 1. 优先提取当前正在连接的 Wi-Fi 名称
+            wifi_raw = get_wifi_info(force=True)
+            current_ssid = wifi_raw.split("(", 1)[0].strip() if "(" in wifi_raw else wifi_raw.strip()
+            if current_ssid and current_ssid not in ("未连接", "未知"):
+                candidates.append(current_ssid)
+
+            # 2. 用户配置中的校园 SSID
+            configured = cfg.get("campus_wifi_ssids", [])
+            if isinstance(configured, (list, tuple)):
+                for s in configured:
+                    s_str = str(s).strip()
+                    if s_str and s_str not in candidates:
+                        candidates.append(s_str)
+            single = str(cfg.get("campus_wifi_ssid", "")).strip()
+            if single and single not in candidates:
+                candidates.append(single)
+
+            # 3. 系统中保存的无线配置文件 (netsh wlan profiles)
+            from ..system import get_saved_wifi_profiles
+            saved = get_saved_wifi_profiles()
+            for p in saved:
+                if any(k in p.lower() for k in ("yadx", "yau", "campus", "wlan", "wifi", "stu", "tea")):
+                    if p not in candidates:
+                        candidates.append(p)
+
+            # 依次尝试已找到的候选 SSID
+            for target_ssid in candidates:
+                if reconnect_wifi(target_ssid):
+                    return True, target_ssid
+
+            # 兜底：直接执行系统智能自愈重连
+            if reconnect_wifi():
+                active = get_wifi_info(force=True)
+                active_name = active.split("(", 1)[0].strip() if "(" in active else active
+                return True, active_name
+
+            return False, current_ssid
 
         def _done(result):
             self._worker = None
             if isinstance(result, Exception):
-                self.status_label.setText(f"❌ WiFi 重连出错: {result}")
-            elif result[0]:
-                self.status_label.setText(f"✅ WiFi 已重新连接: {result[1]}")
-                self.status_label.setStyleSheet(f"color: {_APPLE_COLORS['success']};")
-            else:
-                self.status_label.setText("❌ WiFi 重连失败，所有 SSID 均不可用")
+                self.status_label.setText(f"❌ WiFi 重连异常: {result}")
                 self.status_label.setStyleSheet(f"color: {_APPLE_COLORS['danger']};")
+            elif result[0]:
+                self.status_label.setText(f"✅ WiFi 已恢复连接并获取 IP: {result[1]}")
+                self.status_label.setStyleSheet(f"color: {_APPLE_COLORS['success']};")
+                self.network.check()
+            else:
+                self.status_label.setText("⚠️ 未找到系统已存可用 WiFi，请先在 Windows 网络列表中连接一次")
+                self.status_label.setStyleSheet(f"color: {_APPLE_COLORS['warning']};")
 
         self._worker = _Worker(_do, parent=self)
         self._worker.finished.connect(_done)
         self._worker.start()
 
     def _auth_campus(self) -> None:
-        self.status_label.setText("🔐 正在发起校园网认证...")
+        cfg = get_config_dict()
+        acc = str(cfg.get("campus_account", "") or "").strip()
+        pwd = str(cfg.get("campus_password", "") or "").strip()
+        url = str(cfg.get("campus_auth_url", "") or "").strip()
+
+        if not acc or not pwd or not url:
+            self.status_label.setText("⚠️ 尚未配置学号密码，已为您打开一键配置窗口...")
+            self.status_label.setStyleSheet(f"color: {_APPLE_COLORS['warning']};")
+            self._on_click_quick_setup()
+            return
+
+        self.status_label.setText("🔐 正在发起校园网认证登录...")
         self.status_label.setStyleSheet(f"color: {_APPLE_COLORS['accent']};")
 
         def _done(result):
             self._worker = None
             if isinstance(result, Exception):
-                self.status_label.setText(f"❌ 认证出错: {result}")
+                self.status_label.setText(f"❌ 认证异常: {result}")
+                self.status_label.setStyleSheet(f"color: {_APPLE_COLORS['danger']};")
             else:
                 ok, msg = result
                 self.status_label.setText(f"{'✅' if ok else '❌'} {msg}")
@@ -448,16 +480,20 @@ class _DashboardPage(QWidget):
         self._worker.start()
 
     def _logout_campus(self) -> None:
-        self.status_label.setText("🚪 正在注销校园网下线...")
+        self.status_label.setText("🚪 正在向网关注销下线...")
         self.status_label.setStyleSheet(f"color: {_APPLE_COLORS['accent']};")
 
         def _done(result):
             self._worker = None
             if isinstance(result, Exception):
-                self.status_label.setText(f"❌ 注销出错: {result}")
+                self.status_label.setText(f"❌ 注销下线异常: {result}")
+                self.status_label.setStyleSheet(f"color: {_APPLE_COLORS['danger']};")
             else:
                 ok, msg = result
                 self.status_label.setText(f"{'✅' if ok else '❌'} {msg}")
+                self.status_label.setStyleSheet(
+                    f"color: {_APPLE_COLORS['success'] if ok else _APPLE_COLORS['danger']};"
+                )
                 self.network.check()
 
         self._worker = _Worker(campus_logout, parent=self)
@@ -467,10 +503,11 @@ class _DashboardPage(QWidget):
     def _lock_screen(self) -> None:
         try:
             ctypes.windll.user32.LockWorkStation()
-            self.status_label.setText("🔒 屏幕已锁定")
+            self.status_label.setText("🔒 屏幕锁定命令已执行")
             self.status_label.setStyleSheet(f"color: {_APPLE_COLORS['success']};")
         except Exception as err:
             self.status_label.setText(f"❌ 锁屏失败: {err}")
+            self.status_label.setStyleSheet(f"color: {_APPLE_COLORS['danger']};")
 
     def _screenshot(self) -> None:
         try:
@@ -479,16 +516,22 @@ class _DashboardPage(QWidget):
             img = ImageGrab.grab()
             img.save(tmp, "PNG")
             os.startfile(tmp)
-            self.status_label.setText(f"📸 截图已保存: {tmp.name}")
+            self.status_label.setText("📸 截图已保存至应用目录并已打开预览")
             self.status_label.setStyleSheet(f"color: {_APPLE_COLORS['success']};")
         except Exception as err:
             self.status_label.setText(f"❌ 截图失败: {err}")
+            self.status_label.setStyleSheet(f"color: {_APPLE_COLORS['danger']};")
 
     def _restart(self) -> None:
         from PyQt6.QtWidgets import QApplication
 
-        log.info("用户请求重启")
-        script = str(APP_DIR / "campus_guard.pyw")
-        python = sys.executable
-        subprocess.Popen([python, script], creationflags=0x08000000)
+        log.info("用户请求重启守护程序")
+        if getattr(sys, "frozen", False):
+            cmd = [sys.executable]
+        else:
+            script = str(APP_DIR / "campus_guard.pyw")
+            python = sys.executable
+            cmd = [python, script]
+
+        subprocess.Popen(cmd, creationflags=0x08000000)
         QApplication.quit()

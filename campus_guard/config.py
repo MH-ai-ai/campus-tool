@@ -27,9 +27,11 @@ def ensure_config_file() -> None:
         return
 
     example_path = Path(APP_DIR) / "config.example.json"
-    if example_path.exists():
+    internal_example = Path(APP_DIR) / "_internal" / "config.example.json"
+    target_example = example_path if example_path.exists() else (internal_example if internal_example.exists() else None)
+    if target_example:
         CONFIG_PATH.write_text(
-            example_path.read_text(encoding="utf-8"),
+            target_example.read_text(encoding="utf-8"),
             encoding="utf-8",
         )
         log.warning("config.json 不存在，已从模板创建: %s", CONFIG_PATH)

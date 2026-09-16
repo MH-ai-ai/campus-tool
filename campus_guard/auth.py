@@ -58,10 +58,24 @@ def parse_drcom_response(text: str) -> tuple[bool, str]:
 # ---------------------------------------------------------
 
 def campus_login(config: Config | None = None) -> tuple[bool, str]:
-    """根据当前配置的协议体系（深澜 Srun / 城市热点 Dr.COM / 锐捷 Ruijie / 通用 Portal）执行认证登录。"""
+    """根据当前配置的协议体系执行认证登录。"""
     active_config = config or get_config()
     protocol = getattr(active_config, "auth_protocol", "drcom") or "drcom"
     adapter = get_adapter(protocol)
+
+    url = str(getattr(active_config, "campus_auth_url", "") or "").strip()
+    if not url:
+        return False, "未配置校园网认证接口地址，请点击上方「一键极速打通」快速填入"
+    if not url.startswith(("http://", "https://")):
+        return False, f"认证地址 URL 格式无效（缺少 http:// 或 https://）: {url}"
+
+    account = str(getattr(active_config, "campus_account", "") or "").strip()
+    if not account:
+        return False, "未配置校园网学号/账号，请点击上方「一键极速打通」或在偏好设置中填写"
+
+    password = str(getattr(active_config, "campus_password", "") or "").strip()
+    if not password:
+        return False, "未配置校园网密码，请在偏好设置或一键打通中填写密码"
 
     local_ip = get_local_ip()
     
@@ -74,7 +88,7 @@ def campus_login(config: Config | None = None) -> tuple[bool, str]:
 
     # 如果自动重连后依然无法获得 IP，友善提示用户，避免触发底层套接字网络不可达异常 (WinError 10051)
     if not local_ip or local_ip == "未知" or local_ip.startswith("169.254."):
-        msg = "当前电脑尚未连入校园 Wi-Fi (未获得局域网 IP)，请先确认无线开关开启"
+        msg = "电脑尚未连入校园 Wi-Fi (未获取到局域网 IP)，请先确认已连接校园无线网络"
         log.warning("校园网认证前置拦截: %s", msg)
         return False, msg
 
@@ -86,7 +100,16 @@ def campus_login(config: Config | None = None) -> tuple[bool, str]:
         getattr(active_config, "university_name", "默认"),
         local_ip,
     )
-    return adapter.login(active_config, local_ip, local_mac)
+    try:
+        return adapter.login(active_config, local_ip, local_mac)
+    except requests.exceptions.MissingSchema:
+        return False, f"认证地址 URL 格式错误（缺少 http://）: {url}"
+    except requests.exceptions.ConnectionError:
+        return False, "无法连接到认证网关服务器，请确认已连接校园 Wi-Fi 且网关地址正确"
+    except requests.exceptions.Timeout:
+        return False, "校园网认证网关请求超时，请检查当前 Wi-Fi 信号"
+    except Exception as err:
+        return False, f"认证请求异常: {err}"
 
 
 def campus_logout(config: Config | None = None) -> tuple[bool, str]:
@@ -94,6 +117,10 @@ def campus_logout(config: Config | None = None) -> tuple[bool, str]:
     active_config = config or get_config()
     protocol = getattr(active_config, "auth_protocol", "drcom") or "drcom"
     adapter = get_adapter(protocol)
+
+    url = str(getattr(active_config, "campus_auth_url", "") or "").strip()
+    if not url:
+        return False, "未配置校园网认证接口地址，无法执行下线注销"
 
     local_ip = get_local_ip()
     local_mac = get_local_mac()
@@ -103,7 +130,14 @@ def campus_logout(config: Config | None = None) -> tuple[bool, str]:
         adapter.display_name,
         getattr(active_config, "university_name", "默认"),
     )
-    return adapter.logout(active_config, local_ip, local_mac)
+    try:
+        return adapter.logout(active_config, local_ip, local_mac)
+    except requests.exceptions.ConnectionError:
+        return False, "无法连接到认证网关服务器，当前可能已经离线"
+    except requests.exceptions.Timeout:
+        return False, "注销下线请求超时"
+    except Exception as err:
+        return False, f"注销请求异常: {err}"
 
 
 def auto_detect_portal_config() -> tuple[bool, str, dict[str, Any]]:

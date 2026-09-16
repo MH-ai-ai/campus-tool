@@ -46,8 +46,10 @@ def detect_is_campus_network(ssid: str, gateway_ok: bool) -> bool:
     home_ssids = [str(s).strip().lower() for s in cfg.get("trusted_home_ssids", []) if s]
 
     cleaned_ssid = ssid.strip().lower()
-    # 1. 匹配已知校园 SSID
+    # 1. 匹配已知校园 SSID 或通用校园关键词 (例如延安大学 YADX-STU, YADX-TEA)
     if any(cs in cleaned_ssid for cs in campus_ssids if cs):
+        return True
+    if any(k in cleaned_ssid for k in ("yadx", "yau", "campus", "wlan", "wifi", "stu", "tea")):
         return True
 
     # 2. 匹配已知家庭/信任网络 SSID

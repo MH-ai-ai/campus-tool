@@ -13,20 +13,20 @@ class NetworkMode(str, Enum):
 
 @dataclass(frozen=True)
 class Config:
-    telegram_bot_token: str
-    telegram_user_id: int
-    campus_auth_url: str
-    campus_account: str
-    campus_password: str
-    wlan_ac_ip: str
+    telegram_bot_token: str = ""
+    telegram_user_id: int = 0
+    campus_auth_url: str = "http://10.200.84.3:801/eportal/portal/login"
+    campus_account: str = ""
+    campus_password: str = ""
+    wlan_ac_ip: str = "10.255.250.74"
     check_interval_seconds: int = 5
-    network_check_interval_seconds: int = 30
+    network_check_interval_seconds: int = 2
     low_battery_threshold: int = 30
     battery_warning_thresholds: tuple[int, ...] = (50, 30, 20)
     autostart: bool = True
     campus_gateway: str = "10.211.0.1"
-    campus_wifi_ssid: str = ""
-    campus_wifi_ssids: tuple[str, ...] = field(default_factory=tuple)
+    campus_wifi_ssid: str = "YADX-STU"
+    campus_wifi_ssids: tuple[str, ...] = ("YADX-STU", "YADX-TEA")
     trusted_home_ssids: tuple[str, ...] = field(default_factory=tuple)
     forced_network_mode: str = "auto"
     feishu_webhook_url: str = ""
@@ -50,6 +50,9 @@ class Config:
             ssid_tuple = tuple(s.strip() for s in ssids.split(",") if s.strip())
         else:
             ssid_tuple = tuple(str(s) for s in ssids if str(s))
+        if not ssid_tuple:
+            single_ssid = str(data.get("campus_wifi_ssid", "")).strip()
+            ssid_tuple = (single_ssid,) if single_ssid else ("YADX-STU", "YADX-TEA")
 
         home_ssids = data.get("trusted_home_ssids", ())
         if isinstance(home_ssids, str):
@@ -65,13 +68,22 @@ class Config:
                 sorted({int(t) for t in battery_thresholds}, reverse=True)
             )
 
+        raw_auth_url = str(data.get("campus_auth_url", "")).strip()
+        auth_url = raw_auth_url or "http://10.200.84.3:801/eportal/portal/login"
+
+        raw_gateway = str(data.get("campus_gateway", "")).strip()
+        gateway = raw_gateway or "10.211.0.1"
+
+        raw_ac_ip = str(data.get("wlan_ac_ip", "")).strip()
+        ac_ip = raw_ac_ip or "10.255.250.74"
+
         return cls(
             telegram_bot_token=str(data.get("telegram_bot_token", "")),
             telegram_user_id=int(data.get("telegram_user_id", 0)),
-            campus_auth_url=str(data.get("campus_auth_url", "")),
+            campus_auth_url=auth_url,
             campus_account=str(data.get("campus_account", "")),
             campus_password=str(data.get("campus_password", "")),
-            wlan_ac_ip=str(data.get("wlan_ac_ip", "")),
+            wlan_ac_ip=ac_ip,
             check_interval_seconds=int(data.get("check_interval_seconds", 5)),
             network_check_interval_seconds=int(
                 data.get("network_check_interval_seconds", 2)
@@ -79,8 +91,8 @@ class Config:
             low_battery_threshold=int(data.get("low_battery_threshold", 30)),
             battery_warning_thresholds=threshold_tuple,
             autostart=bool(data.get("autostart", True)),
-            campus_gateway=str(data.get("campus_gateway", "10.212.0.1")),
-            campus_wifi_ssid=str(data.get("campus_wifi_ssid", "")),
+            campus_gateway=gateway,
+            campus_wifi_ssid=str(data.get("campus_wifi_ssid", "YADX-STU")),
             campus_wifi_ssids=ssid_tuple,
             trusted_home_ssids=home_ssid_tuple,
             forced_network_mode=str(data.get("forced_network_mode", "auto")),
