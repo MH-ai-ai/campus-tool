@@ -62,8 +62,22 @@ def campus_login(config: Config | None = None) -> tuple[bool, str]:
     active_config = config or get_config()
     protocol = getattr(active_config, "auth_protocol", "drcom") or "drcom"
     adapter = get_adapter(protocol)
-    
+
     local_ip = get_local_ip()
+    
+    # 前置保护：如果当前无线断开或未获取到有效局域网 IP，尝试自动唤醒恢复 Wi-Fi 连接
+    if not local_ip or local_ip == "未知" or local_ip.startswith("169.254."):
+        log.warning("检测到尚未获取有效局域网 IP，正在尝试自动恢复 Wi-Fi 链路...")
+        from .system import reconnect_wifi
+        reconnect_wifi()
+        local_ip = get_local_ip()
+
+    # 如果自动重连后依然无法获得 IP，友善提示用户，避免触发底层套接字网络不可达异常 (WinError 10051)
+    if not local_ip or local_ip == "未知" or local_ip.startswith("169.254."):
+        msg = "当前电脑尚未连入校园 Wi-Fi (未获得局域网 IP)，请先确认无线开关开启"
+        log.warning("校园网认证前置拦截: %s", msg)
+        return False, msg
+
     local_mac = get_local_mac()
 
     log.info(

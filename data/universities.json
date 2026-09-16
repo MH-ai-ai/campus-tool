@@ -2,14 +2,14 @@
   {
     "id": "yau",
     "name": "延安大学 (默认 · Dr.COM)",
-    "pinyin": "yanandaxue yau ydy",
+    "pinyin": "yanandaxue yau ydy yadx",
     "protocol": "drcom",
-    "auth_url": "http://10.212.0.1:801/eportal/index.jsp",
-    "gateway": "10.212.0.1",
-    "ac_ip": "",
-    "wifi_ssids": ["YAU", "YAU_5G", "i-YAU"],
-    "domain_keywords": ["10.212.0.1", "yau.edu.cn"],
-    "description": "延安大学新校区/老校区 Dr.COM ePortal 校园网"
+    "auth_url": "http://10.200.84.3:801/eportal/portal/login",
+    "gateway": "10.211.0.1",
+    "ac_ip": "10.255.250.74",
+    "wifi_ssids": ["YADX-STU", "YADX-TEA", "YAU", "YAU_5G", "i-YAU"],
+    "domain_keywords": ["10.200.84.3", "10.211.", "10.212.", "yadx", "yau.edu.cn"],
+    "description": "延安大学新校区/杨家岭校区/萃园 Dr.COM ePortal 校园网 (YADX-STU / YADX-TEA)"
   },
   {
     "id": "generic_drcom",

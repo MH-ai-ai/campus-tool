@@ -24,7 +24,7 @@ class Config:
     low_battery_threshold: int = 30
     battery_warning_thresholds: tuple[int, ...] = (50, 30, 20)
     autostart: bool = True
-    campus_gateway: str = "10.212.0.1"
+    campus_gateway: str = "10.211.0.1"
     campus_wifi_ssid: str = ""
     campus_wifi_ssids: tuple[str, ...] = field(default_factory=tuple)
     trusted_home_ssids: tuple[str, ...] = field(default_factory=tuple)

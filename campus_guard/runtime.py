@@ -97,8 +97,25 @@ def build_autostart_command() -> str:
 def setup_autostart() -> None:
     if platform.system() != "Windows":
         return
+    cmd = build_autostart_command()
+    # 1. 优先使用 Windows 官方推荐 HKCU Run 注册表（100% 免管理员提权，开机登录桌面可靠启动托盘）
     try:
-        main_tr = build_autostart_command()
+        import winreg
+
+        key = winreg.OpenKey(
+            winreg.HKEY_CURRENT_USER,
+            r"Software\Microsoft\Windows\CurrentVersion\Run",
+            0,
+            winreg.KEY_SET_VALUE,
+        )
+        winreg.SetValueEx(key, "CampusGuard", 0, winreg.REG_SZ, cmd)
+        winreg.CloseKey(key)
+        log.info("已成功注册 Windows 开机自启动 (HKCU Run): %s", cmd)
+    except Exception as err:
+        log.error("写入注册表自启动项失败: %s", err)
+
+    # 2. 尝试配置用户级计划任务作为备用容灾（不使用 /rl highest 避免提权拦截）
+    try:
         subprocess.run(
             [
                 "schtasks",
@@ -106,38 +123,44 @@ def setup_autostart() -> None:
                 "/tn",
                 "CampusGuard",
                 "/tr",
-                main_tr,
+                cmd,
                 "/sc",
                 "onlogon",
-                "/rl",
-                "highest",
                 "/f",
             ],
             capture_output=True,
             text=True,
             creationflags=0x08000000,
         )
+    except Exception:
+        pass
+
+
+def remove_autostart() -> None:
+    if platform.system() != "Windows":
+        return
+    try:
+        import winreg
+
+        key = winreg.OpenKey(
+            winreg.HKEY_CURRENT_USER,
+            r"Software\Microsoft\Windows\CurrentVersion\Run",
+            0,
+            winreg.KEY_SET_VALUE,
+        )
+        winreg.DeleteValue(key, "CampusGuard")
+        winreg.CloseKey(key)
+        log.info("已注销 Windows 自启动项")
+    except Exception:
+        pass
+    try:
         subprocess.run(
-            [
-                "schtasks",
-                "/create",
-                "/tn",
-                "CampusGuardRecovery",
-                "/tr",
-                main_tr,
-                "/sc",
-                "onstart",
-                "/delay",
-                "0000:30",
-                "/f",
-            ],
+            ["schtasks", "/delete", "/tn", "CampusGuard", "/f"],
             capture_output=True,
-            text=True,
             creationflags=0x08000000,
         )
-        log.info("已注册 Windows Task Scheduler 自启动任务")
-    except Exception as err:
-        log.error("注册 Task Scheduler 失败: %s", err)
+    except Exception:
+        pass
 
 
 def main() -> None:

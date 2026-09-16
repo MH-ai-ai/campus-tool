@@ -243,32 +243,93 @@ def is_wifi_connected() -> bool:
     return False
 
 
-def reconnect_wifi(ssid: str) -> bool:
-    if not ssid:
-        return False
+def get_saved_wifi_profiles() -> list[str]:
+    """获取本机 Windows 系统中已保存的所有无线网络配置文件名称。"""
+    profiles: list[str] = []
     try:
-        log.info("尝试重连 WiFi: %s", ssid)
-        subprocess.run(
-            ["netsh", "wlan", "disconnect"],
-            capture_output=True,
-            timeout=10,
-            creationflags=0x08000000,
-        )
         result = subprocess.run(
-            ["netsh", "wlan", "connect", f"name={ssid}"],
+            ["netsh", "wlan", "show", "profiles"],
             capture_output=True,
-            timeout=15,
+            timeout=5,
             creationflags=0x08000000,
         )
-        output = decode_subprocess_output(result.stdout + result.stderr)
-        if result.returncode == 0:
-            log.info("WiFi 重连成功: %s", ssid)
-            return True
-        log.warning("WiFi 重连失败: %s", output.strip())
-        return False
+        output = decode_subprocess_output(result.stdout)
+        for line in output.splitlines():
+            if ":" in line and any(k in line for k in ("All User Profile", "所有用户配置文件", "User Profile")):
+                name = line.split(":", 1)[1].strip()
+                if name and name not in profiles:
+                    profiles.append(name)
     except Exception as err:
-        log.error("WiFi 重连异常: %s", err)
+        log.debug("获取系统 WiFi 配置文件异常: %s", err)
+    return profiles
+
+
+def reconnect_wifi(ssid: str = "") -> bool:
+    """智能恢复 Wi-Fi 连接。支持指定 SSID，或自动从候选列表与系统已保存配置中寻找最匹配的校园/家庭网络。"""
+    candidates: list[str] = []
+    if ssid:
+        candidates.append(ssid)
+
+    # 从用户配置中载入候选
+    try:
+        cfg = get_config_dict()
+        configured_ssids = cfg.get("campus_wifi_ssids", [])
+        if isinstance(configured_ssids, (list, tuple)):
+            for s in configured_ssids:
+                if s and str(s) not in candidates:
+                    candidates.append(str(s))
+    except Exception:
+        pass
+
+    # 获取当前系统已保存的无线网络配置文件
+    saved_profiles = get_saved_wifi_profiles()
+
+    # 延安大学及主流校园网默认特征候选 (如 YADX-STU, YADX-TEA 等)
+    campus_keywords = ("yadx", "yau", "campus", "wlan", "wifi", "stu", "tea")
+    for p in saved_profiles:
+        p_lower = p.lower()
+        if any(k in p_lower for k in campus_keywords):
+            if p not in candidates:
+                candidates.append(p)
+
+    # 兜底将其他系统已保存网络也加入尝试队列
+    for p in saved_profiles:
+        if p not in candidates:
+            candidates.append(p)
+
+    if not candidates:
+        log.warning("未找到可供连接的 Wi-Fi 配置文件")
         return False
+
+    for target in candidates:
+        if target not in saved_profiles:
+            continue
+        try:
+            log.info("尝试连接 Wi-Fi: %s", target)
+            result = subprocess.run(
+                ["netsh", "wlan", "connect", f"name={target}"],
+                capture_output=True,
+                timeout=10,
+                creationflags=0x08000000,
+            )
+            output = decode_subprocess_output(result.stdout + result.stderr)
+            if result.returncode == 0:
+                # 循环等待最多 3 秒直到网卡完成握手并获取有效 IP
+                global _wlan_cache
+                _wlan_cache = (0.0, target, 100)
+                for _ in range(6):
+                    time.sleep(0.5)
+                    ip = get_local_ip()
+                    if ip and ip != "未知" and not ip.startswith("169.254."):
+                        log.info("Wi-Fi 连接成功并已获得 IP: %s (IP=%s)", target, ip)
+                        return True
+                log.info("Wi-Fi 已发出连接请求: %s", target)
+                return True
+            log.warning("Wi-Fi 连接反馈: %s", output.strip())
+        except Exception as err:
+            log.debug("重连 Wi-Fi %s 异常: %s", target, err)
+
+    return False
 
 
 def get_public_ip() -> str:
