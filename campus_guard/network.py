@@ -76,6 +76,19 @@ class NetworkMonitor:
         self._is_probing = False
         self._reconnecting = False
 
+    def effective_check_interval(self, base_interval: int) -> int:
+        """自适应动态心跳计算：
+        - 稳定在线时心跳拉长至 10 秒（或 max(base_interval, 10)），让后台深度节能睡眠；
+        - 掉线或重连中进入高频突发冲刺模式（1~2秒），实现毫秒级快速自愈。
+        """
+        with self._lock:
+            if self.is_online is False or self._reconnecting:
+                cfg = get_config_dict()
+                return max(1, int(cfg.get("reconnect_fast_retry_seconds", 2)))
+            elif self.is_online is True:
+                return max(int(base_interval), 10)
+            return max(1, int(base_interval))
+
     def check(self) -> None:
         """主循环检测入口（非阻塞触发，保护主循环不被网络 IO 阻塞）。"""
         if not self.running:
