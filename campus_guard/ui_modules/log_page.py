@@ -14,7 +14,7 @@ from PyQt6.QtWidgets import (
 )
 
 from ..paths import LOG_PATH
-from .styles import _COLORS, get_apple_font
+from .styles import _APPLE_COLORS, _COLORS, get_apple_font
 
 
 class _LogReaderThread(QThread):
@@ -89,13 +89,13 @@ class _LogPage(QWidget):
         self.text.setFont(QFont("Consolas", 10))
         self.text.setStyleSheet(f"""
             QPlainTextEdit {{
-                background-color: {_COLORS['card']};
-                color: {_COLORS['text']};
-                border: 1px solid {_COLORS['border']};
-                border-radius: 8px;
-                padding: 10px;
-                selection-background-color: {_COLORS['accent']};
-                selection-color: #000;
+                background-color: #131418;
+                color: {_APPLE_COLORS['text_primary']};
+                border: 1px solid {_APPLE_COLORS['card_border_solid']};
+                border-radius: 12px;
+                padding: 12px;
+                selection-background-color: {_APPLE_COLORS['accent']};
+                selection-color: #ffffff;
             }}
         """)
         root.addWidget(self.text, 1)

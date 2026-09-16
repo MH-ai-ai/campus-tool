@@ -61,6 +61,7 @@ class QuickSetupDialog(QDialog):
         # 自动识别参数详情卡片
         info_card = QFrame()
         info_card.setObjectName("appleCard")
+        info_card.setFrameShape(QFrame.Shape.StyledPanel)
         info_layout = QVBoxLayout(info_card)
         info_layout.setContentsMargins(14, 12, 14, 12)
         info_layout.setSpacing(6)

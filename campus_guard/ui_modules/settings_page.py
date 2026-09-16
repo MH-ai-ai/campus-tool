@@ -7,6 +7,7 @@ from PyQt6.QtWidgets import (
     QCheckBox,
     QComboBox,
     QFormLayout,
+    QFrame,
     QGroupBox,
     QHBoxLayout,
     QLabel,
@@ -102,16 +103,34 @@ class _SettingsPage(QWidget):
 
         # 苹果分组内嵌滚动区
         scroll = QScrollArea()
+        scroll.setObjectName("settingsScrollArea")
         scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setStyleSheet("#settingsScrollArea { background: transparent; border: none; }")
+        if scroll.viewport():
+            scroll.viewport().setObjectName("settingsViewport")
+            scroll.viewport().setStyleSheet("#settingsViewport { background: transparent; }")
         scroll_widget = QWidget()
+        scroll_widget.setObjectName("settingsScrollWidget")
+        scroll_widget.setStyleSheet("#settingsScrollWidget { background: transparent; }")
         scroll_layout = QVBoxLayout(scroll_widget)
         scroll_layout.setContentsMargins(0, 0, 0, 16)
         scroll_layout.setSpacing(14)
 
         # 高校快捷预设载入卡片
-        preset_box = QGroupBox("🏫 全国高校模板预设快捷载入")
+        preset_card = QFrame()
+        preset_card.setObjectName("appleCard")
+        preset_card.setFrameShape(QFrame.Shape.StyledPanel)
+        preset_vbox = QVBoxLayout(preset_card)
+        preset_vbox.setContentsMargins(18, 14, 18, 14)
+        preset_vbox.setSpacing(8)
+
+        preset_title = QLabel("🏫 全国高校模板预设快捷载入")
+        preset_title.setFont(get_apple_font(11, QFont.Weight.Bold))
+        preset_title.setStyleSheet(f"color: {_APPLE_COLORS['accent']};")
+        preset_vbox.addWidget(preset_title)
+
         preset_layout = QHBoxLayout()
-        preset_layout.setContentsMargins(16, 12, 16, 12)
         preset_layout.setSpacing(10)
 
         self.preset_combo = QComboBox()
@@ -127,29 +146,40 @@ class _SettingsPage(QWidget):
         preset_layout.addWidget(apply_preset_btn)
         preset_layout.addStretch()
 
-        preset_box.setLayout(preset_layout)
-        scroll_layout.addWidget(preset_box)
+        preset_vbox.addLayout(preset_layout)
+        scroll_layout.addWidget(preset_card)
 
         self.fields: dict[str, QWidget] = {}
         raw_cfg = load_config_dict()
 
-        # 按 Group 组织表单
+        # 按 Group 组织表单，使用苹果连续圆角卡片承载
         groups: dict[str, list] = {}
         for key, label, group, wtype, extra in _SETTINGS_SCHEMA:
             groups.setdefault(group, []).append((key, label, wtype, extra))
 
         for group_name, items in groups.items():
-            gbox = QGroupBox(group_name)
+            card = QFrame()
+            card.setObjectName("appleCard")
+            card.setFrameShape(QFrame.Shape.StyledPanel)
+            card_vbox = QVBoxLayout(card)
+            card_vbox.setContentsMargins(18, 14, 18, 14)
+            card_vbox.setSpacing(10)
+
+            title_lbl = QLabel(group_name)
+            title_lbl.setFont(get_apple_font(11, QFont.Weight.Bold))
+            title_lbl.setStyleSheet(f"color: {_APPLE_COLORS['accent']};")
+            card_vbox.addWidget(title_lbl)
+
             form = QFormLayout()
-            form.setContentsMargins(16, 16, 16, 14)
-            form.setSpacing(12)
+            form.setContentsMargins(0, 4, 0, 0)
+            form.setSpacing(10)
             form.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
             for key, label, wtype, extra in items:
                 widget = self._create_widget(wtype, key, raw_cfg, extra)
                 form.addRow(label, widget)
                 self.fields[key] = widget
-            gbox.setLayout(form)
-            scroll_layout.addWidget(gbox)
+            card_vbox.addLayout(form)
+            scroll_layout.addWidget(card)
 
         scroll_layout.addStretch()
         scroll.setWidget(scroll_widget)

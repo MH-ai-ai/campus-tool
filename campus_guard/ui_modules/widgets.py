@@ -82,20 +82,45 @@ class _StatusPill(QLabel):
 
     def set_state(self, text: str, state_type: str = "neutral") -> None:
         color_map = {
-            "success": (_APPLE_COLORS["success"], _APPLE_COLORS["success_subtle"], "●"),
-            "warning": (_APPLE_COLORS["warning"], _APPLE_COLORS["warning_subtle"], "▲"),
-            "danger": (_APPLE_COLORS["danger"], _APPLE_COLORS["danger_subtle"], "■"),
-            "info": (_APPLE_COLORS["accent"], _APPLE_COLORS["accent_subtle"], "●"),
-            "neutral": (_APPLE_COLORS["text_secondary"], "rgba(255, 255, 255, 0.05)", "○"),
+            "success": (
+                _APPLE_COLORS["success"],
+                _APPLE_COLORS["success_subtle"],
+                _APPLE_COLORS["success_border"],
+                "●",
+            ),
+            "warning": (
+                _APPLE_COLORS["warning"],
+                _APPLE_COLORS["warning_subtle"],
+                _APPLE_COLORS["warning_border"],
+                "▲",
+            ),
+            "danger": (
+                _APPLE_COLORS["danger"],
+                _APPLE_COLORS["danger_subtle"],
+                _APPLE_COLORS["danger_border"],
+                "■",
+            ),
+            "info": (
+                _APPLE_COLORS["accent"],
+                _APPLE_COLORS["accent_subtle"],
+                _APPLE_COLORS["accent_border"],
+                "●",
+            ),
+            "neutral": (
+                _APPLE_COLORS["text_secondary"],
+                "rgba(255, 255, 255, 0.05)",
+                "rgba(255, 255, 255, 0.10)",
+                "○",
+            ),
         }
-        fg, bg, dot = color_map.get(state_type, color_map["neutral"])
+        fg, bg, border, dot = color_map.get(state_type, color_map["neutral"])
         self.setText(f"{dot}  {text}")
         self.setStyleSheet(f"""
             QLabel#statusPill {{
                 color: {fg};
                 background-color: {bg};
-                border: 1px solid {fg}40;
-                border-radius: 11px;
+                border: 1px solid {border};
+                border-radius: 10px;
                 padding: 3px 10px;
                 font-size: 11px;
                 font-weight: 600;

@@ -5,28 +5,47 @@ from __future__ import annotations
 # ---------------------------------------------------------------------------
 
 _APPLE_COLORS = {
-    "window_bg": "#141417",         # 深空灰主背景 (macOS Sonoma / Sequoia 深色模式)
-    "sidebar_bg": "#1a1a20",        # 侧边栏微透深灰
-    "card_bg": "#212128",           # 苹果毛玻璃卡片底色
-    "card_hover": "#282832",        # 卡片悬停微光
-    "card_border": "rgba(255, 255, 255, 0.08)", # 细腻高光微边框
-    "card_border_solid": "#2d2d38", # 兼容实体微边框
-    "text_primary": "#f5f5f7",      # 苹果主文本色
-    "text_secondary": "#98989f",    # 苹果副文本色
-    "text_tertiary": "#6e6e73",     # 苹果微弱说明文本
+    # 纯正深空灰阶 (macOS Sonoma / Sequoia 暗色层级)
+    "window_bg": "#111216",         # 纯净深邃底色 (午夜微光)
+    "sidebar_bg": "#16171d",        # 侧边栏微透深灰
+    "card_bg": "#1c1e26",           # 苹果连续圆角卡片底色 (Squircle Surface)
+    "card_hover": "#232630",        # 卡片悬停微呼吸亮感
+    "card_border": "rgba(255, 255, 255, 0.07)", # 细腻高光半透明微边框
+    "card_border_solid": "#282b36", # 实体保底微边框 (杜绝生硬切割)
+
+    # 苹果文字阶梯
+    "text_primary": "#f3f4f6",      # 主标题与正文 (温润白，杜绝刺眼眩光)
+    "text_secondary": "#9ca3af",    # 辅助与次级说明文本
+    "text_tertiary": "#6b7280",     # 微弱提示与占位符
+
+    # 语义强调色体系 (明度柔和、色温协调、护眼舒适)
     "accent": "#0a84ff",            # SF Blue 苹果系统强调蓝
-    "accent_hover": "#409cff",      # 强调色悬停
-    "accent_subtle": "rgba(10, 132, 255, 0.15)", # 强调色半透明底
-    "success": "#30d158",           # Apple Green 系统绿 (在线/安全)
-    "success_subtle": "rgba(48, 209, 88, 0.15)",
-    "warning": "#ff9f0a",           # Apple Orange 系统橙 (警告/弱网)
-    "warning_subtle": "rgba(255, 159, 10, 0.15)",
-    "danger": "#ff453a",            # Apple Red 系统红 (断网/危险)
-    "danger_subtle": "rgba(255, 69, 58, 0.15)",
-    "btn_capsule": "#2c2c36",       # 苹果胶囊按钮底色
-    "btn_capsule_hover": "#363642", # 按钮悬停
-    "input_bg": "#19191f",          # 输入框内嵌底色
-    "separator": "#282834",         # 组内单像素分割线
+    "accent_hover": "#3b99ff",      # 强调色悬停
+    "accent_subtle": "rgba(10, 132, 255, 0.12)", # 胶囊半透明底
+    "accent_border": "rgba(10, 132, 255, 0.28)", # 胶囊柔光边框
+
+    "success": "#32d74b",           # Apple Mint/Green 翡翠绿 (温润在线)
+    "success_hover": "#38e053",
+    "success_subtle": "rgba(50, 215, 75, 0.12)",
+    "success_border": "rgba(50, 215, 75, 0.28)",
+
+    "warning": "#ff9f0a",           # Apple Amber 暖琥珀橙 (温和提醒)
+    "warning_hover": "#ffad33",
+    "warning_subtle": "rgba(255, 159, 10, 0.12)",
+    "warning_border": "rgba(255, 159, 10, 0.28)",
+
+    "danger": "#ff453a",            # Apple Coral 柔珊红 (克制警示)
+    "danger_hover": "#ff5e54",
+    "danger_subtle": "rgba(255, 69, 58, 0.12)",
+    "danger_border": "rgba(255, 69, 58, 0.28)",
+
+    # 交互控件与表单质感
+    "btn_capsule": "#252833",       # 苹果胶囊按钮沉稳底色
+    "btn_capsule_hover": "#2e3240", # 按钮悬停轻提亮
+    "btn_capsule_border": "rgba(255, 255, 255, 0.09)",
+    "input_bg": "#15171e",          # 输入控件内嵌底色
+    "input_border": "#282b36",      # 输入框微边框
+    "separator": "#232631",         # 分割线
 }
 
 _COLORS = {
@@ -59,7 +78,7 @@ def get_apple_font(point_size: int = 10, weight: QFont.Weight = QFont.Weight.Nor
 
 _STYLESHEET = f"""
 /* --- 全局与窗口背景 --- */
-QMainWindow, QWidget#centralWidget {{
+QMainWindow, QDialog, QWidget#centralWidget {{
     background-color: {_APPLE_COLORS['window_bg']};
     font-family: {_FONT_FAMILY};
 }}
@@ -95,7 +114,7 @@ QPushButton#navBtn {{
     max-width: 40px;
 }}
 QPushButton#navBtn:hover {{
-    background-color: rgba(255, 255, 255, 0.06);
+    background-color: rgba(255, 255, 255, 0.07);
     color: {_APPLE_COLORS['text_primary']};
 }}
 QPushButton#navBtn[active="true"] {{
@@ -114,9 +133,9 @@ QFrame#card:hover, QFrame#appleCard:hover {{
     background-color: {_APPLE_COLORS['card_hover']};
 }}
 QFrame#bannerCard {{
-    background-color: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #1a2744, stop:1 #212128);
+    background-color: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #1a2233, stop:0.6 #181d29, stop:1 #141720);
     border-radius: 14px;
-    border: 1px solid rgba(10, 132, 255, 0.35);
+    border: 1px solid rgba(64, 156, 255, 0.24);
 }}
 
 /* --- 苹果胶囊药丸按钮 (Capsule Buttons) --- */
@@ -131,7 +150,11 @@ QPushButton#actionBtn, QPushButton#capsuleBtn {{
 }}
 QPushButton#actionBtn:hover, QPushButton#capsuleBtn:hover {{
     background-color: {_APPLE_COLORS['btn_capsule_hover']};
-    border-color: rgba(255, 255, 255, 0.18);
+    border-color: rgba(255, 255, 255, 0.16);
+    color: #ffffff;
+}}
+QPushButton#actionBtn:pressed, QPushButton#capsuleBtn:pressed {{
+    background-color: #1e212b;
 }}
 QPushButton#actionBtn:disabled, QPushButton#capsuleBtn:disabled {{
     color: {_APPLE_COLORS['text_tertiary']};
@@ -147,30 +170,33 @@ QPushButton#primaryCapsuleBtn {{
     border-radius: 15px;
     padding: 7px 20px;
     font-size: 13px;
-    font-weight: bold;
+    font-weight: 600;
 }}
 QPushButton#primaryCapsuleBtn:hover {{
     background-color: {_APPLE_COLORS['accent_hover']};
+}}
+QPushButton#primaryCapsuleBtn:pressed {{
+    background-color: #0071e3;
 }}
 
 /* 成功绿色胶囊按钮 (Success/Connect) */
 QPushButton#successCapsuleBtn {{
     background-color: {_APPLE_COLORS['success']};
-    color: #000000;
+    color: #0d1e11;
     border: none;
     border-radius: 15px;
     padding: 7px 20px;
     font-size: 13px;
-    font-weight: bold;
+    font-weight: 700;
 }}
 QPushButton#successCapsuleBtn:hover {{
-    background-color: #34c759;
+    background-color: {_APPLE_COLORS['success_hover']};
 }}
 
 /* --- 状态指示药丸 (Status Pill) --- */
 QLabel#statusPill {{
     border-radius: 10px;
-    padding: 4px 12px;
+    padding: 3px 10px;
     font-size: 11px;
     font-weight: 600;
 }}
@@ -180,8 +206,8 @@ QGroupBox {{
     background-color: {_APPLE_COLORS['card_bg']};
     border: 1px solid {_APPLE_COLORS['card_border_solid']};
     border-radius: 12px;
-    margin-top: 24px;
-    padding-top: 14px;
+    margin-top: 22px;
+    padding-top: 16px;
     padding-bottom: 8px;
     font-weight: 600;
     font-size: 13px;
@@ -191,13 +217,16 @@ QGroupBox::title {{
     subcontrol-origin: margin;
     subcontrol-position: top left;
     left: 12px;
-    top: 4px;
+    top: 2px;
     padding: 0 4px;
     color: {_APPLE_COLORS['text_secondary']};
     font-size: 11px;
-    text-transform: uppercase;
+    font-weight: 600;
+    background: transparent;
     letter-spacing: 0.5px;
 }}
+
+/* --- 表单输入控件体系 --- */
 QLineEdit, QSpinBox {{
     background-color: {_APPLE_COLORS['input_bg']};
     color: {_APPLE_COLORS['text_primary']};
@@ -206,10 +235,55 @@ QLineEdit, QSpinBox {{
     padding: 6px 10px;
     font-size: 12px;
 }}
+QLineEdit:hover, QSpinBox:hover {{
+    border-color: rgba(255, 255, 255, 0.16);
+}}
 QLineEdit:focus, QSpinBox:focus {{
     border-color: {_APPLE_COLORS['accent']};
-    background-color: #1f1f27;
+    background-color: #191c24;
 }}
+
+/* --- 下拉选择框体系 (消除浅色回退与生硬边框) --- */
+QComboBox {{
+    background-color: {_APPLE_COLORS['input_bg']};
+    color: {_APPLE_COLORS['text_primary']};
+    border: 1px solid {_APPLE_COLORS['card_border_solid']};
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 12px;
+    min-height: 20px;
+}}
+QComboBox:hover {{
+    border-color: rgba(255, 255, 255, 0.16);
+}}
+QComboBox:focus {{
+    border-color: {_APPLE_COLORS['accent']};
+    background-color: #191c24;
+}}
+QComboBox::drop-down {{
+    subcontrol-origin: padding;
+    subcontrol-position: top right;
+    width: 24px;
+    border-left: none;
+}}
+QComboBox::down-arrow {{
+    image: none;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 5px solid {_APPLE_COLORS['text_secondary']};
+    margin-right: 8px;
+}}
+QComboBox QAbstractItemView {{
+    background-color: {_APPLE_COLORS['card_bg']};
+    color: {_APPLE_COLORS['text_primary']};
+    border: 1px solid {_APPLE_COLORS['card_border_solid']};
+    border-radius: 8px;
+    padding: 4px;
+    selection-background-color: {_APPLE_COLORS['accent_subtle']};
+    selection-color: {_APPLE_COLORS['accent']};
+    outline: none;
+}}
+
 QCheckBox {{
     color: {_APPLE_COLORS['text_primary']};
     spacing: 8px;
@@ -221,6 +295,9 @@ QCheckBox::indicator {{
     border-radius: 5px;
     border: 1px solid {_APPLE_COLORS['card_border_solid']};
     background-color: {_APPLE_COLORS['input_bg']};
+}}
+QCheckBox::indicator:hover {{
+    border-color: rgba(255, 255, 255, 0.2);
 }}
 QCheckBox::indicator:checked {{
     background-color: {_APPLE_COLORS['accent']};
@@ -236,6 +313,9 @@ QLineEdit#searchBox {{
     padding: 6px 12px;
     font-size: 12px;
 }}
+QLineEdit#searchBox:focus {{
+    border-color: {_APPLE_COLORS['accent']};
+}}
 QPushButton#filterChip {{
     background-color: transparent;
     color: {_APPLE_COLORS['text_secondary']};
@@ -244,6 +324,10 @@ QPushButton#filterChip {{
     padding: 3px 12px;
     font-size: 11px;
 }}
+QPushButton#filterChip:hover {{
+    background-color: rgba(255, 255, 255, 0.06);
+    color: {_APPLE_COLORS['text_primary']};
+}}
 QPushButton#filterChip[active="true"] {{
     background-color: {_APPLE_COLORS['accent_subtle']};
     color: {_APPLE_COLORS['accent']};
@@ -251,7 +335,7 @@ QPushButton#filterChip[active="true"] {{
     font-weight: bold;
 }}
 QPlainTextEdit {{
-    background-color: {_APPLE_COLORS['card_bg']};
+    background-color: #131418;
     color: {_APPLE_COLORS['text_primary']};
     border: 1px solid {_APPLE_COLORS['card_border_solid']};
     border-radius: 12px;
@@ -268,12 +352,12 @@ QScrollBar:vertical {{
     margin: 0px;
 }}
 QScrollBar::handle:vertical {{
-    background: rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.12);
     min-height: 24px;
     border-radius: 3px;
 }}
 QScrollBar::handle:vertical:hover {{
-    background: rgba(255, 255, 255, 0.28);
+    background: rgba(255, 255, 255, 0.24);
 }}
 QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
     height: 0px;
