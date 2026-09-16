@@ -21,9 +21,9 @@ class CampusGuardTests(unittest.TestCase):
     def test_build_auth_params_uses_drcom_get_fields(self):
         config = Config(
             telegram_bot_token="token",
-            telegram_user_id=8512030855,
+            telegram_user_id=12345678,
             campus_auth_url="http://10.200.84.3:801/eportal/portal/login",
-            campus_account="1110623014015",
+            campus_account="test_student_2024",
             campus_password="secret",
             wlan_ac_ip="10.255.250.74",
             check_interval_seconds=5,
@@ -35,7 +35,7 @@ class CampusGuardTests(unittest.TestCase):
         params = build_auth_params(config, "10.1.2.3", "aabbccddeeff")
 
         self.assertEqual(params["login_method"], "1")
-        self.assertEqual(params["user_account"], ",0,1110623014015")
+        self.assertEqual(params["user_account"], ",0,test_student_2024")
         self.assertEqual(params["user_password"], "secret")
         self.assertEqual(params["wlan_user_ip"], "10.1.2.3")
         self.assertEqual(params["wlan_user_mac"], "aabbccddeeff")
@@ -45,7 +45,7 @@ class CampusGuardTests(unittest.TestCase):
     def test_authorized_only_rejects_other_users(self):
         update = SimpleNamespace(effective_user=SimpleNamespace(id=123))
 
-        self.assertFalse(is_authorized(update, 8512030855))
+        self.assertFalse(is_authorized(update, 12345678))
 
     def test_tray_color_red_when_network_down(self):
         state = GuardState(network_ok=False, power_plugged=True, battery_percent=80)
