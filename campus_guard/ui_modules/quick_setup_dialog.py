@@ -179,9 +179,11 @@ class QuickSetupDialog(QDialog):
             cfg["university_name"] = selected_prof.name
 
             # 写入自动嗅探或高校默认的网络参数
-            auth_url = self.detected.get("campus_auth_url") or selected_prof.auth_url
-            if auth_url:
-                cfg["campus_auth_url"] = auth_url
+            from ..models import normalize_auth_url
+
+            raw_auth = self.detected.get("campus_auth_url") or selected_prof.auth_url
+            if raw_auth:
+                cfg["campus_auth_url"] = normalize_auth_url(raw_auth)
 
             gw = self.detected.get("campus_gateway") or selected_prof.gateway
             if gw:

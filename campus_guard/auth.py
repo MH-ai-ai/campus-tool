@@ -11,11 +11,27 @@ import requests
 from .adapters import get_adapter, guess_adapter_by_url
 from .config import get_config
 from .logging_setup import get_logger
-from .models import Config
+from .models import Config, normalize_auth_url
 from .system import get_local_ip, get_local_mac, get_wifi_info
 from .universities import get_university_manager
 
 log = get_logger()
+
+
+def translate_network_error(err_msg: str) -> str:
+    """将底层的网络与 HTTP 请求英文异常翻译为清晰友好的中文指引。"""
+    lowered = str(err_msg).lower()
+    if "no scheme supplied" in lowered or "missing schema" in lowered or "invalid url" in lowered:
+        return "认证接口 URL 地址无效或缺少 http:// 前缀"
+    if "connection refused" in lowered or "10061" in lowered:
+        return "无法连接认证网关（目标服务器拒绝连接，请确认已连入校园 Wi-Fi）"
+    if "host is unreachable" in lowered or "10065" in lowered or "10051" in lowered:
+        return "网络不可达，请先确认电脑已成功连接校园无线网络"
+    if "timed out" in lowered or "timeout" in lowered:
+        return "请求认证服务器超时，请检查校园 Wi-Fi 信号强度"
+    if "name resolution failure" in lowered or "gaierror" in lowered:
+        return "域名解析失败，请检查 DNS 配置或网络连接"
+    return err_msg
 
 
 def _config_get(config: Config | Mapping[str, Any], key: str, default: Any = "") -> Any:
@@ -63,11 +79,10 @@ def campus_login(config: Config | None = None) -> tuple[bool, str]:
     protocol = getattr(active_config, "auth_protocol", "drcom") or "drcom"
     adapter = get_adapter(protocol)
 
-    url = str(getattr(active_config, "campus_auth_url", "") or "").strip()
+    raw_url = str(getattr(active_config, "campus_auth_url", "") or "").strip()
+    url = normalize_auth_url(raw_url)
     if not url:
         return False, "未配置校园网认证接口地址，请点击上方「一键极速打通」快速填入"
-    if not url.startswith(("http://", "https://")):
-        return False, f"认证地址 URL 格式无效（缺少 http:// 或 https://）: {url}"
 
     account = str(getattr(active_config, "campus_account", "") or "").strip()
     if not account:
@@ -101,7 +116,8 @@ def campus_login(config: Config | None = None) -> tuple[bool, str]:
         local_ip,
     )
     try:
-        return adapter.login(active_config, local_ip, local_mac)
+        ok, msg = adapter.login(active_config, local_ip, local_mac)
+        return ok, (msg if ok else translate_network_error(msg))
     except requests.exceptions.MissingSchema:
         return False, f"认证地址 URL 格式错误（缺少 http://）: {url}"
     except requests.exceptions.ConnectionError:
@@ -109,7 +125,7 @@ def campus_login(config: Config | None = None) -> tuple[bool, str]:
     except requests.exceptions.Timeout:
         return False, "校园网认证网关请求超时，请检查当前 Wi-Fi 信号"
     except Exception as err:
-        return False, f"认证请求异常: {err}"
+        return False, f"认证请求异常: {translate_network_error(str(err))}"
 
 
 def campus_logout(config: Config | None = None) -> tuple[bool, str]:
@@ -118,7 +134,8 @@ def campus_logout(config: Config | None = None) -> tuple[bool, str]:
     protocol = getattr(active_config, "auth_protocol", "drcom") or "drcom"
     adapter = get_adapter(protocol)
 
-    url = str(getattr(active_config, "campus_auth_url", "") or "").strip()
+    raw_url = str(getattr(active_config, "campus_auth_url", "") or "").strip()
+    url = normalize_auth_url(raw_url)
     if not url:
         return False, "未配置校园网认证接口地址，无法执行下线注销"
 
@@ -131,13 +148,14 @@ def campus_logout(config: Config | None = None) -> tuple[bool, str]:
         getattr(active_config, "university_name", "默认"),
     )
     try:
-        return adapter.logout(active_config, local_ip, local_mac)
+        ok, msg = adapter.logout(active_config, local_ip, local_mac)
+        return ok, (msg if ok else translate_network_error(msg))
     except requests.exceptions.ConnectionError:
         return False, "无法连接到认证网关服务器，当前可能已经离线"
     except requests.exceptions.Timeout:
         return False, "注销下线请求超时"
     except Exception as err:
-        return False, f"注销请求异常: {err}"
+        return False, f"注销请求异常: {translate_network_error(str(err))}"
 
 
 def auto_detect_portal_config() -> tuple[bool, str, dict[str, Any]]:

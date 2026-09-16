@@ -359,7 +359,15 @@ class _DashboardPage(QWidget):
             self._timer.start(5000)
         self._refresh_cards()
 
+    def _set_actions_enabled(self, enabled: bool) -> None:
+        """批量控制快捷操作栏按钮的可用性，防止用户频繁快速连击产生竞态。"""
+        self.btn_quick_setup.setEnabled(enabled)
+        self.btn_wifi.setEnabled(enabled)
+        self.btn_auth.setEnabled(enabled)
+        self.btn_logout.setEnabled(enabled)
+
     def _on_click_quick_setup(self) -> None:
+        self._set_actions_enabled(False)
         self.status_label.setText("🔍 正在探测当前网络重定向并捕获认证网关...")
         self.status_label.setStyleSheet(f"color: {_APPLE_COLORS['accent']};")
 
@@ -368,6 +376,7 @@ class _DashboardPage(QWidget):
 
         def _done(result):
             self._worker = None
+            self._set_actions_enabled(True)
             detected: dict[str, str] = {}
             if not isinstance(result, Exception):
                 _ok, _msg, detected = result
@@ -385,6 +394,7 @@ class _DashboardPage(QWidget):
         self._worker.start()
 
     def _reconnect_wifi(self) -> None:
+        self._set_actions_enabled(False)
         self.status_label.setText("📶 正在尝试恢复与重连 WiFi...")
         self.status_label.setStyleSheet(f"color: {_APPLE_COLORS['accent']};")
 
@@ -432,6 +442,7 @@ class _DashboardPage(QWidget):
 
         def _done(result):
             self._worker = None
+            self._set_actions_enabled(True)
             if isinstance(result, Exception):
                 self.status_label.setText(f"❌ WiFi 重连异常: {result}")
                 self.status_label.setStyleSheet(f"color: {_APPLE_COLORS['danger']};")
@@ -439,6 +450,7 @@ class _DashboardPage(QWidget):
                 self.status_label.setText(f"✅ WiFi 已恢复连接并获取 IP: {result[1]}")
                 self.status_label.setStyleSheet(f"color: {_APPLE_COLORS['success']};")
                 self.network.check()
+                self._refresh_cards()
             else:
                 self.status_label.setText("⚠️ 未找到系统已存可用 WiFi，请先在 Windows 网络列表中连接一次")
                 self.status_label.setStyleSheet(f"color: {_APPLE_COLORS['warning']};")
@@ -453,17 +465,19 @@ class _DashboardPage(QWidget):
         pwd = str(cfg.get("campus_password", "") or "").strip()
         url = str(cfg.get("campus_auth_url", "") or "").strip()
 
-        if not acc or not pwd or not url:
+        if not acc or not pwd:
             self.status_label.setText("⚠️ 尚未配置学号密码，已为您打开一键配置窗口...")
             self.status_label.setStyleSheet(f"color: {_APPLE_COLORS['warning']};")
             self._on_click_quick_setup()
             return
 
+        self._set_actions_enabled(False)
         self.status_label.setText("🔐 正在发起校园网认证登录...")
         self.status_label.setStyleSheet(f"color: {_APPLE_COLORS['accent']};")
 
         def _done(result):
             self._worker = None
+            self._set_actions_enabled(True)
             if isinstance(result, Exception):
                 self.status_label.setText(f"❌ 认证异常: {result}")
                 self.status_label.setStyleSheet(f"color: {_APPLE_COLORS['danger']};")
@@ -474,17 +488,27 @@ class _DashboardPage(QWidget):
                     f"color: {_APPLE_COLORS['success'] if ok else _APPLE_COLORS['danger']};"
                 )
                 self.network.check()
+                self._refresh_cards()
 
         self._worker = _Worker(campus_login, parent=self)
         self._worker.finished.connect(_done)
         self._worker.start()
 
     def _logout_campus(self) -> None:
+        cfg = get_config_dict()
+        url = str(cfg.get("campus_auth_url", "") or "").strip()
+        if not url:
+            self.status_label.setText("⚠️ 尚未配置校园网认证地址，无需注销")
+            self.status_label.setStyleSheet(f"color: {_APPLE_COLORS['warning']};")
+            return
+
+        self._set_actions_enabled(False)
         self.status_label.setText("🚪 正在向网关注销下线...")
         self.status_label.setStyleSheet(f"color: {_APPLE_COLORS['accent']};")
 
         def _done(result):
             self._worker = None
+            self._set_actions_enabled(True)
             if isinstance(result, Exception):
                 self.status_label.setText(f"❌ 注销下线异常: {result}")
                 self.status_label.setStyleSheet(f"color: {_APPLE_COLORS['danger']};")
@@ -495,6 +519,7 @@ class _DashboardPage(QWidget):
                     f"color: {_APPLE_COLORS['success'] if ok else _APPLE_COLORS['danger']};"
                 )
                 self.network.check()
+                self._refresh_cards()
 
         self._worker = _Worker(campus_logout, parent=self)
         self._worker.finished.connect(_done)
@@ -512,7 +537,10 @@ class _DashboardPage(QWidget):
     def _screenshot(self) -> None:
         try:
             tmp = Path(APP_DIR) / "screenshot_tmp.png"
-            ctypes.windll.shcore.SetProcessDpiAwareness(2)
+            try:
+                ctypes.windll.shcore.SetProcessDpiAwareness(2)
+            except Exception:
+                pass
             img = ImageGrab.grab()
             img.save(tmp, "PNG")
             os.startfile(tmp)
@@ -531,6 +559,10 @@ class _DashboardPage(QWidget):
         else:
             script = str(APP_DIR / "campus_guard.pyw")
             python = sys.executable
+            if python.lower().endswith("python.exe"):
+                pythonw = Path(python).with_name("pythonw.exe")
+                if pythonw.exists():
+                    python = str(pythonw)
             cmd = [python, script]
 
         subprocess.Popen(cmd, creationflags=0x08000000)

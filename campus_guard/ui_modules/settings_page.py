@@ -288,11 +288,18 @@ class _SettingsPage(QWidget):
 
     def _save_config(self) -> None:
         try:
+            from ..models import normalize_auth_url
+
             cfg = load_config_raw()
             for key, _label, _group, wtype, _extra in _SETTINGS_SCHEMA:
                 raw = self._read_field(key, wtype)
                 if key == "telegram_user_id":
                     raw = int(raw) if raw else 0
+                elif key == "campus_auth_url":
+                    raw = normalize_auth_url(str(raw))
+                    w = self.fields.get(key)
+                    if isinstance(w, QLineEdit):
+                        w.setText(raw)
                 cfg[key] = raw
 
             encrypted_cfg = encrypt_sensitive_fields(cfg)

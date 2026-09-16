@@ -124,11 +124,14 @@ class DrcomAdapter(BaseAuthAdapter):
         local_mac: str,
     ) -> tuple[bool, str]:
         try:
+            from ..models import normalize_auth_url
+
+            auth_url = normalize_auth_url(config.campus_auth_url)
             params = self.build_auth_params(config, local_ip, local_mac)
             session = requests.Session()
             session.trust_env = False
             resp = session.get(
-                config.campus_auth_url,
+                auth_url,
                 params=params,
                 timeout=10,
             )
@@ -149,7 +152,9 @@ class DrcomAdapter(BaseAuthAdapter):
         local_mac: str,
     ) -> tuple[bool, str]:
         try:
-            logout_url = config.campus_auth_url
+            from ..models import normalize_auth_url
+
+            logout_url = normalize_auth_url(config.campus_auth_url)
             if "/login" in logout_url:
                 logout_url = logout_url.replace("/login", "/logout")
 

@@ -11,6 +11,16 @@ class NetworkMode(str, Enum):
     HOME = "home"
 
 
+def normalize_auth_url(url: str, default: str = "http://10.200.84.3:801/eportal/portal/login") -> str:
+    """规范化校园网认证接口 URL，自动去除空白、补齐协议头与兜底默认值。"""
+    cleaned = (url or "").strip()
+    if not cleaned:
+        return default
+    if not cleaned.startswith(("http://", "https://")):
+        cleaned = f"http://{cleaned}"
+    return cleaned
+
+
 @dataclass(frozen=True)
 class Config:
     telegram_bot_token: str = ""
@@ -68,8 +78,7 @@ class Config:
                 sorted({int(t) for t in battery_thresholds}, reverse=True)
             )
 
-        raw_auth_url = str(data.get("campus_auth_url", "")).strip()
-        auth_url = raw_auth_url or "http://10.200.84.3:801/eportal/portal/login"
+        auth_url = normalize_auth_url(str(data.get("campus_auth_url", "")))
 
         raw_gateway = str(data.get("campus_gateway", "")).strip()
         gateway = raw_gateway or "10.211.0.1"
