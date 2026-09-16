@@ -7,6 +7,8 @@
   "campus_account": "",
   "campus_wifi_ssid": "",
   "campus_wifi_ssids": [],
+  "trusted_home_ssids": [],
+  "forced_network_mode": "auto",
   "wlan_ac_ip": "10.255.250.74",
   "low_battery_threshold": 30,
   "battery_warning_thresholds": [50, 30, 20],
@@ -18,5 +20,8 @@
   "reconnect_max_retries": 3,
   "reconnect_verify_delay_seconds": 3,
   "reconnect_fast_retry_seconds": 2,
-  "bot_watchdog_stale_seconds": 300
+  "bot_watchdog_stale_seconds": 300,
+  "feishu_webhook_url": "",
+  "dingtalk_webhook_url": "",
+  "dingtalk_secret": ""
 }

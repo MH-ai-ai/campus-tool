@@ -5,6 +5,12 @@ from enum import Enum
 from typing import Any, Mapping
 
 
+class NetworkMode(str, Enum):
+    AUTO = "auto"
+    CAMPUS = "campus"
+    HOME = "home"
+
+
 @dataclass(frozen=True)
 class Config:
     telegram_bot_token: str
@@ -21,6 +27,11 @@ class Config:
     campus_gateway: str = "10.212.0.1"
     campus_wifi_ssid: str = ""
     campus_wifi_ssids: tuple[str, ...] = field(default_factory=tuple)
+    trusted_home_ssids: tuple[str, ...] = field(default_factory=tuple)
+    forced_network_mode: str = "auto"
+    feishu_webhook_url: str = ""
+    dingtalk_webhook_url: str = ""
+    dingtalk_secret: str = ""
     auto_shutdown_threshold: int = 20
     auto_shutdown_delay: int = 60
     reconnect_max_retries: int = 3
@@ -35,6 +46,12 @@ class Config:
             ssid_tuple = tuple(s.strip() for s in ssids.split(",") if s.strip())
         else:
             ssid_tuple = tuple(str(s) for s in ssids if str(s))
+
+        home_ssids = data.get("trusted_home_ssids", ())
+        if isinstance(home_ssids, str):
+            home_ssid_tuple = tuple(s.strip() for s in home_ssids.split(",") if s.strip())
+        else:
+            home_ssid_tuple = tuple(str(s) for s in home_ssids if str(s))
 
         battery_thresholds = data.get("battery_warning_thresholds", (50, 30, 20))
         if isinstance(battery_thresholds, int):
@@ -61,6 +78,11 @@ class Config:
             campus_gateway=str(data.get("campus_gateway", "10.212.0.1")),
             campus_wifi_ssid=str(data.get("campus_wifi_ssid", "")),
             campus_wifi_ssids=ssid_tuple,
+            trusted_home_ssids=home_ssid_tuple,
+            forced_network_mode=str(data.get("forced_network_mode", "auto")),
+            feishu_webhook_url=str(data.get("feishu_webhook_url", "")),
+            dingtalk_webhook_url=str(data.get("dingtalk_webhook_url", "")),
+            dingtalk_secret=str(data.get("dingtalk_secret", "")),
             auto_shutdown_threshold=int(data.get("auto_shutdown_threshold", 20)),
             auto_shutdown_delay=int(data.get("auto_shutdown_delay", 60)),
             reconnect_max_retries=int(data.get("reconnect_max_retries", 3)),
@@ -89,6 +111,11 @@ class Config:
             "campus_gateway": self.campus_gateway,
             "campus_wifi_ssid": self.campus_wifi_ssid,
             "campus_wifi_ssids": list(self.campus_wifi_ssids),
+            "trusted_home_ssids": list(self.trusted_home_ssids),
+            "forced_network_mode": self.forced_network_mode,
+            "feishu_webhook_url": self.feishu_webhook_url,
+            "dingtalk_webhook_url": self.dingtalk_webhook_url,
+            "dingtalk_secret": self.dingtalk_secret,
             "auto_shutdown_threshold": self.auto_shutdown_threshold,
             "auto_shutdown_delay": self.auto_shutdown_delay,
             "reconnect_max_retries": self.reconnect_max_retries,
@@ -125,6 +152,8 @@ class ConnectivitySnapshot:
     wifi_info: str
     clash_tun: bool
     reason: str
+    is_campus_network: bool = False
+    active_interface: str = ""
 
     @property
     def online(self) -> bool:

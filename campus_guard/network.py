@@ -1,8 +1,7 @@
-from __future__ import annotations
-
+import threading
 import time
 from datetime import timedelta
-from threading import Event
+from threading import Event, Lock
 from typing import Callable
 
 from .auth import campus_login
@@ -10,12 +9,13 @@ from .battery import BatteryTracker
 from .bot_health import trigger_bot_health_check
 from .config import get_config_dict
 from .logging_setup import get_logger
-from .models import ConnectivitySnapshot, ConnectivityState
+from .models import ConnectivitySnapshot, ConnectivityState, NetworkMode
 from .system import (
     check_campus_gateway,
     check_internet,
     check_proxy_internet,
     get_local_ip,
+    get_primary_interface_info,
     get_wifi_info,
     get_wifi_signal_percent,
     is_clash_tun_ip,
@@ -26,6 +26,36 @@ from .system import (
 
 NotifyCallback = Callable[[str], None]
 log = get_logger()
+
+
+def detect_is_campus_network(ssid: str, gateway_ok: bool) -> bool:
+    """智能推断当前网络环境是否属于校园网。"""
+    cfg = get_config_dict()
+    forced = str(cfg.get("forced_network_mode", "auto")).lower()
+    if forced == NetworkMode.CAMPUS.value:
+        return True
+    if forced == NetworkMode.HOME.value:
+        return False
+
+    # 自动识别逻辑
+    campus_ssids = [str(s).strip().lower() for s in cfg.get("campus_wifi_ssids", []) if s]
+    old_ssid = str(cfg.get("campus_wifi_ssid", "")).strip().lower()
+    if old_ssid:
+        campus_ssids.append(old_ssid)
+
+    home_ssids = [str(s).strip().lower() for s in cfg.get("trusted_home_ssids", []) if s]
+
+    cleaned_ssid = ssid.strip().lower()
+    # 1. 匹配已知校园 SSID
+    if any(cs in cleaned_ssid for cs in campus_ssids if cs):
+        return True
+
+    # 2. 匹配已知家庭/信任网络 SSID
+    if any(hs in cleaned_ssid for hs in home_ssids if hs):
+        return False
+
+    # 3. 未知网络时: 网关可达才判定为校园网
+    return bool(gateway_ok)
 
 
 class NetworkMonitor:
@@ -41,80 +71,118 @@ class NetworkMonitor:
         self.offline_since: float | None = None
         self.last_snapshot: ConnectivitySnapshot | None = None
         self.last_event = "等待首次网络检测"
+        self._lock = Lock()
         self._stop_event = Event()
+        self._is_probing = False
+        self._reconnecting = False
 
     def check(self) -> None:
-        snapshot = self.probe_connectivity()
-        online = snapshot.online
-        self.last_snapshot = snapshot
-
-        if snapshot.wifi_ok:
-            signal_pct = get_wifi_signal_percent()
-            if 0 <= signal_pct < 30:
-                self.weak_signal_count += 1
-                log.warning("WiFi 信号弱: %d%% (连续第 %d 次)", signal_pct, self.weak_signal_count)
-                if self.weak_signal_count >= 3:
-                    self.notify(
-                        f"⚠️ WiFi 信号持续偏弱！\n"
-                        f"连续 {self.weak_signal_count} 次检测低于 30%\n"
-                        f"当前信号: {signal_pct}%\n"
-                        "建议靠近路由器或检查天线"
-                    )
-                    self.weak_signal_count = 0
-            else:
-                self.weak_signal_count = 0
-
-        if self.is_online is None:
-            self.is_online = online
-            self.last_event = f"初始网络状态: {snapshot.reason}"
-            log.info(
-                "初始网络状态: %s (WiFi=%s, 网关=%s, 直连外网=%s, 代理外网=%s, TUN=%s)",
-                "在线" if online else "离线",
-                "OK" if snapshot.wifi_ok else "断开",
-                "OK" if snapshot.gateway_ok else "不可达",
-                "OK" if snapshot.internet_direct_ok else "不通",
-                "OK" if snapshot.internet_proxy_ok else "不通",
-                "YES" if snapshot.clash_tun else "NO",
-            )
-            if not online:
-                self.offline_since = time.time()
-                self.notify(self._format_down_message(snapshot))
-                self._try_reconnect()
+        """主循环检测入口（非阻塞触发，保护主循环不被网络 IO 阻塞）。"""
+        if not self.running:
             return
 
-        if self.is_online and not online:
-            self.offline_since = time.time()
-            self.last_event = f"网络断开: {snapshot.reason}"
-            log.warning("检测到网络断开（%s），尝试重连...", snapshot.reason)
-            self.notify(self._format_down_message(snapshot))
-            self._try_reconnect()
+        with self._lock:
+            if self._is_probing:
+                return
+            self._is_probing = True
 
-        self.is_online = online
+        # 启动后台探活任务
+        threading.Thread(target=self._run_probe_and_handle, daemon=True).start()
+
+    def _run_probe_and_handle(self) -> None:
+        try:
+            snapshot = self.probe_connectivity()
+            online = snapshot.online
+
+            if snapshot.wifi_ok:
+                signal_pct = get_wifi_signal_percent()
+                if 0 <= signal_pct < 30:
+                    self.weak_signal_count += 1
+                    log.warning("WiFi 信号弱: %d%% (连续第 %d 次)", signal_pct, self.weak_signal_count)
+                    if self.weak_signal_count >= 3:
+                        self.notify(
+                            f"⚠️ WiFi 信号持续偏弱！\n"
+                            f"连续 {self.weak_signal_count} 次检测低于 30%\n"
+                            f"当前信号: {signal_pct}%\n"
+                            "建议靠近路由器或检查天线"
+                        )
+                        self.weak_signal_count = 0
+                else:
+                    self.weak_signal_count = 0
+
+            with self._lock:
+                self.last_snapshot = snapshot
+
+                if self.is_online is None:
+                    self.is_online = online
+                    self.last_event = f"初始网络状态: {snapshot.reason}"
+                    log.info(
+                        "初始网络状态: %s (网卡=%s, 校园网=%s, WiFi=%s, 网关=%s, 直连外网=%s, 代理外网=%s, TUN=%s)",
+                        "在线" if online else "离线",
+                        snapshot.active_interface,
+                        "YES" if snapshot.is_campus_network else "NO",
+                        "OK" if snapshot.wifi_ok else "断开",
+                        "OK" if snapshot.gateway_ok else "不可达",
+                        "OK" if snapshot.internet_direct_ok else "不通",
+                        "OK" if snapshot.internet_proxy_ok else "不通",
+                        "YES" if snapshot.clash_tun else "NO",
+                    )
+                    if not online:
+                        self.offline_since = time.time()
+                        self.notify(self._format_down_message(snapshot))
+                        self._trigger_reconnect()
+                    return
+
+                if self.is_online and not online:
+                    self.offline_since = time.time()
+                    self.last_event = f"网络断开: {snapshot.reason}"
+                    log.warning("检测到网络断开（%s），尝试重连...", snapshot.reason)
+                    self.notify(self._format_down_message(snapshot))
+                    self._trigger_reconnect()
+
+                self.is_online = online
+        except Exception as err:
+            log.error("后台网络探测异常: %s", err)
+        finally:
+            with self._lock:
+                self._is_probing = False
 
     def stop(self) -> None:
         self.running = False
         self._stop_event.set()
 
     def probe_connectivity(self) -> ConnectivitySnapshot:
+        """执行同步探测并生成当前网络连通性快照。"""
         local_ip = get_local_ip()
+        if_name, _ip, _mac = get_primary_interface_info()
         wifi_ok = is_wifi_link_up()
+        wifi_info = get_wifi_info()
+
+        # 校园网关探活
         gateway_ok = check_campus_gateway() if wifi_ok else False
-        internet_direct_ok = check_internet() if gateway_ok else False
+        internet_direct_ok = check_internet() if (gateway_ok or wifi_ok) else False
         internet_proxy_ok = check_proxy_internet()
         clash_tun = is_clash_tun_ip(local_ip)
 
+        # 智能识别是否处于校园网环境
+        is_campus = detect_is_campus_network(wifi_info, gateway_ok)
+
+        # 状态判定
         if not wifi_ok:
             state = ConnectivityState.WIFI_DOWN
             reason = "WiFi 链路断开"
-        elif not gateway_ok:
+        elif is_campus and not gateway_ok:
             state = ConnectivityState.GATEWAY_DOWN
             reason = "校园网网关不可达"
-        elif not internet_direct_ok:
+        elif not internet_direct_ok and not internet_proxy_ok:
             state = ConnectivityState.INTERNET_DOWN
-            reason = "直连外网不通，可能需要重新认证"
+            reason = "外网不通（需重新认证校园网）" if is_campus else "外网完全不通"
+        elif not internet_direct_ok and is_campus:
+            state = ConnectivityState.INTERNET_DOWN
+            reason = "直连外网不通，可能需要重新认证校园网"
         else:
             state = ConnectivityState.ONLINE
-            reason = "网络在线"
+            reason = f"网络在线 ({'校园网' if is_campus else '家庭/免认证网络'})"
 
         return ConnectivitySnapshot(
             state=state,
@@ -123,9 +191,11 @@ class NetworkMonitor:
             internet_direct_ok=internet_direct_ok,
             internet_proxy_ok=internet_proxy_ok,
             local_ip=local_ip,
-            wifi_info=get_wifi_info(),
+            wifi_info=wifi_info,
             clash_tun=clash_tun,
             reason=reason,
+            is_campus_network=is_campus,
+            active_interface=if_name,
         )
 
     def _get_campus_ssids(self) -> list[str]:
@@ -136,14 +206,37 @@ class NetworkMonitor:
             ssids = [old_ssid] if old_ssid else []
         return [str(s) for s in ssids if str(s)]
 
+    def _get_home_ssids(self) -> list[str]:
+        cfg = get_config_dict()
+        ssids = cfg.get("trusted_home_ssids", [])
+        return [str(s) for s in ssids if str(s)]
+
+    def _trigger_reconnect(self) -> None:
+        with self._lock:
+            if self._reconnecting:
+                return
+            self._reconnecting = True
+        threading.Thread(target=self._async_reconnect_job, daemon=True).start()
+
+    def _async_reconnect_job(self) -> None:
+        try:
+            self._try_reconnect()
+        finally:
+            with self._lock:
+                self._reconnecting = False
+
     def _try_reconnect(self) -> None:
-        campus_ssids = self._get_campus_ssids()
+        snapshot = self.last_snapshot or self.probe_connectivity()
+        is_campus = snapshot.is_campus_network
+
         self.aggressive_mode = True
         self.aggressive_start_time = time.time()
 
+        # 1. 尝试重连 WiFi
         if not is_wifi_link_up():
+            target_ssids = self._get_campus_ssids() if is_campus else (self._get_home_ssids() or self._get_campus_ssids())
             wifi_connected = False
-            for ssid in campus_ssids:
+            for ssid in target_ssids:
                 self.notify(f"📶 WiFi 已断开，正在重连 {ssid}...")
                 if reconnect_wifi(ssid):
                     wifi_connected = True
@@ -155,6 +248,21 @@ class NetworkMonitor:
                 self.notify("❌ WiFi 重连失败，所有 SSID 均不可用")
                 return
 
+        # 2. 如果非校园网环境，WiFi 连上外网通了即算成功，无需执行 campus_login
+        if not is_campus:
+            if self._wait(2):
+                return
+            new_snap = self.probe_connectivity()
+            if new_snap.online:
+                self.is_online = True
+                self.retry_count = 0
+                self.last_snapshot = new_snap
+                self.last_event = "家庭网络恢复连接"
+                self.notify(self._format_restore_message(new_snap, 1))
+                self.aggressive_mode = False
+                return
+
+        # 3. 校园网 Dr.COM 登录重试
         cfg = get_config_dict()
         max_retries = int(cfg.get("reconnect_max_retries", 3))
         verify_delay = int(cfg.get("reconnect_verify_delay_seconds", 3))
@@ -166,22 +274,22 @@ class NetworkMonitor:
             if success:
                 if self._wait(verify_delay):
                     return
-                snapshot = self.probe_connectivity()
-                if snapshot.online:
+                new_snap = self.probe_connectivity()
+                if new_snap.online:
                     self.is_online = True
                     self.retry_count = 0
                     self.tracker.record_reconnect()
-                    self.last_snapshot = snapshot
+                    self.last_snapshot = new_snap
                     self.last_event = "网络重连成功"
-                    self.notify(self._format_restore_message(snapshot, attempt))
+                    self.notify(self._format_restore_message(new_snap, attempt))
                     self.aggressive_mode = False
                     trigger_bot_health_check()
                     return
                 log.warning(
                     "重连尝试 %d: 认证已发送但验证失败 (网关=%s, 直连外网=%s)",
                     attempt,
-                    "OK" if snapshot.gateway_ok else "不可达",
-                    "OK" if snapshot.internet_direct_ok else "不通",
+                    "OK" if new_snap.gateway_ok else "不可达",
+                    "OK" if new_snap.internet_direct_ok else "不通",
                 )
 
             if self.aggressive_mode and self.aggressive_start_time:
@@ -203,9 +311,11 @@ class NetworkMonitor:
         snapshot = self.last_snapshot
         if not snapshot:
             return f"网络: {status}\nWiFi: {get_wifi_info()}\n本机 IP: {get_local_ip()}"
+        mode_str = "校园网模式" if snapshot.is_campus_network else "家庭/通用模式"
         return (
-            f"网络: {status}\n"
+            f"网络: {status} ({mode_str})\n"
             f"原因: {snapshot.reason}\n"
+            f"活动网卡: {snapshot.active_interface}\n"
             f"WiFi: {snapshot.wifi_info}\n"
             f"本机 IP: {snapshot.local_ip}\n"
             f"网关: {'OK' if snapshot.gateway_ok else '不可达'}\n"
@@ -218,8 +328,10 @@ class NetworkMonitor:
         return self._stop_event.wait(seconds)
 
     def _format_down_message(self, snapshot: ConnectivitySnapshot) -> str:
+        prefix = "⚠️ 校园网断开" if snapshot.is_campus_network else "⚠️ 网络连接断开"
         return (
-            f"⚠️ 校园网断开：{snapshot.reason}\n"
+            f"{prefix}：{snapshot.reason}\n"
+            f"网卡: {snapshot.active_interface}\n"
             f"WiFi: {snapshot.wifi_info}\n"
             f"本机 IP: {snapshot.local_ip}\n"
             f"网关: {'OK' if snapshot.gateway_ok else '不可达'}\n"
@@ -233,10 +345,12 @@ class NetworkMonitor:
         downtime = "未知"
         if self.offline_since:
             downtime = str(timedelta(seconds=int(time.time() - self.offline_since)))
+        title = "✅ 校园网重连成功" if snapshot.is_campus_network else "✅ 网络已恢复连接"
         return (
-            "✅ 校园网重连成功\n"
+            f"{title}\n"
             f"耗时: {downtime}\n"
             f"尝试次数: {attempt}\n"
+            f"网卡: {snapshot.active_interface}\n"
             f"WiFi: {snapshot.wifi_info}\n"
             f"本机 IP: {snapshot.local_ip}\n"
             f"网关: {'OK' if snapshot.gateway_ok else '不可达'}\n"
@@ -244,3 +358,4 @@ class NetworkMonitor:
             f"代理外网: {'OK' if snapshot.internet_proxy_ok else '不通'}\n"
             f"Clash/TUN: {'检测到' if snapshot.clash_tun else '未检测到'}"
         )
+

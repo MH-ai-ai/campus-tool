@@ -147,7 +147,7 @@ class CampusGuardTests(unittest.TestCase):
         self.assertIn("阈值 30%", joined)
         self.assertIn("阈值 20%", joined)
         popen.assert_called_once()
-        self.assertEqual(popen.call_args.args[0], ["shutdown", "/s", "/t", "60"])
+        self.assertEqual(popen.call_args.args[0], ["shutdown", "/s", "/f", "/t", "60"])
 
     def test_telegram_notification_queue_flushes_after_recovery(self):
         class FakeBot:
@@ -221,6 +221,209 @@ class CampusGuardTests(unittest.TestCase):
         self.assertIn(r'"C:\Python312\pythonw.exe"', command)
         self.assertIn("campus_guard.pyw", command)
 
+    def test_ui_settings_schema_matches_config(self):
+        from dataclasses import fields
+        from campus_guard.models import Config
+        from campus_guard.ui import _SETTINGS_SCHEMA
+
+        config_fields = {f.name for f in fields(Config)}
+        for key, _label, _group, _wtype, _extra in _SETTINGS_SCHEMA:
+            self.assertIn(
+                key,
+                config_fields,
+                f"UI 设置项 {key} 在 Config 数据类中未找到定义",
+            )
+
+    def test_network_mode_detection_campus_vs_home(self):
+        from campus_guard.network import detect_is_campus_network
+
+        # 1. 校园网 SSID 匹配
+        update_runtime_config({
+            "campus_wifi_ssids": ["Campus-WiFi", "EDUROAM"],
+            "trusted_home_ssids": ["Home_5G", "Pixel_Hotspot"],
+            "forced_network_mode": "auto",
+        })
+        self.assertTrue(detect_is_campus_network("Campus-WiFi (90%)", gateway_ok=False))
+        self.assertTrue(detect_is_campus_network("eduroam", gateway_ok=False))
+
+        # 2. 家庭网络 SSID 匹配
+        self.assertFalse(detect_is_campus_network("Home_5G (85%)", gateway_ok=True))
+        self.assertFalse(detect_is_campus_network("Pixel_Hotspot", gateway_ok=True))
+
+        # 3. 强制模式覆盖
+        update_runtime_config({"forced_network_mode": "home"})
+        self.assertFalse(detect_is_campus_network("Campus-WiFi", gateway_ok=True))
+        update_runtime_config({"forced_network_mode": "campus"})
+        self.assertTrue(detect_is_campus_network("Home_5G", gateway_ok=False))
+
+    def test_home_network_probe_skips_gateway_failure(self):
+        update_runtime_config({
+            "campus_wifi_ssids": ["Campus"],
+            "trusted_home_ssids": ["MyHome"],
+            "forced_network_mode": "auto",
+        })
+        monitor = NetworkMonitor(lambda _: None, BatteryTracker())
+
+        with (
+            patch("campus_guard.network.is_wifi_link_up", return_value=True),
+            patch("campus_guard.network.check_campus_gateway", return_value=False),
+            patch("campus_guard.network.check_internet", return_value=True),
+            patch("campus_guard.network.check_proxy_internet", return_value=True),
+            patch("campus_guard.network.get_local_ip", return_value="192.168.1.100"),
+            patch("campus_guard.network.get_wifi_info", return_value="MyHome (95%)"),
+        ):
+            snapshot = monitor.probe_connectivity()
+
+        # 在家庭网络下，即便校园网关不通，只要外网连通，状态仍是在线，且不判定为校园网
+        self.assertEqual(snapshot.state, ConnectivityState.ONLINE)
+        self.assertFalse(snapshot.is_campus_network)
+        self.assertIn("家庭/免认证网络", snapshot.reason)
+
+    def test_drcom_error_translation_and_logout_params(self):
+        from campus_guard.auth import build_logout_params, parse_drcom_response
+
+        # 验证常见 Dr.COM 错误代码映射
+        ok, msg = parse_drcom_response('dr1003({"result":0,"msg":"ldap auth error"})')
+        self.assertFalse(ok)
+        self.assertIn("账号或密码错误", msg)
+
+        ok, msg = parse_drcom_response('dr1003({"result":0,"msg":"balance error"})')
+        self.assertFalse(ok)
+        self.assertIn("账号已欠费停机", msg)
+
+        # 验证注销参数
+        config = Config(
+            telegram_bot_token="token",
+            telegram_user_id=12345,
+            campus_auth_url="http://10.200.84.3:801/eportal/portal/login",
+            campus_account="user1",
+            campus_password="pwd",
+            wlan_ac_ip="10.255.250.74",
+        )
+        params = build_logout_params(config, "10.0.0.1", "112233445566")
+        self.assertEqual(params["callback"], "dr1004")
+        self.assertEqual(params["user_account"], ",0,user1")
+        self.assertEqual(params["wlan_user_ip"], "10.0.0.1")
+
+    def test_bot_new_commands_in_specs(self):
+        commands = dict(bot_command_specs())
+        self.assertIn("logout", commands)
+        self.assertIn("mode", commands)
+        self.assertIn("wifi", commands)
+        self.assertIn("注销", commands["logout"])
+        self.assertIn("模式", commands["mode"])
+        self.assertIn("Wi-Fi", commands["wifi"])
+
+    def test_auto_detect_portal_config_success(self):
+        from campus_guard.auth import auto_detect_portal_config
+
+        mock_resp = Mock()
+        mock_resp.status_code = 302
+        mock_resp.headers = {
+            "Location": "http://10.200.84.3:801/eportal/portal/login?wlanuserip=10.1.2.3&wlanacip=10.255.250.74"
+        }
+        mock_resp.text = ""
+
+        with (
+            patch("requests.Session.get", return_value=mock_resp),
+            patch("campus_guard.auth.get_wifi_info", return_value="Campus-5G (95%)"),
+            patch("campus_guard.auth.get_local_ip", return_value="10.1.2.3"),
+        ):
+            ok, msg, extracted = auto_detect_portal_config()
+
+        self.assertTrue(ok)
+        self.assertIn("成功捕获", msg)
+        self.assertEqual(extracted.get("campus_wifi_ssid"), "Campus-5G")
+        self.assertEqual(extracted.get("campus_auth_url"), "http://10.200.84.3:801/eportal/portal/login")
+        self.assertEqual(extracted.get("campus_gateway"), "10.200.84.3")
+        self.assertEqual(extracted.get("wlan_ac_ip"), "10.255.250.74")
+        self.assertEqual(extracted.get("wlan_user_ip"), "10.1.2.3")
+
+    def test_auto_detect_portal_config_when_no_redirect(self):
+        from campus_guard.auth import auto_detect_portal_config
+
+        mock_resp = Mock()
+        mock_resp.status_code = 204
+        mock_resp.headers = {}
+        mock_resp.text = ""
+
+        with (
+            patch("requests.Session.get", return_value=mock_resp),
+            patch("campus_guard.auth.get_wifi_info", return_value="HomeWiFi"),
+            patch("campus_guard.auth.get_local_ip", return_value="192.168.1.5"),
+        ):
+            ok, msg, extracted = auto_detect_portal_config()
+
+        self.assertFalse(ok)
+        self.assertIn("未捕获到校园网重定向", msg)
+
+    def test_unified_notifier_feishu_and_dingtalk(self):
+        from campus_guard.notifier import UnifiedNotifier
+
+        # 1. 飞书卡片自适应色彩与内容测试
+        with patch("requests.post") as mock_post:
+            mock_post.return_value.json.return_value = {"code": 0}
+            success = UnifiedNotifier._send_feishu_card(
+                "https://open.feishu.cn/webhook/mock",
+                "⚠️ 网络连接异常断开，准备重连",
+                "网络告警",
+                "error",
+            )
+            self.assertTrue(success)
+            payload = mock_post.call_args[1]["json"]
+            self.assertEqual(payload["msg_type"], "interactive")
+            self.assertEqual(payload["card"]["header"]["template"], "red")
+
+        # 2. 钉钉加签与 Markdown 测试
+        with patch("requests.post") as mock_post:
+            mock_post.return_value.json.return_value = {"errcode": 0}
+            success = UnifiedNotifier._send_dingtalk(
+                "https://oapi.dingtalk.com/robot/send?access_token=test",
+                "my_secret_token",
+                "校园网已自动重新认证成功",
+                "状态通报",
+            )
+            self.assertTrue(success)
+            called_url = mock_post.call_args[0][0]
+            self.assertIn("timestamp=", called_url)
+            self.assertIn("sign=", called_url)
+            payload = mock_post.call_args[1]["json"]
+            self.assertEqual(payload["msgtype"], "markdown")
+
+    def test_wifi_cache_prevents_frequent_location_polling(self):
+        import campus_guard.system as sys_mod
+
+        # 清除缓存
+        sys_mod._wlan_cache = (0.0, "未知", -1)
+
+        mock_stat = SimpleNamespace(isup=True)
+        mock_stats = {"Wi-Fi": mock_stat}
+        mock_proc = SimpleNamespace(
+            returncode=0,
+            stdout="    SSID                   : Campus-WiFi\n    信号                   : 88%\n".encode("gbk"),
+            stderr=b"",
+        )
+
+        with (
+            patch("campus_guard.system.psutil.net_if_stats", return_value=mock_stats),
+            patch("campus_guard.system.subprocess.run", return_value=mock_proc) as mock_subproc,
+        ):
+            # 第一次调用：应该执行 netsh
+            info1 = sys_mod.get_wifi_info(force=False)
+            self.assertIn("Campus-WiFi", info1)
+            self.assertEqual(mock_subproc.call_count, 1)
+
+            # 紧接着第二次调用：命中 120s 缓存，不应该重复调用 netsh（避免触发 Windows 定位提示）
+            info2 = sys_mod.get_wifi_info(force=False)
+            self.assertEqual(info2, info1)
+            self.assertEqual(mock_subproc.call_count, 1)
+
+            # 强制刷新：应该再次执行 netsh
+            info3 = sys_mod.get_wifi_info(force=True)
+            self.assertEqual(info3, info1)
+            self.assertEqual(mock_subproc.call_count, 2)
+
 
 if __name__ == "__main__":
     unittest.main()
+

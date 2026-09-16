@@ -11,6 +11,7 @@ from .paths import APP_DIR, CONFIG_PATH, KEY_PATH
 
 
 SENSITIVE_FIELDS = ("campus_password", "telegram_bot_token")
+ENCRYPTED_PREFIX = "ENC:"
 
 _runtime_config: dict[str, Any] = {}
 _config_mtime: float | None = None
@@ -71,12 +72,21 @@ def save_config_raw(config: dict[str, Any]) -> None:
 
 
 def decrypt_config(config: dict[str, Any]) -> dict[str, Any]:
+    def _is_encrypted(val: object) -> bool:
+        return isinstance(val, str) and (
+            val.startswith(ENCRYPTED_PREFIX) or val.startswith("gAAAAA")
+        )
+
+    def _strip_prefix(val: str) -> str:
+        if val.startswith(ENCRYPTED_PREFIX):
+            return val[len(ENCRYPTED_PREFIX):]
+        return val
+
     try:
         from cryptography.fernet import Fernet
     except ImportError:
         for field in SENSITIVE_FIELDS:
-            val = config.get(field, "")
-            if isinstance(val, str) and val.startswith("gAAAAA"):
+            if _is_encrypted(config.get(field, "")):
                 log.warning("⚠️ %s 已加密但 cryptography 未安装，无法解密", field)
         return config
 
@@ -88,9 +98,9 @@ def decrypt_config(config: dict[str, Any]) -> dict[str, Any]:
     result = config.copy()
     for field in SENSITIVE_FIELDS:
         val = result.get(field, "")
-        if isinstance(val, str) and val.startswith("gAAAAA"):
+        if _is_encrypted(val):
             try:
-                result[field] = fernet.decrypt(val.encode()).decode()
+                result[field] = fernet.decrypt(_strip_prefix(val).encode()).decode()
             except Exception:
                 log.warning("解密 %s 失败", field)
     return result
@@ -111,8 +121,8 @@ def encrypt_config_file() -> None:
     changed = False
     for field in SENSITIVE_FIELDS:
         val = cfg.get(field, "")
-        if isinstance(val, str) and val and not val.startswith("gAAAAA"):
-            cfg[field] = fernet.encrypt(val.encode()).decode()
+        if isinstance(val, str) and val and not val.startswith(ENCRYPTED_PREFIX) and not val.startswith("gAAAAA"):
+            cfg[field] = ENCRYPTED_PREFIX + fernet.encrypt(val.encode()).decode()
             changed = True
     if changed:
         save_config_raw(cfg)
@@ -133,8 +143,8 @@ def encrypt_sensitive_fields(config: dict[str, Any]) -> dict[str, Any]:
     fernet = Fernet(key)
     for field in SENSITIVE_FIELDS:
         val = result.get(field, "")
-        if isinstance(val, str) and val and not val.startswith("gAAAAA"):
-            result[field] = fernet.encrypt(val.encode()).decode()
+        if isinstance(val, str) and val and not val.startswith(ENCRYPTED_PREFIX) and not val.startswith("gAAAAA"):
+            result[field] = ENCRYPTED_PREFIX + fernet.encrypt(val.encode()).decode()
     return result
 
 

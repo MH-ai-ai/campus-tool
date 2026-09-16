@@ -146,10 +146,13 @@ def main() -> None:
     encrypt_config_file()
     initialize_runtime_config()
 
+    from .notifier import UnifiedNotifier
+
     tracker = BatteryTracker()
     tg_bot = TelegramBot(None, None, tracker)
-    battery = BatteryMonitor(tg_bot.send_notification, tracker)
-    network = NetworkMonitor(tg_bot.send_notification, tracker)
+    notifier = UnifiedNotifier(tg_bot)
+    battery = BatteryMonitor(notifier.notify, tracker)
+    network = NetworkMonitor(notifier.notify, tracker)
     tg_bot.battery = battery
     tg_bot.network = network
 

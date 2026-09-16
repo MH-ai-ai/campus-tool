@@ -174,7 +174,7 @@ class BatteryMonitor:
                 log.warning("电量极低 (%s%%)，%s秒后自动关机", percent, delay)
                 self.notify(msg)
                 subprocess.Popen(
-                    ["shutdown", "/s", "/t", str(delay)],
+                    ["shutdown", "/s", "/f", "/t", str(delay)],
                     creationflags=0x08000000,
                 )
 

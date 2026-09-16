@@ -12,13 +12,21 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from .auth import campus_login
+from .auth import campus_login, campus_logout
 from .bot_health import register_bot_health_check
-from .config import SENSITIVE_FIELDS, get_config_dict, load_config_raw
+from .config import SENSITIVE_FIELDS, get_config_dict, load_config_raw, update_runtime_config
 from .logging_setup import get_logger
+from .models import NetworkMode
 from .paths import LOG_PATH
 from .security import is_authorized
-from .system import check_campus_gateway, check_internet, get_local_ip, get_public_ip, get_wifi_info
+from .system import (
+    check_campus_gateway,
+    check_internet,
+    get_local_ip,
+    get_public_ip,
+    get_wifi_info,
+    scan_available_wifis,
+)
 
 if TYPE_CHECKING:
     from .battery import BatteryMonitor, BatteryTracker
@@ -33,9 +41,12 @@ def bot_command_specs() -> tuple[tuple[str, str], ...]:
         ("status", "📊 查看电量·电源·网络状态"),
         ("network", "🌐 查看网络、网关、代理和 Clash/TUN 状态"),
         ("battery", "🔋 查看电量、供电和关机阈值"),
+        ("mode", "🌐 查看/切换网络环境模式 (自动/校园/家庭)"),
+        ("wifi", "📶 扫描周围可见 Wi-Fi"),
+        ("reconnect", "🔄 手动重连校园网"),
+        ("logout", "🚪 注销校园网登录"),
         ("shutdown", "⚠️ 远程关机（需确认）"),
         ("cancel_shutdown", "✅ 取消关机倒计时"),
-        ("reconnect", "🔄 手动重连校园网"),
         ("lock", "🔒 锁屏"),
         ("screenshot", "📸 截取屏幕（需确认）"),
         ("ip", "🌐 查看 IP 地址"),
@@ -45,6 +56,7 @@ def bot_command_specs() -> tuple[tuple[str, str], ...]:
         ("config", "⚙️ 查看配置"),
         ("help", "📖 查看帮助"),
     )
+
 
 
 class TelegramBot:
@@ -110,8 +122,11 @@ class TelegramBot:
         active_app.add_handler(CommandHandler("status", self._touch_update(self._cmd_status)))
         active_app.add_handler(CommandHandler("network", self._touch_update(self._cmd_network)))
         active_app.add_handler(CommandHandler("battery", self._touch_update(self._cmd_battery)))
-        active_app.add_handler(CommandHandler("shutdown", self._touch_update(self._cmd_shutdown)))
+        active_app.add_handler(CommandHandler("mode", self._touch_update(self._cmd_mode)))
+        active_app.add_handler(CommandHandler("wifi", self._touch_update(self._cmd_wifi)))
         active_app.add_handler(CommandHandler("reconnect", self._touch_update(self._cmd_reconnect)))
+        active_app.add_handler(CommandHandler("logout", self._touch_update(self._cmd_logout)))
+        active_app.add_handler(CommandHandler("shutdown", self._touch_update(self._cmd_shutdown)))
         active_app.add_handler(CommandHandler("cancel", self._touch_update(self._cmd_cancel_shutdown)))
         active_app.add_handler(CommandHandler("cancel_shutdown", self._touch_update(self._cmd_cancel_shutdown)))
         active_app.add_handler(CommandHandler("help", self._touch_update(self._cmd_help)))
@@ -318,11 +333,16 @@ class TelegramBot:
         keyboard = [
             [
                 InlineKeyboardButton("🔄 刷新", callback_data="refresh_status"),
-                InlineKeyboardButton("⚠️ 关机", callback_data="shutdown"),
+                InlineKeyboardButton("📶 重连", callback_data="reconnect"),
+                InlineKeyboardButton("🔐 认证", callback_data="auth_login"),
             ],
             [
-                InlineKeyboardButton("🔌 重连", callback_data="reconnect"),
+                InlineKeyboardButton("🚪 注销", callback_data="auth_logout"),
                 InlineKeyboardButton("📸 截屏", callback_data="screenshot"),
+                InlineKeyboardButton("🔒 锁屏", callback_data="lock_screen"),
+            ],
+            [
+                InlineKeyboardButton("⚠️ 远程关机", callback_data="shutdown"),
             ],
         ]
         await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
@@ -350,6 +370,55 @@ class TelegramBot:
             f"自动关机: ≤{shutdown_threshold}% 后 {shutdown_delay}s"
         )
 
+    async def _cmd_logout(self, update, context) -> None:
+        if not self._is_authorized(update):
+            return
+        await update.message.reply_text("🚪 正在注销校园网...")
+        loop = asyncio.get_event_loop()
+        success, msg = await loop.run_in_executor(None, campus_logout)
+        await update.message.reply_text(f"{'✅' if success else '❌'} {msg}")
+
+    async def _cmd_mode(self, update, context) -> None:
+        if not self._is_authorized(update):
+            return
+        from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+
+        cfg = self._config()
+        forced = str(cfg.get("forced_network_mode", "auto")).lower()
+        curr_mode = "未知"
+        if self.network and self.network.last_snapshot:
+            curr_mode = "校园网" if self.network.last_snapshot.is_campus_network else "家庭/通用网络"
+
+        text = (
+            f"🌐 网络环境模式管理\n{'─' * 24}\n"
+            f"当前配置模式: {forced.upper()}\n"
+            f"实际判定环境: {curr_mode}\n\n"
+            "点击下方按钮切换配置模式："
+        )
+        keyboard = [
+            [
+                InlineKeyboardButton("🤖 自动感知", callback_data="mode_auto"),
+                InlineKeyboardButton("🏫 校园模式", callback_data="mode_campus"),
+                InlineKeyboardButton("🏠 家庭模式", callback_data="mode_home"),
+            ]
+        ]
+        await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
+
+    async def _cmd_wifi(self, update, context) -> None:
+        if not self._is_authorized(update):
+            return
+        await update.message.reply_text("📶 正在扫描周围可见 Wi-Fi...")
+        loop = asyncio.get_event_loop()
+        wifis = await loop.run_in_executor(None, scan_available_wifis)
+        if not wifis:
+            await update.message.reply_text("未扫描到可见的 Wi-Fi 网络，或无线网卡不可用")
+            return
+
+        lines = ["📶 周围可用 Wi-Fi 列表", "─" * 24]
+        for idx, item in enumerate(wifis[:12], start=1):
+            lines.append(f"{idx}. {item['ssid']} (信号: {item['signal']}, 加密: {item['auth']})")
+        await update.message.reply_text("\n".join(lines))
+
     async def _handle_callback(self, update, context) -> None:
         if not self._is_authorized(update):
             return
@@ -374,15 +443,49 @@ class TelegramBot:
             keyboard = [
                 [
                     InlineKeyboardButton("🔄 刷新", callback_data="refresh_status"),
-                    InlineKeyboardButton("⚠️ 关机", callback_data="shutdown"),
+                    InlineKeyboardButton("📶 重连", callback_data="reconnect"),
+                    InlineKeyboardButton("🔐 认证", callback_data="auth_login"),
                 ],
                 [
-                    InlineKeyboardButton("🔌 重连", callback_data="reconnect"),
+                    InlineKeyboardButton("🚪 注销", callback_data="auth_logout"),
                     InlineKeyboardButton("📸 截屏", callback_data="screenshot"),
+                    InlineKeyboardButton("🔒 锁屏", callback_data="lock_screen"),
+                ],
+                [
+                    InlineKeyboardButton("⚠️ 远程关机", callback_data="shutdown"),
                 ],
             ]
             await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
             await query.answer("已刷新")
+        elif data == "auth_login":
+            await query.message.reply_text("🔐 正在发起校园网认证...")
+            loop = asyncio.get_event_loop()
+            success, msg = await loop.run_in_executor(None, campus_login)
+            await query.message.reply_text(f"{'✅' if success else '❌'} {msg}")
+            await query.answer()
+        elif data == "auth_logout":
+            await query.message.reply_text("🚪 正在注销校园网登录...")
+            loop = asyncio.get_event_loop()
+            success, msg = await loop.run_in_executor(None, campus_logout)
+            await query.message.reply_text(f"{'✅' if success else '❌'} {msg}")
+            await query.answer()
+        elif data == "lock_screen":
+            try:
+                ctypes.windll.user32.LockWorkStation()
+                await query.message.reply_text("🔒 已执行锁屏")
+            except Exception as err:
+                await query.message.reply_text(f"❌ 锁屏失败: {err}")
+            await query.answer()
+        elif data.startswith("mode_"):
+            new_mode = data.replace("mode_", "")
+            cfg = self._config()
+            cfg["forced_network_mode"] = new_mode
+            update_runtime_config(cfg)
+            if self.network:
+                self.network.check()
+            mode_map = {"auto": "自动感知", "campus": "校园网模式", "home": "家庭/通用模式"}
+            await query.message.reply_text(f"✅ 已切换网络感知模式为: 【{mode_map.get(new_mode, new_mode)}】")
+            await query.answer()
         elif data == "shutdown":
             user_id = query.from_user.id
             self.pending_confirmations[user_id] = {"action": "shutdown", "time": time.time()}
@@ -390,11 +493,12 @@ class TelegramBot:
             await query.answer()
         elif data == "reconnect":
             await query.message.reply_text("🔄 正在尝试重连校园网...")
-            success, msg = campus_login()
+            loop = asyncio.get_event_loop()
+            success, msg = await loop.run_in_executor(None, campus_login)
             if success:
                 await asyncio.sleep(3)
-                gw_ok = check_campus_gateway()
-                inet_ok = check_internet()
+                gw_ok = await loop.run_in_executor(None, check_campus_gateway)
+                inet_ok = await loop.run_in_executor(None, check_internet)
                 if gw_ok and inet_ok:
                     self.tracker.record_reconnect()
                     await query.message.reply_text(f"✅ {msg}\n网络已恢复")
@@ -427,7 +531,7 @@ class TelegramBot:
         if action == "shutdown":
             await update.message.reply_text("⚠️ 电脑将在 60 秒后关机\n发送 /cancel 取消")
             log.warning("收到远程关机命令！（经用户确认）")
-            subprocess.Popen(["shutdown", "/s", "/t", "60"], creationflags=0x08000000)
+            subprocess.Popen(["shutdown", "/s", "/f", "/t", "60"], creationflags=0x08000000)
         elif action == "screenshot":
             await self._do_screenshot(update.message.reply_text)
 
@@ -459,7 +563,8 @@ class TelegramBot:
         if not self._is_authorized(update):
             return
         await update.message.reply_text("🔄 正在手动重连校园网...")
-        success, msg = campus_login()
+        loop = asyncio.get_event_loop()
+        success, msg = await loop.run_in_executor(None, campus_login)
         await update.message.reply_text(f"{'✅' if success else '❌'} {msg}")
 
     async def _cmd_lock(self, update, context) -> None:
@@ -484,9 +589,14 @@ class TelegramBot:
             from PIL import ImageGrab
 
             tmp_path = Path(tempfile.gettempdir()) / "campus_guard_screenshot.png"
-            ctypes.windll.shcore.SetProcessDpiAwareness(2)
-            screenshot = ImageGrab.grab()
-            screenshot.save(tmp_path, "PNG")
+
+            def _capture():
+                ctypes.windll.shcore.SetProcessDpiAwareness(2)
+                screenshot = ImageGrab.grab()
+                screenshot.save(tmp_path, "PNG")
+
+            loop = asyncio.get_event_loop()
+            await loop.run_in_executor(None, _capture)
             if self.app:
                 with open(tmp_path, "rb") as f:
                     await self.app.bot.send_photo(

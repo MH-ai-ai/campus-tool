@@ -27,9 +27,9 @@ if (-not $SkipTests) {
     }
 }
 
-& $Python -m py_compile campus_guard.pyw tests/test_campus_guard.py campus_guard\models.py campus_guard\config.py campus_guard\auth.py campus_guard\system.py campus_guard\battery.py campus_guard\network.py campus_guard\telegram_bot.py campus_guard\runtime.py campus_guard\ui.py
+& $Python -m compileall -q campus_guard tests campus_guard.pyw
 if ($LASTEXITCODE -ne 0) {
-    throw "py_compile failed"
+    throw "compileall failed"
 }
 
 & $Python -m PyInstaller --noconfirm --clean $Spec
