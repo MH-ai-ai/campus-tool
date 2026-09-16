@@ -104,14 +104,39 @@ class _LogPage(QWidget):
 
         # 异步读取线程与定时器
         self._reader: _LogReaderThread | None = None
+        self._last_mtime: float = 0.0
+        self._last_size: int = -1
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._trigger_read)
         self._timer.start(3000)
+        self._trigger_read(force=True)
+
+    def pause(self) -> None:
+        """进入后台休眠态：停用日志定时器，杜绝无谓读取磁盘与线程分配。"""
+        if self._timer.isActive():
+            self._timer.stop()
+
+    def resume(self) -> None:
+        """从后台唤醒：重新启动定时器并按需触发一次读取。"""
+        if not self._timer.isActive():
+            self._timer.start(3000)
         self._trigger_read()
 
-    def _trigger_read(self) -> None:
+    def _trigger_read(self, force: bool = False) -> None:
         if self._reader and self._reader.isRunning():
             return
+        try:
+            if not LOG_PATH.exists():
+                return
+            stat = LOG_PATH.stat()
+            # 文件未修改且大小未变时，直接跳过，零磁盘读取与线程开销
+            if not force and stat.st_mtime == self._last_mtime and stat.st_size == self._last_size:
+                return
+            self._last_mtime = stat.st_mtime
+            self._last_size = stat.st_size
+        except Exception:
+            pass
+
         self._reader = _LogReaderThread(self)
         self._reader.lines_read.connect(self._on_lines_read)
         self._reader.start()

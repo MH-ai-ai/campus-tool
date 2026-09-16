@@ -343,6 +343,17 @@ class _DashboardPage(QWidget):
         self._sys_card.update_data()
         self._evt_card.update_data()
 
+    def pause(self) -> None:
+        """进入后台休眠态：彻底停止卡片定时器与数据读取。"""
+        if self._timer.isActive():
+            self._timer.stop()
+
+    def resume(self) -> None:
+        """从后台唤醒：重新启动定时器并毫秒级刷新一次最新状态。"""
+        if not self._timer.isActive():
+            self._timer.start(5000)
+        self._refresh_cards()
+
     def _on_click_quick_setup(self) -> None:
         self.status_label.setText("🔍 正在探测当前网络重定向并捕获认证网关...")
         self.status_label.setStyleSheet(f"color: {_APPLE_COLORS['accent']};")

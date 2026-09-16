@@ -18,6 +18,7 @@ from .battery import BatteryMonitor
 from .logging_setup import get_logger
 from .models import GuardState
 from .network import NetworkMonitor
+from .system import trim_process_memory
 from .telegram_bot import TelegramBot
 from .tray import create_tray_icon, get_tray_color, pil_image_to_qicon
 
@@ -87,6 +88,8 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(central)
 
         # 系统托盘
+        self._last_tray_color: str | None = None
+        self._cached_qicons: dict[str, Any] = {}
         self.tray = QSystemTrayIcon(self)
         self.tray.setToolTip("Campus Guard")
         menu = QMenu()
@@ -121,10 +124,10 @@ class MainWindow(QMainWindow):
         self._update_tray()
         self.tray.show()
 
-        # 托盘图标定时刷新
+        # 托盘图标定时刷新（低频10秒，增量比对状态，避免重复绘图）
         self._icon_timer = QTimer(self)
         self._icon_timer.timeout.connect(self._update_tray)
-        self._icon_timer.start(5000)
+        self._icon_timer.start(10000)
 
     def _update_tray(self) -> None:
         try:
@@ -139,7 +142,12 @@ class MainWindow(QMainWindow):
                 battery_percent=percent,
             )
             color = get_tray_color(state)
-            self.tray.setIcon(pil_image_to_qicon(create_tray_icon(color)))
+            # 增量按需更新：仅在状态颜色变化时才重新生成并设置图标
+            if color != self._last_tray_color:
+                if color not in self._cached_qicons:
+                    self._cached_qicons[color] = pil_image_to_qicon(create_tray_icon(color))
+                self.tray.setIcon(self._cached_qicons[color])
+                self._last_tray_color = color
 
             mode_str = "校园网" if (self.network and self.network.last_snapshot and self.network.last_snapshot.is_campus_network) else "通用网"
             tip = f"Campus Guard [{mode_str}]\n网络: {'在线' if net_ok else '离线'}"
@@ -157,12 +165,26 @@ class MainWindow(QMainWindow):
                 self.showNormal()
                 self.activateWindow()
 
+    def showEvent(self, event) -> None:
+        """主窗口从托盘唤醒：恢复前端定时器并立即刷新一次。"""
+        super().showEvent(event)
+        self._dashboard_page.resume()
+        self._log_page.resume()
+
+    def hideEvent(self, event) -> None:
+        """主窗口隐藏至托盘：进入极寒休眠状态，停止前端所有定时器并修剪物理工作集。"""
+        super().hideEvent(event)
+        self._dashboard_page.pause()
+        self._log_page.pause()
+        # 延迟 600ms 等待 UI 卸载完成后整理修剪物理内存工作集
+        QTimer.singleShot(600, trim_process_memory)
+
     def closeEvent(self, event) -> None:
         event.ignore()
         self.hide()
         self.tray.showMessage(
             "Campus Guard",
-            "程序已最小化到系统托盘，后台持续守护网络与电源。",
+            "程序已最小化到系统托盘并进入极寒低功耗模式，后台持续守护网络与电源。",
             QSystemTrayIcon.MessageIcon.Information,
             2000,
         )

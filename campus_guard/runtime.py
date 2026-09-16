@@ -61,7 +61,8 @@ def monitor_loop(
                 next_battery_check = now + bat_interval
             if now >= next_network_check:
                 network.check()
-                next_network_check = now + net_interval
+                current_net_interval = network.effective_check_interval(net_interval)
+                next_network_check = now + current_net_interval
             if now >= next_config_check:
                 check_config_reload()
                 cfg = get_config_dict()
@@ -73,7 +74,11 @@ def monitor_loop(
                 next_disk_check = now + disk_interval
         except Exception as err:
             log.error("监控循环异常: %s", err, exc_info=True)
-        time.sleep(0.5)
+
+        # 动态深度睡眠：根据下一次最近任务的剩余时间自适应休眠，降低CPU唤醒与能耗
+        next_deadline = min(next_battery_check, next_network_check, next_config_check, next_disk_check)
+        sleep_secs = max(0.2, min(next_deadline - time.monotonic(), 5.0))
+        time.sleep(sleep_secs)
 
     log.warning("监控循环已退出")
 

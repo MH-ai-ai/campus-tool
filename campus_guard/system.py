@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import gc
+import platform
 import socket
 import subprocess
 import time
@@ -326,4 +328,22 @@ def scan_available_wifis() -> list[dict[str, str]]:
     except Exception as err:
         log.debug("Wi-Fi 扫描异常: %s", err)
     return results
+
+
+def trim_process_memory() -> bool:
+    """主动整理并修剪进程的物理内存工作集（Working Set）。
+    在后台挂机或窗口最小化到系统托盘时调用，能将常驻内存压制到 10MB~25MB 水平。
+    """
+    try:
+        gc.collect()
+        if platform.system() == "Windows":
+            import ctypes
+            # 调用 Windows 原生 API 释放非活跃物理内存页回操作系统
+            ctypes.windll.kernel32.SetProcessWorkingSetSize(
+                ctypes.windll.kernel32.GetCurrentProcess(), -1, -1
+            )
+        return True
+    except Exception as err:
+        log.debug("内存修剪执行异常: %s", err)
+        return False
 

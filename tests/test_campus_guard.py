@@ -423,6 +423,32 @@ class CampusGuardTests(unittest.TestCase):
             self.assertEqual(info3, info1)
             self.assertEqual(mock_subproc.call_count, 2)
 
+    def test_trim_process_memory(self):
+        from campus_guard.system import trim_process_memory
+
+        result = trim_process_memory()
+        self.assertTrue(result)
+
+    def test_network_monitor_effective_interval(self):
+        from campus_guard.network import NetworkMonitor
+        from campus_guard.battery import BatteryTracker
+
+        monitor = NetworkMonitor(lambda _: None, BatteryTracker())
+
+        # 1. 稳定在线状态：自动拉长心跳至至少10秒节电
+        monitor.is_online = True
+        self.assertEqual(monitor.effective_check_interval(2), 10)
+        self.assertEqual(monitor.effective_check_interval(15), 15)
+
+        # 2. 掉线状态：瞬间切入急速模式（默认2秒）
+        monitor.is_online = False
+        self.assertEqual(monitor.effective_check_interval(10), 2)
+
+        # 3. 正在重连中：急速冲刺
+        monitor.is_online = True
+        monitor._reconnecting = True
+        self.assertEqual(monitor.effective_check_interval(10), 2)
+
 
 if __name__ == "__main__":
     unittest.main()
