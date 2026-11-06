@@ -69,8 +69,49 @@ def load_config_raw() -> dict[str, Any]:
 
 
 def save_config_raw(config: dict[str, Any]) -> None:
-    with open(CONFIG_PATH, "w", encoding="utf-8") as f:
+    temp_path = CONFIG_PATH.with_suffix(".tmp")
+    with open(temp_path, "w", encoding="utf-8") as f:
         json.dump(config, f, indent=2, ensure_ascii=False)
+        f.flush()
+        try:
+            os.fsync(f.fileno())
+        except OSError:
+            pass
+    os.replace(temp_path, CONFIG_PATH)
+
+
+SETTINGS_SCHEMA: list[tuple[str, str, str, str, dict]] = [
+    # 校园网凭据与高校体系
+    ("university_name", "所属高校名称", "🏫 高校与认证体系", "text", {}),
+    ("auth_protocol", "核心协议体系", "🏫 高校与认证体系", "protocol_combo", {}),
+    ("campus_account", "校园网账号 / 学号", "🔑 账号与凭据", "text", {}),
+    ("campus_password", "校园网密码", "🔑 账号与凭据", "text", {"sensitive": True}),
+    # 国内免梯推送平台
+    ("feishu_webhook_url", "飞书机器人 Webhook 地址", "🚀 国内通知通道 (无需梯子)", "text", {}),
+    ("dingtalk_webhook_url", "钉钉机器人 Webhook 地址", "🚀 国内通知通道 (无需梯子)", "text", {}),
+    ("dingtalk_secret", "钉钉加签密钥 (SEC...)", "🚀 国内通知通道 (无需梯子)", "text", {"sensitive": True}),
+    # Telegram Bot
+    ("telegram_bot_token", "Telegram Bot Token", "✈️ Telegram 远程控制", "text", {"sensitive": True}),
+    ("telegram_user_id", "Telegram 用户 ID", "✈️ Telegram 远程控制", "text", {}),
+    # 网络与认证参数
+    ("campus_auth_url", "认证接口 URL", "🌐 网络与认证", "text", {}),
+    ("campus_gateway", "校园网网关 IP", "🌐 网络与认证", "text", {}),
+    ("wlan_ac_ip", "AC IP (认证参数)", "🌐 网络与认证", "text", {}),
+    ("campus_wifi_ssids", "校园 WiFi SSID 列表", "🌐 网络与认证", "csv", {}),
+    ("trusted_home_ssids", "家庭 / 信任免认证 WiFi", "🌐 网络与认证", "csv", {}),
+    ("forced_network_mode", "强制网络模式 (auto/campus/home)", "🌐 网络与认证", "text", {}),
+    ("network_check_interval_seconds", "网络探测间隔 (秒)", "🌐 网络与认证", "spin", {"min": 1, "max": 300}),
+    ("reconnect_max_retries", "重连最大重试次数", "🌐 网络与认证", "spin", {"min": 1, "max": 30}),
+    ("reconnect_verify_delay_seconds", "重连验证延迟 (秒)", "🌐 网络与认证", "spin", {"min": 1, "max": 30}),
+    ("reconnect_fast_retry_seconds", "快速重试间隔 (秒)", "🌐 网络与认证", "spin", {"min": 1, "max": 30}),
+    # 电源与自动关机
+    ("battery_warning_thresholds", "电量提醒梯度 (逗号分隔)", "🔋 电源与电量保护", "csv_int", {}),
+    ("auto_shutdown_threshold", "自动关机电量阈值 (%)", "🔋 电源与电量保护", "spin", {"min": 5, "max": 50}),
+    ("auto_shutdown_delay", "关机倒计时 (秒)", "🔋 电源与电量保护", "spin", {"min": 10, "max": 600}),
+    # 系统与运行
+    ("check_interval_seconds", "主监控周期 (秒)", "⚙ 运行与守护", "spin", {"min": 1, "max": 60}),
+    ("autostart", "开机自动在后台启动", "⚙ 运行与守护", "check", {}),
+]
 
 
 def decrypt_config(config: dict[str, Any]) -> dict[str, Any]:

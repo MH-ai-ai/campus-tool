@@ -22,3 +22,8 @@ _screenshot.ps1
 .env
 .env.*
 !.env.example
+
+# Frontend build & dependencies
+node_modules/
+frontend/node_modules/
+frontend/dist/

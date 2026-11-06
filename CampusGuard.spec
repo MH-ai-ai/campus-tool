@@ -7,6 +7,8 @@ hiddenimports = (
     collect_submodules("telegram")
     + collect_submodules("telegram.ext")
     + collect_submodules("campus_guard")
+    + collect_submodules("webview")
+    + collect_submodules("pystray")
 )
 
 a = Analysis(
@@ -16,6 +18,7 @@ a = Analysis(
     datas=[
         ("data/universities.json", "data"),
         ("config.example.json", "."),
+        ("campus_guard/web_dist", "campus_guard/web_dist"),
     ],
     hiddenimports=hiddenimports,
     hookspath=[],

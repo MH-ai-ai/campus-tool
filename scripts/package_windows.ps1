@@ -20,6 +20,17 @@ if (-not (Test-Path -LiteralPath $Spec)) {
     throw "PyInstaller spec not found: $Spec"
 }
 
+$FrontendDir = Join-Path $RepoRoot "frontend"
+$WebDistIndex = Join-Path $RepoRoot "campus_guard\web_dist\index.html"
+if (Test-Path -LiteralPath $FrontendDir) {
+    if (-not (Test-Path -LiteralPath $WebDistIndex)) {
+        Write-Host "Building frontend assets..."
+        Push-Location $FrontendDir
+        & npm run build
+        Pop-Location
+    }
+}
+
 if (-not $SkipTests) {
     & $Python -m unittest discover -s tests -v
     if ($LASTEXITCODE -ne 0) {

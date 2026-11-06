@@ -88,7 +88,9 @@ def build_autostart_command() -> str:
         return f'"{sys.executable}"'
 
     script_path = str(APP_DIR / "campus_guard.pyw")
-    pythonw = os.path.join(os.path.dirname(sys.executable), "pythonw.exe")
+    import ntpath
+    p_module = ntpath if ("\\" in sys.executable or os.name == "nt") else os.path
+    pythonw = p_module.join(p_module.dirname(sys.executable), "pythonw.exe")
     if not os.path.exists(pythonw):
         pythonw = sys.executable
     return f'"{pythonw}" "{script_path}"'
@@ -198,13 +200,8 @@ def main() -> None:
     bot_thread.start()
     log.info("Telegram Bot 线程已启动")
 
-    from PyQt6.QtWidgets import QApplication
+    from .ui import launch_gui
 
-    from .ui import MainWindow
+    log.info("启动现代控制中心 Webview 窗口与托盘守护")
+    launch_gui(battery, network, tg_bot)
 
-    app = QApplication(sys.argv)
-    app.setQuitOnLastWindowClosed(False)
-    window = MainWindow(battery, network, tg_bot)
-    window.show()
-    log.info("PyQt6 主窗口已显示")
-    sys.exit(app.exec())

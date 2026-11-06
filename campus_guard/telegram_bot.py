@@ -142,8 +142,6 @@ class TelegramBot:
         active_app.add_handler(CallbackQueryHandler(self._touch_update(self._handle_callback)))
 
     async def start(self) -> None:
-        from telegram import BotCommand
-
         cfg = self._config()
         if not str(cfg.get("telegram_bot_token", "")).strip():
             log.warning("Telegram Bot token 未配置，跳过 Bot 启动")
@@ -151,6 +149,8 @@ class TelegramBot:
         if not int(cfg.get("telegram_user_id", 0)):
             log.warning("telegram_user_id 未配置，跳过 Bot 启动")
             return
+
+        from telegram import BotCommand
 
         self.app = self._build_app()
         self._register_handlers()

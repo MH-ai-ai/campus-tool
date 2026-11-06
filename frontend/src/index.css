@@ -1,0 +1,18 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer utilities {
+  .squircle {
+    border-radius: 16px;
+  }
+  .capsule {
+    border-radius: 9999px;
+  }
+  .glass-card {
+    background-color: rgba(25, 27, 36, 0.75);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+}

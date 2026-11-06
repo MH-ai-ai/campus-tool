@@ -3,14 +3,15 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Origin-%E5%BB%B6%E5%AE%89%E5%A4%A7%E5%AD%A6%20(YAU)-C8102E?style=flat-square" alt="Yan'an University" />
   <img src="https://img.shields.io/badge/Protocols-Srun%20%7C%20Dr.COM%20%7C%20Ruijie%20%7C%20Portal-blue?style=flat-square" alt="Protocols" />
-  <img src="https://img.shields.io/badge/UI-Apple%20HIG%20%7C%20PyQt6-black?style=flat-square" alt="Apple Design System" />
-  <img src="https://img.shields.io/badge/Memory-4.8MB%20RAM-success?style=flat-square" alt="Low Memory" />
+  <img src="https://img.shields.io/badge/UI-macOS%20Sequoia%20%7C%20React%2019%20%2B%20Tailwind-black?style=flat-square" alt="Modern Apple HIG" />
+  <img src="https://img.shields.io/badge/Shell-WebView2%20%7C%20pystray-blueviolet?style=flat-square" alt="Shell" />
   <img src="https://img.shields.io/badge/Notifications-%E9%A3%9E%E4%B9%A6%20%7C%20%E9%92%89%E9%92%89%20%7C%20Telegram-orange?style=flat-square" alt="Notifications" />
-  <img src="https://img.shields.io/badge/Tests-37%20Passed-brightgreen?style=flat-square" alt="Tests" />
+  <img src="https://img.shields.io/badge/Tests-41%20Passed-brightgreen?style=flat-square" alt="Tests" />
+  <img src="https://img.shields.io/badge/CI%2FCD-GitHub%20Actions-2088FF?style=flat-square" alt="CI/CD" />
 </p>
 
 > **面向 Windows 的全国高校校园网自动认证与状态守护工具（以延安大学校园网为核心原型深度量身定制）。**  
-> 全面兼容国内各大高校主流认证体系（深澜 Srun 4000/Portal、城市热点 Dr.COM Web、锐捷 Ruijie 与通用 Web Portal）。具备掉线毫秒自愈、国内直连多通道（飞书/钉钉）告警、低电量安全关机守护，常驻内存仅 **4.8MB**，CPU 占用 **0.0%**。
+> 全面兼容国内各大高校主流认证体系（深澜 Srun 4000/Portal、城市热点 Dr.COM Web、锐捷 Ruijie 与通用 Web Portal）。基于 **Windows 原生 Edge WebView2 + React 19 + Tailwind CSS + Lucide 矢量图标** 打造的顶级 macOS Sequoia 双栏沉浸暗黑质感，彻底消除传统 Python GUI 塑料感。具备掉线毫秒自愈、国内直连多通道（飞书/钉钉）告警、低电量安全关机守护，单文件便携绿色运行。
 
 ---
 

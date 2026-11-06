@@ -245,6 +245,8 @@ class UniversityManager:
                 results.append(prof)
         return results
 
+    fuzzy_search = search
+
     def infer_by_url_and_html(
         self,
         url: str,
