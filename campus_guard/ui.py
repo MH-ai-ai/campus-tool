@@ -136,9 +136,24 @@ def launch_gui(
 
     window.events.closing += on_closing
 
+    # 查找定制的 Cyber Shield 图标文件
+    icon_file = APP_DIR / "assets" / "app_icon.ico"
+    if not icon_file.exists():
+        icon_file = Path(__file__).resolve().parent.parent / "assets" / "app_icon.ico"
+
+    if sys.platform == "win32":
+        try:
+            import ctypes
+
+            # 注册独立 Windows AppUserModelID，彻底剥离 Python 任务栏标识
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("MH.CampusGuard.Desktop.2.1")
+        except Exception as e:
+            log.debug("注册 AppUserModelID 异常: %s", e)
+
     # 启动 Webview 事件循环（Windows 上默认调用 edgechromium / WebView2）
     try:
-        webview.start(debug=False)
+        icon_arg = str(icon_file.resolve()) if icon_file.exists() else None
+        webview.start(debug=False, icon=icon_arg)
     except Exception as err:
         log.error("Webview 运行时异常: %s", err)
         if sys.platform == "win32":

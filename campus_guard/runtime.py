@@ -167,6 +167,14 @@ def remove_autostart() -> None:
 
 def _run_main() -> None:
     setup_logging()
+    if sys.platform == "win32":
+        try:
+            import ctypes
+
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("MH.CampusGuard.Desktop.2.1")
+        except Exception:
+            pass
+
     log.info("=" * 40)
     log.info("Campus Guard 启动")
     log.info("Python: %s", sys.version)

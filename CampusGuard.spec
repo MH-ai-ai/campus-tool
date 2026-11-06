@@ -19,6 +19,7 @@ a = Analysis(
         ("data/universities.json", "data"),
         ("config.example.json", "."),
         ("campus_guard/web_dist", "campus_guard/web_dist"),
+        ("assets", "assets"),
     ],
     hiddenimports=hiddenimports,
     hookspath=[],

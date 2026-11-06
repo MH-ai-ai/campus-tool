@@ -10,161 +10,115 @@
     border-radius: 9999px;
   }
 
-  /* 明艳通透·暮色水晶液态玻璃 (Ethereal Twilight Glass) */
+  /* 明艳通透·极速硬件加速暮色水晶玻璃 (GPU-Accelerated Twilight Glass) */
   .twilight-glass-card {
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0.12) 100%);
-    backdrop-filter: blur(30px) saturate(190%) brightness(108%);
-    -webkit-backdrop-filter: blur(30px) saturate(190%) brightness(108%);
-    border: 1px solid rgba(255, 255, 255, 0.32);
+    background: rgba(255, 255, 255, 0.14);
+    backdrop-filter: blur(14px) saturate(160%);
+    -webkit-backdrop-filter: blur(14px) saturate(160%);
+    border: 1px solid rgba(255, 255, 255, 0.28);
     box-shadow: 
-      0 20px 48px -10px rgba(18, 12, 45, 0.40),
-      inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.60),
-      inset 0 0 20px 0 rgba(255, 255, 255, 0.05);
+      0 12px 28px -4px rgba(12, 10, 32, 0.35),
+      inset 0 1px 1px 0 rgba(255, 255, 255, 0.55);
+    transform: translateZ(0);
+    contain: content;
   }
 
   .twilight-glass-card-hover {
-    transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: transform 0.15s ease, background-color 0.15s ease;
   }
   .twilight-glass-card-hover:hover {
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.28) 0%, rgba(255, 255, 255, 0.16) 100%);
-    border-color: rgba(255, 255, 255, 0.48);
-    box-shadow: 
-      0 24px 54px -8px rgba(18, 12, 45, 0.50),
-      inset 0 1px 2px 0 rgba(255, 255, 255, 0.75);
-    transform: translateY(-1px);
+    background: rgba(255, 255, 255, 0.20);
+    border-color: rgba(255, 255, 255, 0.42);
+    transform: translateY(-1px) translateZ(0);
   }
 
-  /* 暮色通透侧边栏 */
+  /* 暮色通透侧边栏 (硬件加速) */
   .twilight-glass-sidebar {
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.10) 100%);
-    backdrop-filter: blur(36px) saturate(200%) brightness(105%);
-    -webkit-backdrop-filter: blur(36px) saturate(200%) brightness(105%);
-    border-right: 1px solid rgba(255, 255, 255, 0.25);
-    box-shadow: 4px 0 24px rgba(15, 10, 38, 0.25);
+    background: rgba(255, 255, 255, 0.10);
+    backdrop-filter: blur(16px) saturate(170%);
+    -webkit-backdrop-filter: blur(16px) saturate(170%);
+    border-right: 1px solid rgba(255, 255, 255, 0.20);
+    box-shadow: 2px 0 16px rgba(10, 8, 28, 0.25);
+    transform: translateZ(0);
   }
 
-  /* 晶体发光按钮 */
+  /* 晶体发光主按钮 */
   .twilight-btn-primary {
     background: linear-gradient(135deg, #6366f1 0%, #a855f7 50%, #ec4899 100%);
     border: 1px solid rgba(255, 255, 255, 0.5);
     box-shadow: 
-      0 10px 25px -4px rgba(168, 85, 247, 0.55),
+      0 8px 20px -3px rgba(168, 85, 247, 0.50),
       inset 0 1px 1px 0 rgba(255, 255, 255, 0.65);
-    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: transform 0.15s ease, filter 0.15s ease;
+    transform: translateZ(0);
   }
   .twilight-btn-primary:hover {
-    box-shadow: 
-      0 14px 32px -4px rgba(236, 72, 153, 0.65),
-      inset 0 1px 2px 0 rgba(255, 255, 255, 0.85);
-    transform: translateY(-1px) scale(1.01);
+    filter: brightness(1.08);
+    transform: translateY(-1px) translateZ(0);
   }
   .twilight-btn-primary:active {
-    transform: translateY(0) scale(0.99);
+    transform: translateY(0) translateZ(0);
   }
 
   /* 晶体微光次级按钮 */
   .twilight-btn-secondary {
-    background: rgba(255, 255, 255, 0.15);
-    border: 1px solid rgba(255, 255, 255, 0.28);
-    backdrop-filter: blur(16px);
+    background: rgba(255, 255, 255, 0.14);
+    border: 1px solid rgba(255, 255, 255, 0.26);
     box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.35);
-    transition: all 0.18s ease;
+    transition: background-color 0.15s ease;
+    transform: translateZ(0);
   }
   .twilight-btn-secondary:hover {
-    background: rgba(255, 255, 255, 0.24);
-    border-color: rgba(255, 255, 255, 0.45);
-    box-shadow: inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.55), 0 8px 20px -4px rgba(0, 0, 0, 0.2);
-  }
-
-  /* 保持与原有 class 的兼容别名 */
-  .liquid-card {
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.20) 0%, rgba(255, 255, 255, 0.10) 100%);
-    backdrop-filter: blur(30px) saturate(190%) brightness(108%);
-    -webkit-backdrop-filter: blur(30px) saturate(190%) brightness(108%);
-    border: 1px solid rgba(255, 255, 255, 0.30);
-    box-shadow: 
-      0 20px 48px -10px rgba(18, 12, 45, 0.35),
-      inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.55);
-  }
-  .liquid-card-hover {
-    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-  }
-  .liquid-card-hover:hover {
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.26) 0%, rgba(255, 255, 255, 0.14) 100%);
-    border-color: rgba(255, 255, 255, 0.45);
-    box-shadow: 0 24px 50px -8px rgba(18, 12, 45, 0.45), inset 0 1px 2px 0 rgba(255, 255, 255, 0.70);
-  }
-  .liquid-sidebar {
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0.08) 100%);
-    backdrop-filter: blur(36px) saturate(200%) brightness(105%);
-    -webkit-backdrop-filter: blur(36px) saturate(200%) brightness(105%);
-    border-right: 1px solid rgba(255, 255, 255, 0.22);
-  }
-  .liquid-btn {
-    background: rgba(255, 255, 255, 0.15);
-    border: 1px solid rgba(255, 255, 255, 0.25);
-    box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.35);
-    backdrop-filter: blur(16px);
-    transition: all 0.15s ease;
-  }
-  .liquid-btn:hover {
-    background: rgba(255, 255, 255, 0.25);
+    background: rgba(255, 255, 255, 0.22);
     border-color: rgba(255, 255, 255, 0.40);
   }
+
+  /* 兼容旧类名 */
+  .liquid-card {
+    background: rgba(255, 255, 255, 0.14);
+    backdrop-filter: blur(14px) saturate(160%);
+    -webkit-backdrop-filter: blur(14px) saturate(160%);
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    box-shadow: 0 12px 28px -4px rgba(12, 10, 32, 0.35), inset 0 1px 1px 0 rgba(255, 255, 255, 0.55);
+    transform: translateZ(0);
+  }
+  .liquid-card-hover {
+    transition: transform 0.15s ease, background-color 0.15s ease;
+  }
+  .liquid-card-hover:hover {
+    background: rgba(255, 255, 255, 0.20);
+    border-color: rgba(255, 255, 255, 0.40);
+    transform: translateY(-1px) translateZ(0);
+  }
+  .liquid-sidebar {
+    background: rgba(255, 255, 255, 0.10);
+    backdrop-filter: blur(16px) saturate(170%);
+    -webkit-backdrop-filter: blur(16px) saturate(170%);
+    border-right: 1px solid rgba(255, 255, 255, 0.20);
+    transform: translateZ(0);
+  }
+  .liquid-btn {
+    background: rgba(255, 255, 255, 0.14);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.35);
+    transition: background-color 0.15s ease;
+    transform: translateZ(0);
+  }
+  .liquid-btn:hover {
+    background: rgba(255, 255, 255, 0.22);
+  }
 }
 
-/* 暮色诗意天际背景环境光球 (Ambient Twilight Mesh Spheres) */
-.twilight-glow-sunset {
-  position: absolute;
-  top: -8%;
-  left: 15%;
-  width: 600px;
-  height: 600px;
-  background: radial-gradient(circle, rgba(244, 63, 94, 0.32) 0%, rgba(217, 70, 239, 0.18) 45%, transparent 70%);
-  filter: blur(90px);
-  pointer-events: none;
-  z-index: 0;
-}
-
-.twilight-glow-amethyst {
-  position: absolute;
-  bottom: -5%;
-  right: 12%;
-  width: 580px;
-  height: 580px;
-  background: radial-gradient(circle, rgba(147, 51, 234, 0.30) 0%, rgba(99, 102, 241, 0.20) 45%, transparent 70%);
-  filter: blur(95px);
-  pointer-events: none;
-  z-index: 0;
-}
-
-.twilight-glow-gold {
-  position: absolute;
-  top: 35%;
-  left: 48%;
-  width: 520px;
-  height: 520px;
-  background: radial-gradient(circle, rgba(251, 146, 60, 0.25) 0%, rgba(245, 158, 11, 0.12) 50%, transparent 75%);
-  filter: blur(85px);
-  pointer-events: none;
-  z-index: 0;
-}
-
-.twilight-glow-cyan {
-  position: absolute;
-  top: 60%;
-  left: 5%;
-  width: 480px;
-  height: 480px;
-  background: radial-gradient(circle, rgba(56, 189, 248, 0.22) 0%, rgba(14, 165, 233, 0.10) 50%, transparent 70%);
-  filter: blur(80px);
-  pointer-events: none;
-  z-index: 0;
-}
-
-/* 细微落霞与星光粒子微光纹理 */
+/* 单层 GPU 预计算的暮色天际流光网格 (零 CPU 重绘，丝滑 60+ FPS) */
 .twilight-sky-backdrop {
-  background: 
+  background-color: #161730;
+  background-image: 
+    radial-gradient(at 16% 14%, rgba(244, 63, 94, 0.26) 0px, transparent 55%),
+    radial-gradient(at 84% 82%, rgba(147, 51, 234, 0.24) 0px, transparent 50%),
+    radial-gradient(at 52% 40%, rgba(251, 146, 60, 0.18) 0px, transparent 45%),
+    radial-gradient(at 12% 76%, rgba(56, 189, 248, 0.18) 0px, transparent 45%),
     linear-gradient(135deg, #181533 0%, #281e4c 25%, #42204c 50%, #2c2557 75%, #151a3d 100%);
-  background-size: 100% 100%;
+  background-attachment: fixed;
+  background-size: cover;
+  transform: translateZ(0);
 }

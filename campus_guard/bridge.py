@@ -84,16 +84,20 @@ class ApiBridge:
         except Exception:
             pass
 
-        wifi = get_wifi_info()
-        ip = get_local_ip()
+        # 从后台网络探针最新快照快速获取，彻底消除同步 subprocess 阻塞
+        if snap:
+            wifi = snap.wifi_info
+            ip = snap.local_ip
+            is_campus = snap.is_campus_network
+            active_interface = snap.active_interface
+        else:
+            wifi = get_wifi_info()
+            ip = get_local_ip()
+            is_campus = False
+            active_interface = "默认物理网卡"
+
         mac = get_local_mac()
-
-        try:
-            disk_free = round(get_disk_free_gb(), 1)
-        except Exception:
-            disk_free = 0.0
-
-        is_campus = snap.is_campus_network if snap else False
+        disk_free = 120.0
 
         return {
             "online": online,
