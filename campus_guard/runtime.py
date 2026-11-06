@@ -165,7 +165,7 @@ def remove_autostart() -> None:
         pass
 
 
-def main() -> None:
+def _run_main() -> None:
     setup_logging()
     log.info("=" * 40)
     log.info("Campus Guard 启动")
@@ -204,4 +204,30 @@ def main() -> None:
 
     log.info("启动现代控制中心 Webview 窗口与托盘守护")
     launch_gui(battery, network, tg_bot)
+
+
+def main() -> None:
+    try:
+        _run_main()
+    except Exception as err:
+        import traceback
+
+        tb = traceback.format_exc()
+        try:
+            log.critical("Campus Guard 启动异常: %s\n%s", err, tb)
+        except Exception:
+            pass
+        if sys.platform == "win32":
+            try:
+                import ctypes
+
+                ctypes.windll.user32.MessageBoxW(
+                    0,
+                    f"Campus Guard 启动异常:\n{err}\n\n详细调用栈:\n{tb[:800]}",
+                    "Campus Guard 错误拦截",
+                    0x10,
+                )
+            except Exception:
+                pass
+        raise
 

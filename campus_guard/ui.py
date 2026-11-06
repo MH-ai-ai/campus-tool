@@ -141,6 +141,19 @@ def launch_gui(
         webview.start(debug=False)
     except Exception as err:
         log.error("Webview 运行时异常: %s", err)
+        if sys.platform == "win32":
+            try:
+                import ctypes
+
+                ctypes.windll.user32.MessageBoxW(
+                    0,
+                    f"Campus Guard 启动异常: {err}\n\n可能原因：缺失 pythonnet 或 Edge WebView2 运行时。\n请尝试在终端执行: pip install pythonnet",
+                    "Campus Guard 错误",
+                    0x10,
+                )
+            except Exception:
+                pass
+        raise
 
 
 __all__ = [
