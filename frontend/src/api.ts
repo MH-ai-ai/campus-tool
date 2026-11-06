@@ -11,6 +11,12 @@ export interface SystemInfo {
   disk_free_gb: number;
 }
 
+export interface TelegramState {
+  configured: boolean;
+  user_id: string;
+  is_running: boolean;
+}
+
 export interface StateData {
   online: boolean | null;
   is_campus: boolean;
@@ -27,6 +33,7 @@ export interface StateData {
   university_name: string;
   auth_protocol: string;
   campus_account: string;
+  telegram?: TelegramState;
 }
 
 export interface UniversityItem {
@@ -230,6 +237,13 @@ export const api = {
       return await window.pywebview.api.take_screenshot();
     }
     return { success: true, message: "桌面截图已成功捕获并保存" };
+  },
+
+  async testTelegramBot(): Promise<ApiResponse> {
+    if (window.pywebview?.api?.test_telegram_bot) {
+      return await window.pywebview.api.test_telegram_bot();
+    }
+    return { success: true, message: "模拟向手机 Telegram 派发测试握手成功" };
   },
 
   minimize(): void {

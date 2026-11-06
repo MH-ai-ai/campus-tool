@@ -120,6 +120,11 @@ class ApiBridge:
             "university_name": uni_name,
             "auth_protocol": proto,
             "campus_account": str(cfg.get("campus_account", "")),
+            "telegram": {
+                "configured": bool(str(cfg.get("telegram_bot_token", "")).strip() and int(cfg.get("telegram_user_id", 0))),
+                "user_id": str(cfg.get("telegram_user_id", "")),
+                "is_running": bool(self.tg_bot and getattr(self.tg_bot, "app", None)),
+            },
         }
 
     def get_config(self) -> dict[str, Any]:
@@ -294,6 +299,43 @@ class ApiBridge:
             except Exception:
                 pass
 
+    def test_telegram_bot(self) -> dict[str, Any]:
+        """向绑定的手机 Telegram 发送握手测试消息。"""
+        cfg = get_config_dict()
+        token = str(cfg.get("telegram_bot_token", "")).strip()
+        user_id = cfg.get("telegram_user_id")
+        if not token or not user_id:
+            return {"success": False, "message": "尚未配置 Telegram Bot Token 或 用户 ID"}
+
+        test_msg = (
+            "🛰️ Campus Guard 控制中枢握手成功\n"
+            f"{'─' * 28}\n"
+            f"📱 设备已成功与本客户端建立加密双向链路\n"
+            f"🕒 握手时间: {time.strftime('%Y-%m-%d %H:%M:%S')}\n"
+            f"💡 发送 /status 即可调出手机端快速控制面板"
+        )
+        if self.tg_bot:
+            try:
+                self.tg_bot.send_notification(test_msg)
+                return {"success": True, "message": "已成功向手机 Telegram 派发测试握手消息"}
+            except Exception as err:
+                return {"success": False, "message": f"发送测试失败: {err}"}
+
+        try:
+            import requests
+
+            url = f"https://api.telegram.org/bot{token}/sendMessage"
+            resp = requests.post(
+                url,
+                json={"chat_id": user_id, "text": test_msg},
+                timeout=6,
+            )
+            if resp.status_code == 200:
+                return {"success": True, "message": "已成功向手机 Telegram 派发测试握手消息"}
+            return {"success": False, "message": f"Telegram API 返回: {resp.text}"}
+        except Exception as err:
+            return {"success": False, "message": f"网络通信异常: {err}"}
+
     def close_app(self) -> None:
         """退出应用。"""
         if self.window:
@@ -302,3 +344,4 @@ class ApiBridge:
             except Exception:
                 pass
         sys.exit(0)
+

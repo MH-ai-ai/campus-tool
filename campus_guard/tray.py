@@ -21,20 +21,38 @@ def get_tray_color(state: GuardState) -> str:
 
 
 def create_tray_icon(color: str, size: int = 64):
+    from pathlib import Path
     from PIL import Image, ImageDraw
+    from .paths import APP_DIR
 
-    img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(img)
+    icon_path = APP_DIR / "assets" / "app_icon.png"
+    if not icon_path.exists():
+        icon_path = Path(__file__).resolve().parent.parent / "assets" / "app_icon.png"
+
     colors = {
         "green": (50, 215, 75),    # Apple Mint Green
         "yellow": (255, 159, 10),   # Apple Amber
         "red": (255, 69, 58),       # Apple Coral Red
         "gray": (142, 142, 147),    # Apple Neutral Gray
     }
-    # 外圈柔光
     fill_color = colors.get(color, colors["gray"])
+
+    if icon_path.exists():
+        try:
+            base_img = Image.open(icon_path).convert("RGBA").resize((size, size), Image.Resampling.LANCZOS)
+            draw = ImageDraw.Draw(base_img)
+            dot_r = max(4, int(size * 0.16))
+            dot_cx = int(size * 0.78)
+            dot_cy = int(size * 0.78)
+            draw.ellipse([dot_cx - dot_r - 2, dot_cy - dot_r - 2, dot_cx + dot_r + 2, dot_cy + dot_r + 2], fill=(15, 17, 24, 240))
+            draw.ellipse([dot_cx - dot_r, dot_cy - dot_r, dot_cx + dot_r, dot_cy + dot_r], fill=fill_color)
+            return base_img
+        except Exception:
+            pass
+
+    img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
     draw.ellipse([4, 4, size - 4, size - 4], fill=fill_color)
-    # 中心高光点
     draw.ellipse([size // 4, size // 4, size * 3 // 4, size * 3 // 4], fill=(255, 255, 255, 90))
     return img
 

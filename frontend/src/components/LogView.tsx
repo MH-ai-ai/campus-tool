@@ -128,7 +128,7 @@ export const LogView: React.FC = () => {
       </div>
 
       {/* 终端日志视窗 */}
-      <div className="flex-1 min-h-0 bg-[#0d0e14] rounded-2xl border border-white/[0.09] shadow-2xl p-4 overflow-y-auto font-mono text-[11px] leading-relaxed">
+      <div className="flex-1 min-h-0 bg-[#090a10]/80 backdrop-blur-2xl rounded-2xl border border-white/[0.12] shadow-[0_20px_45px_rgba(0,0,0,0.6)] p-4 overflow-y-auto font-mono text-[11px] leading-relaxed">
         {filteredLogs.length === 0 ? (
           <div className="h-full flex items-center justify-center text-apple-textTertiary text-xs">
             暂无匹配的运行日志

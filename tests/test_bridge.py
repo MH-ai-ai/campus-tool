@@ -37,6 +37,20 @@ class TestApiBridge(unittest.TestCase):
         self.assertTrue(res["success"])
         self.assertEqual(res["message"], "模拟登录成功")
 
+    def test_telegram_in_state(self) -> None:
+        state = self.bridge.get_state()
+        self.assertIn("telegram", state)
+        self.assertIn("configured", state["telegram"])
+        self.assertIn("user_id", state["telegram"])
+        self.assertIn("is_running", state["telegram"])
+
+    def test_test_telegram_bot_when_unconfigured(self) -> None:
+        with patch("campus_guard.bridge.get_config_dict", return_value={"telegram_bot_token": ""}):
+            res = self.bridge.test_telegram_bot()
+            self.assertFalse(res["success"])
+            self.assertIn("尚未配置", res["message"])
+
 
 if __name__ == "__main__":
     unittest.main()
+

@@ -1,39 +1,42 @@
 import React, { useState } from 'react';
 import {
-  Sparkles,
   Wifi,
   KeyRound,
   LogOut,
-  Camera,
-  Lock,
   Minimize2,
   RefreshCw,
-  Battery,
-  BatteryCharging,
-  Cpu,
-  Activity,
-  HardDrive,
-  Globe,
+  Send,
   Radio,
+  Globe,
+  Activity,
   CheckCircle2,
   AlertCircle,
   Loader2,
+  SlidersHorizontal,
+  ChevronDown,
+  ChevronUp,
+  Cpu,
+  ShieldCheck,
+  Zap,
 } from 'lucide-react';
 import { StateData, api } from '../api';
 
 interface DashboardViewProps {
   state: StateData | null;
   onRefresh: () => void;
-  onOpenQuickSetup: () => void;
 }
 
-export const DashboardView: React.FC<DashboardViewProps> = ({ state, onRefresh, onOpenQuickSetup }) => {
+export const DashboardView: React.FC<DashboardViewProps> = ({ state, onRefresh }) => {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [showTgConfig, setShowTgConfig] = useState(false);
+  const [botToken, setBotToken] = useState('');
+  const [botUserId, setBotUserId] = useState('');
+  const [savingTg, setSavingTg] = useState(false);
 
   const showToast = (type: 'success' | 'error', message: string) => {
     setToast({ type, message });
-    setTimeout(() => setToast(null), 3000);
+    setTimeout(() => setToast(null), 3500);
   };
 
   const handleAction = async (name: string, fn: () => Promise<any>) => {
@@ -41,39 +44,81 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ state, onRefresh, 
     try {
       const res = await fn();
       if (res && res.success !== undefined) {
-        showToast(res.success ? 'success' : 'error', res.message || '操作已完成');
+        showToast(res.success ? 'success' : 'error', res.message || '指令执行完毕');
       } else {
-        showToast('success', '指令已发送');
+        showToast('success', '指令已下发');
       }
       onRefresh();
     } catch (err: any) {
-      showToast('error', `操作失败: ${err.message || err}`);
+      showToast('error', `操作异常: ${err.message || err}`);
     } finally {
       setActionLoading(null);
     }
   };
 
+  const handleTestTelegram = async () => {
+    setActionLoading('test_tg');
+    try {
+      const res = await api.testTelegramBot();
+      showToast(res.success ? 'success' : 'error', res.message);
+    } catch (err: any) {
+      showToast('error', `握手测试失败: ${err.message || err}`);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleSaveTelegram = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!botToken.trim() || !botUserId.trim()) {
+      showToast('error', '请输入完整的 Bot Token 与 Telegram 用户 ID');
+      return;
+    }
+    setSavingTg(true);
+    try {
+      const cfg = await api.getConfig();
+      cfg.telegram_bot_token = botToken.trim();
+      cfg.telegram_user_id = botUserId.trim();
+      const res = await api.saveConfig(cfg);
+      if (res.success) {
+        showToast('success', 'Telegram 凭据已保存，守护引擎正在建立长连接');
+        setShowTgConfig(false);
+        onRefresh();
+      } else {
+        showToast('error', res.message);
+      }
+    } catch (err: any) {
+      showToast('error', `保存失败: ${err.message || err}`);
+    } finally {
+      setSavingTg(false);
+    }
+  };
+
   const isOnline = state?.online === true;
   const isOffline = state?.online === false;
-  const batPct = state?.battery?.percent ?? 100;
-  const batPlugged = state?.battery?.plugged ?? true;
-
-  // 格式化运行时间
-  const uptimeSec = state?.system?.uptime_seconds ?? 0;
-  const upHours = Math.floor(uptimeSec / 3600);
-  const upMins = Math.floor((uptimeSec % 3600) / 60);
+  const tgConfigured = state?.telegram?.configured ?? false;
+  const tgRunning = state?.telegram?.is_running ?? false;
 
   return (
-    <div className="flex-1 h-full overflow-y-auto p-6 space-y-6">
-      {/* 顶部标题与快速刷新 */}
+    <div className="flex-1 h-full overflow-y-auto p-7 space-y-6">
+      {/* 顶部标题区 */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold tracking-tight text-white">控制中心概览</h2>
-          <p className="text-xs text-apple-textTertiary">实时监控网络链路、供电健康与后台守护状态</p>
+          <div className="flex items-center gap-2">
+            <h2 className="text-xl font-bold tracking-tight text-white">校园网守护中枢</h2>
+            <span className="px-2 py-0.5 rounded-full bg-apple-green/10 border border-apple-green/20 text-apple-green text-[10px] font-mono font-medium flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-apple-green animate-pulse" />
+              毫秒自愈链路活跃
+            </span>
+          </div>
+          <p className="text-xs text-apple-textTertiary mt-0.5">
+            掉线被动毫秒感知 · 无感重连自愈 · Telegram 手机全权远程接管
+          </p>
         </div>
+
         <button
           onClick={onRefresh}
-          className="px-3 py-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-xs text-apple-textSecondary hover:text-white flex items-center gap-1.5 transition-all"
+          className="liquid-btn px-3 py-1.5 rounded-xl text-xs text-apple-textSecondary hover:text-white flex items-center gap-1.5"
         >
           <RefreshCw className="w-3.5 h-3.5" />
           刷新数据
@@ -85,274 +130,281 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ state, onRefresh, 
         <div
           className={`p-3 rounded-xl border text-xs flex items-center gap-2 animate-in fade-in duration-200 ${
             toast.type === 'success'
-              ? 'bg-apple-green/10 text-apple-green border-apple-green/20'
-              : 'bg-apple-coral/10 text-apple-coral border-apple-coral/20'
+              ? 'bg-apple-green/10 text-apple-green border-apple-green/25'
+              : 'bg-apple-coral/10 text-apple-coral border-apple-coral/25'
           }`}
         >
           {toast.type === 'success' ? <CheckCircle2 className="w-4 h-4 shrink-0" /> : <AlertCircle className="w-4 h-4 shrink-0" />}
-          <span>{toast.message}</span>
+          <span className="font-medium">{toast.message}</span>
         </div>
       )}
 
       {/* ------------------------------------------------------------------- */}
-      {/* 小白一键打通醒目卡片 (Smart Onboarding Banner) */}
+      {/* 双核心卡片布局：1. 网络自愈守护视窗  2. Telegram 手机远程控制中枢 */}
       {/* ------------------------------------------------------------------- */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-apple-card to-apple-sidebar border border-white/[0.09] p-5 shadow-apple-card flex items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-apple-blue/15 border border-apple-blue/20 flex items-center justify-center text-apple-blue shadow-apple-glow-blue/20 shadow-md shrink-0">
-            <Sparkles className="w-6 h-6 stroke-[2]" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h3 className="text-sm font-semibold text-white">小白一键智能打通</h3>
-              <span className="px-2 py-0.5 rounded-full bg-apple-blue/20 text-apple-blue text-[10px] font-medium">
-                推荐新同学
-              </span>
-            </div>
-            <p className="text-xs text-apple-textSecondary mt-0.5">
-              连入校园 Wi-Fi 即可自动拦截 302 重定向并推断所属高校，输入学号密码瞬间打通！
-            </p>
-          </div>
-        </div>
-
-        <button
-          onClick={onOpenQuickSetup}
-          className="px-4 py-2.5 rounded-xl bg-apple-blue hover:bg-apple-blueHover text-white text-xs font-medium shadow-apple-glow-blue/30 shadow-lg flex items-center gap-2 shrink-0 transition-all active:scale-[0.98]"
-        >
-          <Sparkles className="w-4 h-4" />
-          一键极速打通
-        </button>
-      </div>
-
-      {/* ------------------------------------------------------------------- */}
-      {/* 2×2 苹果 Squircle 状态卡片网格 */}
-      {/* ------------------------------------------------------------------- */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* 卡片 1: 网络状态 */}
-        <div className="rounded-2xl bg-apple-card/80 border border-white/[0.08] p-5 shadow-apple-card space-y-4 backdrop-blur-md">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-apple-textSecondary flex items-center gap-2">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        {/* ================================================================= */}
+        {/* 核心 1: 校园网自愈守护视窗 */}
+        {/* ================================================================= */}
+        <div className="liquid-card rounded-2xl p-6 space-y-5">
+          <div className="flex items-center justify-between pb-3 border-b border-white/[0.08]">
+            <span className="text-xs font-semibold text-white tracking-wide uppercase flex items-center gap-2">
               <Wifi className="w-4 h-4 text-apple-blue" />
-              网络连接
+              校园网链路守护
             </span>
             <span
               className={`px-2.5 py-1 rounded-full text-[11px] font-medium border flex items-center gap-1.5 ${
                 isOnline
-                  ? 'bg-apple-green/10 text-apple-green border-apple-green/20'
+                  ? 'bg-apple-green/15 text-apple-green border-apple-green/30 shadow-apple-glow-green/20 shadow-sm'
                   : isOffline
-                  ? 'bg-apple-coral/10 text-apple-coral border-apple-coral/20'
-                  : 'bg-apple-amber/10 text-apple-amber border-apple-amber/20'
+                  ? 'bg-apple-coral/15 text-apple-coral border-apple-coral/30 shadow-apple-glow-coral/20 shadow-sm'
+                  : 'bg-apple-amber/15 text-apple-amber border-apple-amber/30'
               }`}
             >
-              <span className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-apple-green' : isOffline ? 'bg-apple-coral' : 'bg-apple-amber'}`} />
-              {isOnline ? (state?.is_campus ? '校园网认证通过' : '家庭免认证环境') : isOffline ? '网络已断开' : '等待检测'}
+              <span
+                className={`w-1.5 h-1.5 rounded-full ${
+                  isOnline ? 'bg-apple-green animate-pulse' : isOffline ? 'bg-apple-coral' : 'bg-apple-amber'
+                }`}
+              />
+              {isOnline ? '网络畅通 · 持续守护' : isOffline ? '掉线自愈处理中' : '初始化探测'}
             </span>
           </div>
 
-          <div>
-            <div className={`text-2xl font-bold tracking-tight ${isOnline ? 'text-apple-green' : isOffline ? 'text-apple-coral' : 'text-white'}`}>
-              {isOnline ? '已稳定在线' : isOffline ? '当前离线' : '探测就绪中'}
-            </div>
-            <div className="text-xs text-apple-textTertiary mt-0.5">
-              {state?.university_name} · [{state?.auth_protocol}]
-            </div>
-          </div>
-
-          <div className="pt-2 border-t border-white/[0.06] grid grid-cols-2 gap-2 text-xs">
-            <div className="space-y-0.5">
-              <span className="text-[11px] text-apple-textTertiary flex items-center gap-1">
-                <Radio className="w-3 h-3" /> Wi-Fi 信号
-              </span>
-              <p className="text-apple-textPrimary font-mono truncate">{state?.wifi || '未连接无线网'}</p>
-            </div>
-            <div className="space-y-0.5">
-              <span className="text-[11px] text-apple-textTertiary flex items-center gap-1">
-                <Globe className="w-3 h-3" /> 本机 IP
-              </span>
-              <p className="text-apple-textPrimary font-mono truncate">{state?.ip || '未知 IP'}</p>
-            </div>
-          </div>
-        </div>
-
-        {/* 卡片 2: 电源与电量 */}
-        <div className="rounded-2xl bg-apple-card/80 border border-white/[0.08] p-5 shadow-apple-card space-y-4 backdrop-blur-md">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-apple-textSecondary flex items-center gap-2">
-              <Battery className="w-4 h-4 text-apple-amber" />
-              电源与电量
-            </span>
-            <span
-              className={`px-2.5 py-1 rounded-full text-[11px] font-medium border flex items-center gap-1.5 ${
-                batPlugged
-                  ? 'bg-apple-blue/10 text-apple-blue border-apple-blue/20'
-                  : batPct <= 20
-                  ? 'bg-apple-coral/10 text-apple-coral border-apple-coral/20'
-                  : 'bg-apple-amber/10 text-apple-amber border-apple-amber/20'
-              }`}
-            >
-              <BatteryCharging className="w-3 h-3" />
-              {batPlugged ? '交流供电' : '电池供电'}
-            </span>
-          </div>
-
-          <div>
+          {/* 核心指标展示 */}
+          <div className="space-y-1">
             <div className="text-2xl font-bold tracking-tight text-white font-mono flex items-baseline gap-2">
-              <span>{batPct}%</span>
-              <span className="text-xs font-normal text-apple-textTertiary">{state?.battery?.status_text}</span>
-            </div>
-          </div>
-
-          {/* 苹果风平滑进度条 */}
-          <div className="w-full h-2 rounded-full bg-white/[0.06] overflow-hidden">
-            <div
-              className={`h-full rounded-full transition-all duration-500 ${
-                batPlugged
-                  ? 'bg-apple-blue shadow-apple-glow-blue'
-                  : batPct <= 20
-                  ? 'bg-apple-coral shadow-apple-glow-coral'
-                  : batPct <= 50
-                  ? 'bg-apple-amber shadow-apple-glow-amber'
-                  : 'bg-apple-green shadow-apple-glow-green'
-              }`}
-              style={{ width: `${Math.min(100, Math.max(0, batPct))}%` }}
-            />
-          </div>
-
-          <div className="pt-2 border-t border-white/[0.06] flex items-center justify-between text-xs text-apple-textTertiary">
-            <span>低电量守护</span>
-            <span className="text-apple-textSecondary font-medium">断电 20% 安全倒计时关机</span>
-          </div>
-        </div>
-
-        {/* 卡片 3: 系统与运行 */}
-        <div className="rounded-2xl bg-apple-card/80 border border-white/[0.08] p-5 shadow-apple-card space-y-4 backdrop-blur-md">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-apple-textSecondary flex items-center gap-2">
-              <Cpu className="w-4 h-4 text-purple-400" />
-              守护引擎指标
-            </span>
-            <span className="px-2.5 py-1 rounded-full text-[11px] font-medium bg-apple-green/10 text-apple-green border border-apple-green/20">
-              运行平稳
-            </span>
-          </div>
-
-          <div>
-            <div className="text-2xl font-bold tracking-tight text-white font-mono">
-              {upHours}h {upMins.toString().padStart(2, '0')}m
-            </div>
-            <div className="text-xs text-apple-textTertiary mt-0.5">连续安全挂机时长</div>
-          </div>
-
-          <div className="pt-2 border-t border-white/[0.06] grid grid-cols-2 gap-2 text-xs">
-            <div className="space-y-0.5">
-              <span className="text-[11px] text-apple-textTertiary flex items-center gap-1">
-                <HardDrive className="w-3 h-3" /> C盘可用空间
+              <span>{isOnline ? '已在线' : '离线中'}</span>
+              <span className="text-xs font-normal text-apple-textTertiary">
+                {state?.university_name} [{state?.auth_protocol}]
               </span>
-              <p className="text-apple-textPrimary font-mono">{state?.system?.disk_free_gb ?? '--'} GB</p>
             </div>
-            <div className="space-y-0.5">
-              <span className="text-[11px] text-apple-textTertiary flex items-center gap-1">
-                <Activity className="w-3 h-3" /> 常驻内存占用
-              </span>
-              <p className="text-apple-textPrimary font-mono">{state?.system?.memory ?? '--'}</p>
-            </div>
-          </div>
-        </div>
-
-        {/* 卡片 4: 守护动态事件 */}
-        <div className="rounded-2xl bg-apple-card/80 border border-white/[0.08] p-5 shadow-apple-card space-y-4 backdrop-blur-md">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-apple-textSecondary flex items-center gap-2">
-              <Activity className="w-4 h-4 text-cyan-400" />
-              最新守护动态
-            </span>
-            <span className="px-2.5 py-1 rounded-full text-[11px] font-medium bg-white/[0.04] text-apple-textSecondary border border-white/[0.08]">
-              持续监听
-            </span>
-          </div>
-
-          <div>
-            <div className="text-xs text-apple-textSecondary font-mono">
-              网关探测: {state?.gateway_ok ? '畅通' : '超时'} · {state?.gateway}
-            </div>
-            <p className="text-xs text-apple-textPrimary mt-1.5 line-clamp-2 leading-relaxed">
-              {state?.last_event || '等待事件触发...'}
+            <p className="text-xs text-apple-textSecondary truncate font-mono">
+              认证账号: {state?.campus_account || '尚未配置认证学号'}
             </p>
           </div>
 
-          <div className="pt-2 border-t border-white/[0.06] text-[11px] text-apple-textTertiary flex items-center justify-between">
-            <span>物理接口</span>
-            <span className="font-mono text-apple-textSecondary truncate max-w-[200px]">
-              {state?.active_interface || '以太网 / 无线网卡'}
+          {/* 链路参数网格 */}
+          <div className="grid grid-cols-2 gap-3 p-3.5 rounded-xl bg-white/[0.025] border border-white/[0.06] text-xs font-mono">
+            <div className="space-y-1">
+              <span className="text-[10px] text-apple-textTertiary flex items-center gap-1">
+                <Radio className="w-3 h-3 text-apple-blue" /> Wi-Fi 信号
+              </span>
+              <p className="text-apple-textPrimary truncate">{state?.wifi || '未接入无线网'}</p>
+            </div>
+            <div className="space-y-1">
+              <span className="text-[10px] text-apple-textTertiary flex items-center gap-1">
+                <Globe className="w-3 h-3 text-cyan-400" /> 本机 IP / 接口
+              </span>
+              <p className="text-apple-textPrimary truncate">{state?.ip || '未知 IP'}</p>
+            </div>
+            <div className="space-y-1 pt-2 border-t border-white/[0.04]">
+              <span className="text-[10px] text-apple-textTertiary flex items-center gap-1">
+                <Zap className="w-3 h-3 text-apple-green" /> 网关探测
+              </span>
+              <p className="text-apple-textPrimary truncate">
+                {state?.gateway} ({state?.gateway_ok ? '畅通' : '响应中'})
+              </p>
+            </div>
+            <div className="space-y-1 pt-2 border-t border-white/[0.04]">
+              <span className="text-[10px] text-apple-textTertiary flex items-center gap-1">
+                <Cpu className="w-3 h-3 text-purple-400" /> 物理网卡
+              </span>
+              <p className="text-apple-textPrimary truncate">{state?.active_interface || '默认物理网卡'}</p>
+            </div>
+          </div>
+
+          {/* 实时探针动态行 */}
+          <div className="pt-1 flex items-center justify-between text-[11px] text-apple-textTertiary">
+            <span className="flex items-center gap-1.5 truncate max-w-[260px]">
+              <Activity className="w-3.5 h-3.5 text-apple-green shrink-0" />
+              {state?.last_event || '守护引擎正常运行'}
             </span>
+            <span className="font-mono text-apple-textSecondary">被动探针</span>
+          </div>
+        </div>
+
+        {/* ================================================================= */}
+        {/* 核心 2: Telegram 手机远程控制中枢 */}
+        {/* ================================================================= */}
+        <div className="liquid-card rounded-2xl p-6 space-y-5 flex flex-col justify-between">
+          <div className="space-y-5">
+            <div className="flex items-center justify-between pb-3 border-b border-white/[0.08]">
+              <span className="text-xs font-semibold text-white tracking-wide uppercase flex items-center gap-2">
+                <Send className="w-4 h-4 text-cyan-400" />
+                Telegram 手机远程控制中枢
+              </span>
+              <span
+                className={`px-2.5 py-1 rounded-full text-[11px] font-medium border flex items-center gap-1.5 ${
+                  tgRunning
+                    ? 'bg-cyan-500/15 text-cyan-400 border-cyan-500/30 shadow-apple-glow-blue/20'
+                    : tgConfigured
+                    ? 'bg-apple-amber/15 text-apple-amber border-apple-amber/30'
+                    : 'bg-white/[0.05] text-apple-textTertiary border-white/[0.08]'
+                }`}
+              >
+                <span
+                  className={`w-1.5 h-1.5 rounded-full ${
+                    tgRunning ? 'bg-cyan-400 animate-pulse' : tgConfigured ? 'bg-apple-amber' : 'bg-apple-textTertiary'
+                  }`}
+                />
+                {tgRunning ? '手机监听在线' : tgConfigured ? 'Bot 启动中' : '未挂载'}
+              </span>
+            </div>
+
+            {/* Telegram 状态与快速测试 */}
+            <div className="p-4 rounded-xl bg-white/[0.025] border border-white/[0.06] space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-xs font-medium text-apple-textPrimary">已绑定移动设备</div>
+                  <div className="text-[11px] text-apple-textTertiary font-mono mt-0.5">
+                    User ID: {state?.telegram?.user_id || '未绑定（需在下方填入）'}
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleTestTelegram}
+                  disabled={!tgConfigured || !!actionLoading}
+                  className="liquid-btn px-3 py-1.5 rounded-xl text-xs font-medium text-cyan-400 hover:text-cyan-300 flex items-center gap-1.5 disabled:opacity-40"
+                >
+                  {actionLoading === 'test_tg' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                  向手机发送测试握手
+                </button>
+              </div>
+
+              {/* 常用手机指令速查 */}
+              <div className="pt-2.5 border-t border-white/[0.05] space-y-1.5">
+                <span className="text-[10px] text-apple-textTertiary uppercase tracking-wider">手机端常用控制指令</span>
+                <div className="grid grid-cols-2 gap-2 text-[11px] font-mono">
+                  <div className="p-1.5 rounded-lg bg-black/30 border border-white/[0.05] flex items-center justify-between">
+                    <span className="text-cyan-400">/status</span>
+                    <span className="text-[10px] text-apple-textTertiary">状态与按键面板</span>
+                  </div>
+                  <div className="p-1.5 rounded-lg bg-black/30 border border-white/[0.05] flex items-center justify-between">
+                    <span className="text-apple-green">/reconnect</span>
+                    <span className="text-[10px] text-apple-textTertiary">强制网络重连</span>
+                  </div>
+                  <div className="p-1.5 rounded-lg bg-black/30 border border-white/[0.05] flex items-center justify-between">
+                    <span className="text-apple-blue">/auth</span>
+                    <span className="text-[10px] text-apple-textTertiary">重新认证上线</span>
+                  </div>
+                  <div className="p-1.5 rounded-lg bg-black/30 border border-white/[0.05] flex items-center justify-between">
+                    <span className="text-apple-coral">/logout</span>
+                    <span className="text-[10px] text-apple-textTertiary">立即下线注销</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 快速配置抽屉折叠按钮 */}
+            <div>
+              <button
+                type="button"
+                onClick={() => setShowTgConfig(!showTgConfig)}
+                className="w-full text-xs text-apple-textSecondary hover:text-white flex items-center justify-between py-1 transition-colors"
+              >
+                <span className="flex items-center gap-1.5">
+                  <SlidersHorizontal className="w-3.5 h-3.5 text-cyan-400" />
+                  {showTgConfig ? '收起 Telegram 凭据配置' : '展开/修改 Telegram 手机凭据'}
+                </span>
+                {showTgConfig ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </button>
+
+              {/* 展开的内嵌表单 */}
+              {showTgConfig && (
+                <form onSubmit={handleSaveTelegram} className="mt-3 p-4 rounded-xl bg-[#0e1017]/90 border border-white/[0.1] space-y-3 text-xs">
+                  <div className="space-y-1">
+                    <label className="text-[11px] text-apple-textSecondary">Bot Token (从 @BotFather 获取)</label>
+                    <input
+                      type="password"
+                      required
+                      placeholder="例如: 123456789:ABCdefGhIJKlmNoPQRstuVWXyz"
+                      value={botToken}
+                      onChange={(e) => setBotToken(e.target.value)}
+                      className="w-full px-3 py-1.5 rounded-lg bg-black/40 border border-white/[0.1] font-mono text-apple-textPrimary focus:outline-none focus:border-cyan-400"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[11px] text-apple-textSecondary">Telegram 用户 ID (从 @userinfobot 获取)</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="例如: 987654321"
+                      value={botUserId}
+                      onChange={(e) => setBotUserId(e.target.value)}
+                      className="w-full px-3 py-1.5 rounded-lg bg-black/40 border border-white/[0.1] font-mono text-apple-textPrimary focus:outline-none focus:border-cyan-400"
+                    />
+                  </div>
+
+                  <div className="pt-1 flex justify-end">
+                    <button
+                      type="submit"
+                      disabled={savingTg}
+                      className="px-3.5 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white font-medium flex items-center gap-1 disabled:opacity-50"
+                    >
+                      {savingTg ? <Loader2 className="w-3 h-3 animate-spin" /> : <ShieldCheck className="w-3 h-3" />}
+                      保存并挂载 Bot
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
+          </div>
+
+          <div className="pt-2 text-[11px] text-apple-textTertiary flex items-center justify-between">
+            <span>双向长轮询通信</span>
+            <span className="font-mono text-cyan-400">零代理 / 直连加密</span>
           </div>
         </div>
       </div>
 
       {/* ------------------------------------------------------------------- */}
-      {/* 结构化快捷操作群 */}
+      {/* 底部精炼核心控制胶囊群 */}
       {/* ------------------------------------------------------------------- */}
-      <div className="space-y-3 pt-2">
-        <h4 className="text-xs font-semibold text-apple-textSecondary uppercase tracking-wider">快捷控制中心</h4>
+      <div className="pt-2 space-y-2.5">
+        <div className="text-[11px] font-semibold text-apple-textTertiary uppercase tracking-wider font-mono">
+          控制中枢指令
+        </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2.5">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {/* 重连 Wi-Fi */}
           <button
             onClick={() => handleAction('wifi', api.reconnectWifi)}
             disabled={!!actionLoading}
-            className="p-3 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.07] flex flex-col items-center justify-center gap-2 text-xs font-medium text-apple-textPrimary transition-all active:scale-[0.98] disabled:opacity-50"
+            className="liquid-btn p-3.5 rounded-2xl flex items-center justify-center gap-2.5 text-xs font-medium text-apple-textPrimary transition-all active:scale-[0.98] disabled:opacity-50"
           >
             {actionLoading === 'wifi' ? <Loader2 className="w-4 h-4 animate-spin text-apple-blue" /> : <Wifi className="w-4 h-4 text-apple-blue" />}
-            <span>重连 Wi-Fi</span>
+            <span>重连无线网</span>
           </button>
 
           {/* 校园网认证 */}
           <button
             onClick={() => handleAction('auth', api.authCampus)}
             disabled={!!actionLoading}
-            className="p-3 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.07] flex flex-col items-center justify-center gap-2 text-xs font-medium text-apple-textPrimary transition-all active:scale-[0.98] disabled:opacity-50"
+            className="liquid-btn p-3.5 rounded-2xl flex items-center justify-center gap-2.5 text-xs font-medium text-apple-textPrimary transition-all active:scale-[0.98] disabled:opacity-50"
           >
             {actionLoading === 'auth' ? <Loader2 className="w-4 h-4 animate-spin text-apple-green" /> : <KeyRound className="w-4 h-4 text-apple-green" />}
-            <span>校园网认证</span>
+            <span>触发认证</span>
           </button>
 
           {/* 注销下线 */}
           <button
             onClick={() => handleAction('logout', api.logoutCampus)}
             disabled={!!actionLoading}
-            className="p-3 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.07] flex flex-col items-center justify-center gap-2 text-xs font-medium text-apple-textPrimary transition-all active:scale-[0.98] disabled:opacity-50"
+            className="liquid-btn p-3.5 rounded-2xl flex items-center justify-center gap-2.5 text-xs font-medium text-apple-textPrimary transition-all active:scale-[0.98] disabled:opacity-50"
           >
             {actionLoading === 'logout' ? <Loader2 className="w-4 h-4 animate-spin text-apple-coral" /> : <LogOut className="w-4 h-4 text-apple-coral" />}
             <span>注销下线</span>
           </button>
 
-          {/* 截取屏幕 */}
-          <button
-            onClick={() => handleAction('screenshot', api.takeScreenshot)}
-            disabled={!!actionLoading}
-            className="p-3 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.07] flex flex-col items-center justify-center gap-2 text-xs font-medium text-apple-textPrimary transition-all active:scale-[0.98] disabled:opacity-50"
-          >
-            {actionLoading === 'screenshot' ? <Loader2 className="w-4 h-4 animate-spin text-cyan-400" /> : <Camera className="w-4 h-4 text-cyan-400" />}
-            <span>截取桌面</span>
-          </button>
-
-          {/* 锁定屏幕 */}
-          <button
-            onClick={() => handleAction('lock', api.lockScreen)}
-            disabled={!!actionLoading}
-            className="p-3 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.07] flex flex-col items-center justify-center gap-2 text-xs font-medium text-apple-textPrimary transition-all active:scale-[0.98] disabled:opacity-50"
-          >
-            {actionLoading === 'lock' ? <Loader2 className="w-4 h-4 animate-spin text-purple-400" /> : <Lock className="w-4 h-4 text-purple-400" />}
-            <span>锁定电脑</span>
-          </button>
-
-          {/* 最小化后台 */}
+          {/* 托盘后台静默常驻 */}
           <button
             onClick={() => api.minimize()}
-            className="p-3 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.07] flex flex-col items-center justify-center gap-2 text-xs font-medium text-apple-textPrimary transition-all active:scale-[0.98]"
+            className="liquid-btn p-3.5 rounded-2xl flex items-center justify-center gap-2.5 text-xs font-medium text-apple-textPrimary transition-all active:scale-[0.98]"
           >
             <Minimize2 className="w-4 h-4 text-apple-textTertiary" />
-            <span>托盘常驻</span>
+            <span>静默后台常驻</span>
           </button>
         </div>
       </div>

@@ -3,13 +3,11 @@ import { Sidebar } from './components/Sidebar';
 import { DashboardView } from './components/DashboardView';
 import { LogView } from './components/LogView';
 import { SettingsView } from './components/SettingsView';
-import { QuickSetupModal } from './components/QuickSetupModal';
 import { api, StateData } from './api';
 
 export function App() {
   const [currentTab, setCurrentTab] = useState<'dashboard' | 'logs' | 'settings'>('dashboard');
   const [state, setState] = useState<StateData | null>(null);
-  const [quickSetupOpen, setQuickSetupOpen] = useState(false);
 
   const fetchState = async () => {
     try {
@@ -27,31 +25,26 @@ export function App() {
   }, []);
 
   return (
-    <div className="flex h-screen w-screen bg-apple-bg text-apple-textPrimary overflow-hidden font-sans select-none">
-      {/* 左侧磨砂毛玻璃侧边栏 */}
+    <div className="relative flex h-screen w-screen bg-[#0b0c11] text-apple-textPrimary overflow-hidden font-sans select-none">
+      {/* 底层极光流动微光折射源 (Ambient Liquid Mesh Glow) */}
+      <div className="ambient-glow-sphere-1" />
+      <div className="ambient-glow-sphere-2" />
+      <div className="ambient-glow-sphere-3" />
+
+      {/* 左侧液态毛玻璃侧边栏 */}
       <Sidebar currentTab={currentTab} onSelectTab={setCurrentTab} state={state} />
 
-      {/* 右侧主视窗内容区 */}
-      <main className="flex-1 h-full overflow-hidden flex flex-col bg-gradient-to-b from-[#14151e]/50 to-apple-bg">
+      {/* 右侧主视窗内容区 (真·液态玻璃折射容器) */}
+      <main className="relative z-10 flex-1 h-full overflow-hidden flex flex-col">
         {currentTab === 'dashboard' && (
           <DashboardView
             state={state}
             onRefresh={fetchState}
-            onOpenQuickSetup={() => setQuickSetupOpen(true)}
           />
         )}
         {currentTab === 'logs' && <LogView />}
         {currentTab === 'settings' && <SettingsView />}
       </main>
-
-      {/* 小白一键打通向导模态弹窗 */}
-      <QuickSetupModal
-        isOpen={quickSetupOpen}
-        onClose={() => setQuickSetupOpen(false)}
-        onSuccess={() => {
-          fetchState();
-        }}
-      />
     </div>
   );
 }
