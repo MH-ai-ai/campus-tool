@@ -50,6 +50,12 @@ class TestApiBridge(unittest.TestCase):
             self.assertFalse(res["success"])
             self.assertIn("尚未配置", res["message"])
 
+    @patch("campus_guard.bridge.campus_login", return_value=(True, "认证成功"))
+    def test_quick_connect(self, mock_login) -> None:
+        res = self.bridge.quick_connect("20240901001", "password123")
+        self.assertTrue(res["success"])
+        self.assertIn("认证成功", res["message"])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -109,6 +109,7 @@ class ApiBridge:
                 "has_battery": has_battery,
                 "percent": percent,
                 "plugged": plugged,
+                "charging": plugged and (percent < 100),
                 "status_text": status_text,
             },
             "system": {
@@ -231,6 +232,49 @@ class ApiBridge:
             }
         except Exception as err:
             return {"success": False, "message": f"一键打通执行失败: {err}"}
+
+    def quick_connect(self, account: str = "", password: str = "") -> dict[str, Any]:
+        """首屏一键极速联网：首次输入自动探测并持久化加密保存，已配置时一键强制认证自愈。"""
+        try:
+            cfg = load_config_raw()
+            if account.strip():
+                cfg["campus_account"] = account.strip()
+            if password.strip():
+                cfg["campus_password"] = password.strip()
+
+            final_account = str(cfg.get("campus_account", "")).strip()
+            final_password = str(cfg.get("campus_password", "")).strip()
+            if not final_account or not final_password:
+                return {"success": False, "message": "请先输入校园网学号/账号与认证密码"}
+
+            detected_info = {}
+            if not cfg.get("campus_auth_url") or cfg.get("auth_protocol") in (None, "", "portal"):
+                sniff_ok, sniff_msg, detected = auto_detect_portal_config()
+                if sniff_ok and detected:
+                    detected_info = detected
+                    if detected.get("campus_auth_url"):
+                        cfg["campus_auth_url"] = detected["campus_auth_url"]
+                    if detected.get("campus_gateway"):
+                        cfg["campus_gateway"] = detected["campus_gateway"]
+                    if detected.get("auth_protocol"):
+                        cfg["auth_protocol"] = detected["auth_protocol"]
+                    if detected.get("university_name"):
+                        cfg["university_name"] = detected["university_name"]
+
+            save_config_raw(encrypt_sensitive_fields(cfg))
+            update_runtime_config(decrypt_config(cfg))
+
+            ok, msg = campus_login()
+            if self.network:
+                self.network.record_event(f"一键联网认证: {msg}")
+            return {
+                "success": ok,
+                "message": msg,
+                "detected": detected_info,
+            }
+        except Exception as err:
+            log.error("一键联网异常: %s", err)
+            return {"success": False, "message": f"一键联网异常: {err}"}
 
     def search_universities(self, keyword: str) -> list[dict[str, Any]]:
         """全拼/首字母/汉字高校库模糊检索。"""

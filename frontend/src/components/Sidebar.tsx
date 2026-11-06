@@ -20,18 +20,18 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab, state
   ];
 
   return (
-    <aside className="w-56 h-full liquid-sidebar flex flex-col justify-between p-4.5 z-20 shrink-0">
+    <aside className="w-56 h-full twilight-glass-sidebar flex flex-col justify-between p-4.5 z-20 shrink-0">
       <div>
         {/* Cyber Shield 品牌标识 */}
         <div className="flex items-center gap-3 px-2 py-3 mb-6">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#0a84ff] via-[#1c1e2a] to-[#30d158] p-[1.5px] shadow-apple-glow-blue/40 shadow-lg">
-            <div className="w-full h-full bg-[#12141c] rounded-[10px] flex items-center justify-center text-white">
-              <Shield className="w-4.5 h-4.5 text-[#30d158] stroke-[2.2]" />
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-pink-500 via-indigo-500 to-cyan-400 p-[1.5px] shadow-lg shadow-pink-500/20">
+            <div className="w-full h-full bg-[#1e1b4b]/80 rounded-[10px] flex items-center justify-center text-white backdrop-blur-md">
+              <Shield className="w-4.5 h-4.5 text-cyan-300 stroke-[2.2]" />
             </div>
           </div>
           <div>
-            <h1 className="text-xs font-bold tracking-wider uppercase text-white font-mono">Campus Guard</h1>
-            <p className="text-[10px] text-apple-textTertiary tracking-wide">无感自愈守护内核</p>
+            <h1 className="text-xs font-bold tracking-wider uppercase text-white font-mono drop-shadow">Campus Guard</h1>
+            <p className="text-[10px] text-white/70 tracking-wide">无感自愈守护内核</p>
           </div>
         </div>
 
@@ -46,11 +46,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab, state
                 onClick={() => onSelectTab(item.id)}
                 className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all duration-200 ${
                   active
-                    ? 'bg-gradient-to-r from-apple-blue to-[#2894ff] text-white shadow-apple-glow-blue/30 shadow-md font-semibold'
-                    : 'text-apple-textSecondary hover:text-white hover:bg-white/[0.06]'
+                    ? 'twilight-btn-primary text-white font-semibold'
+                    : 'text-white/80 hover:text-white hover:bg-white/10'
                 }`}
               >
-                <Icon className={`w-4 h-4 stroke-[2] ${active ? 'text-white' : 'text-apple-textSecondary'}`} />
+                <Icon className={`w-4 h-4 stroke-[2] ${active ? 'text-white' : 'text-white/70'}`} />
                 <span>{item.label}</span>
               </button>
             );

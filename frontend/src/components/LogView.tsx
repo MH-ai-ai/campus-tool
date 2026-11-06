@@ -58,11 +58,11 @@ export const LogView: React.FC = () => {
       {/* 头部标题与操作 */}
       <div className="flex items-center justify-between shrink-0">
         <div>
-          <h2 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
-            <Terminal className="w-5 h-5 text-apple-blue" />
+          <h2 className="text-xl font-bold tracking-tight text-white flex items-center gap-2 drop-shadow-sm">
+            <Terminal className="w-5 h-5 text-cyan-300" />
             运行与守护日志
           </h2>
-          <p className="text-xs text-apple-textTertiary">实时滚动呈现网络探针、重连事件与系统电源日志流</p>
+          <p className="text-xs text-white/70">实时滚动呈现网络探针、重连事件与系统电源日志流</p>
         </div>
 
         <div className="flex items-center gap-2">
@@ -70,8 +70,8 @@ export const LogView: React.FC = () => {
             onClick={() => setAutoScroll(!autoScroll)}
             className={`px-3 py-1.5 rounded-xl border text-xs font-medium flex items-center gap-1.5 transition-all ${
               autoScroll
-                ? 'bg-apple-blue/15 text-apple-blue border-apple-blue/30 shadow-apple-glow-blue/20'
-                : 'bg-white/[0.04] text-apple-textSecondary border-white/[0.08]'
+                ? 'bg-cyan-500/20 text-cyan-200 border-cyan-400/40 shadow-sm'
+                : 'twilight-btn-secondary text-white/70'
             }`}
           >
             <ArrowDown className="w-3.5 h-3.5" />
@@ -81,7 +81,7 @@ export const LogView: React.FC = () => {
           <button
             onClick={fetchLogs}
             disabled={loading}
-            className="p-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-apple-textSecondary hover:text-white transition-all disabled:opacity-50"
+            className="p-2 rounded-xl twilight-btn-secondary text-white/80 hover:text-white transition-all disabled:opacity-50"
             title="刷新日志"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
@@ -89,7 +89,7 @@ export const LogView: React.FC = () => {
 
           <button
             onClick={handleClear}
-            className="p-2 rounded-xl bg-white/[0.04] hover:bg-apple-coral/20 border border-white/[0.08] text-apple-textSecondary hover:text-apple-coral transition-all"
+            className="p-2 rounded-xl twilight-btn-secondary text-white/70 hover:text-rose-300 transition-all"
             title="清空日志"
           >
             <Trash2 className="w-3.5 h-3.5" />
@@ -99,26 +99,27 @@ export const LogView: React.FC = () => {
 
       {/* 搜索与级别过滤栏 */}
       <div className="flex items-center justify-between gap-3 shrink-0">
-        {/* 搜索框 */}
         <div className="relative flex-1 max-w-sm">
-          <Search className="w-3.5 h-3.5 text-apple-textTertiary absolute left-3 top-1/2 -translate-y-1/2" />
+          <Search className="w-3.5 h-3.5 text-white/50 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
             type="text"
             placeholder="搜索日志关键词..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-3.5 py-1.5 rounded-xl bg-apple-card border border-white/[0.08] text-xs text-apple-textPrimary placeholder:text-apple-textTertiary focus:outline-none focus:border-apple-blue transition-all"
+            className="w-full pl-9 pr-3.5 py-1.5 rounded-xl bg-white/10 border border-white/20 text-xs text-white placeholder-white/40 focus:outline-none focus:border-cyan-300 transition-all"
           />
         </div>
 
         {/* 级别过滤器 */}
-        <div className="flex p-1 rounded-xl bg-white/[0.04] border border-white/[0.08] text-[11px]">
+        <div className="flex p-1 rounded-xl bg-white/10 border border-white/20 text-[11px]">
           {(['ALL', 'INFO', 'WARNING', 'ERROR'] as const).map((lvl) => (
             <button
               key={lvl}
               onClick={() => setLevelFilter(lvl)}
               className={`px-3 py-1 rounded-lg font-medium transition-all ${
-                levelFilter === lvl ? 'bg-apple-blue text-white shadow-sm' : 'text-apple-textTertiary hover:text-white'
+                levelFilter === lvl
+                  ? 'bg-gradient-to-r from-indigo-500 to-pink-500 text-white shadow-sm'
+                  : 'text-white/70 hover:text-white'
               }`}
             >
               {lvl === 'ALL' ? '全部' : lvl}
@@ -127,42 +128,44 @@ export const LogView: React.FC = () => {
         </div>
       </div>
 
-      {/* 终端日志视窗 */}
-      <div className="flex-1 min-h-0 bg-[#090a10]/80 backdrop-blur-2xl rounded-2xl border border-white/[0.12] shadow-[0_20px_45px_rgba(0,0,0,0.6)] p-4 overflow-y-auto font-mono text-[11px] leading-relaxed">
+      {/* 日志终端显示容器 (高透暮色终端) */}
+      <div className="flex-1 rounded-2xl p-4 overflow-y-auto font-mono text-xs leading-relaxed space-y-1 twilight-glass-card border border-white/25">
         {filteredLogs.length === 0 ? (
-          <div className="h-full flex items-center justify-center text-apple-textTertiary text-xs">
+          <div className="h-full flex items-center justify-center text-white/50 text-xs">
             暂无匹配的运行日志
           </div>
         ) : (
-          <div className="space-y-1">
-            {filteredLogs.map((line, idx) => {
-              const isErr = line.includes('ERROR');
-              const isWarn = line.includes('WARNING') || line.includes('WARN');
-              const isInfo = line.includes('INFO');
+          filteredLogs.map((line, idx) => {
+            const isError = line.includes('ERROR');
+            const isWarning = line.includes('WARNING') || line.includes('WARN');
+            const isInfo = line.includes('INFO');
 
-              return (
-                <div
-                  key={idx}
-                  className={`px-2 py-0.5 rounded transition-colors hover:bg-white/[0.03] flex items-start gap-2 ${
-                    isErr
-                      ? 'text-apple-coral bg-apple-coral/[0.05]'
-                      : isWarn
-                      ? 'text-apple-amber bg-apple-amber/[0.05]'
-                      : isInfo
-                      ? 'text-apple-textSecondary'
-                      : 'text-apple-textTertiary'
-                  }`}
-                >
-                  <span className="text-[10px] text-apple-textTertiary select-none w-7 text-right shrink-0">
-                    {idx + 1}
-                  </span>
-                  <span className="break-all whitespace-pre-wrap">{line}</span>
-                </div>
-              );
-            })}
-            <div ref={endRef} />
-          </div>
+            let color = 'text-white/80';
+            let icon = null;
+
+            if (isError) {
+              color = 'text-rose-300 font-semibold';
+              icon = <ShieldAlert className="w-3 h-3 text-rose-300 shrink-0 inline mr-1.5" />;
+            } else if (isWarning) {
+              color = 'text-amber-300';
+              icon = <Info className="w-3 h-3 text-amber-300 shrink-0 inline mr-1.5" />;
+            } else if (isInfo && (line.includes('成功') || line.includes('在线'))) {
+              color = 'text-emerald-300';
+              icon = <CheckCircle className="w-3 h-3 text-emerald-300 shrink-0 inline mr-1.5" />;
+            }
+
+            return (
+              <div key={idx} className={`hover:bg-white/10 px-2 py-0.5 rounded transition-colors ${color} flex items-start`}>
+                <span className="text-white/30 mr-2 select-none shrink-0">{String(idx + 1).padStart(3, '0')}</span>
+                <span className="break-all">
+                  {icon}
+                  {line}
+                </span>
+              </div>
+            );
+          })
         )}
+        <div ref={endRef} />
       </div>
     </div>
   );

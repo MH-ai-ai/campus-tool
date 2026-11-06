@@ -183,9 +183,14 @@ class BatteryMonitor:
     def get_status(self) -> str:
         bat = psutil.sensors_battery()
         if bat is None:
-            return "未检测到电池"
-        status = "🔌 供电中" if bat.power_plugged else "🔋 电池供电"
-        return f"{status}\n电量: {bat.percent}%\n剩余: {self._format_time(bat.secsleft)}"
+            return "未检测到电池（台式机交流供电）"
+        plugged = bool(bat.power_plugged)
+        percent = int(bat.percent)
+        if plugged:
+            status = "🔌 正在充电中" if percent < 100 else "🔌 交流供电中 (已充满)"
+        else:
+            status = "🔋 电池供电中 (未接充电器)"
+        return f"供电状态: {status}\n当前电量: {percent}%\n预计续航: {self._format_time(bat.secsleft)}"
 
     @staticmethod
     def _format_time(secs: int) -> str:

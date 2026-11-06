@@ -112,8 +112,8 @@ export const SettingsView: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex-1 h-full flex items-center justify-center text-apple-textSecondary text-xs">
-        <Loader2 className="w-5 h-5 animate-spin mr-2 text-apple-blue" />
+      <div className="flex-1 h-full flex items-center justify-center text-white/70 text-xs">
+        <Loader2 className="w-5 h-5 animate-spin mr-2 text-cyan-300" />
         读取核心配置中...
       </div>
     );
@@ -122,10 +122,10 @@ export const SettingsView: React.FC = () => {
   return (
     <div className="flex-1 h-full overflow-y-auto p-7 space-y-6">
       {/* 头部固定栏 */}
-      <div className="flex items-center justify-between sticky top-0 z-30 bg-[#0b0c11]/85 backdrop-blur-2xl py-2 -my-2 border-b border-white/[0.08]">
+      <div className="flex items-center justify-between sticky top-0 z-30 py-2 -my-2 border-b border-white/20 backdrop-blur-xl bg-white/10 px-4 -mx-4 rounded-xl">
         <div>
-          <h2 className="text-xl font-bold tracking-tight text-white">守护内核配置</h2>
-          <p className="text-xs text-apple-textTertiary">管理高校认证体系、网络网关、加密存储与多通道告警</p>
+          <h2 className="text-xl font-bold tracking-tight text-white drop-shadow-sm">守护内核配置</h2>
+          <p className="text-xs text-white/70">管理高校认证体系、网络网关、加密存储与多通道告警</p>
         </div>
 
         <div className="flex items-center gap-2">
@@ -133,9 +133,9 @@ export const SettingsView: React.FC = () => {
             type="button"
             onClick={handleSniff}
             disabled={sniffing}
-            className="liquid-btn px-3.5 py-2 rounded-xl text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1.5 disabled:opacity-50"
+            className="twilight-btn-secondary px-3.5 py-2 rounded-xl text-xs text-cyan-200 hover:text-white flex items-center gap-1.5 disabled:opacity-50"
           >
-            {sniffing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+            {sniffing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 text-cyan-300" />}
             自动嗅探当前网络
           </button>
 
@@ -143,7 +143,7 @@ export const SettingsView: React.FC = () => {
             type="button"
             onClick={() => handleSave()}
             disabled={saving}
-            className="px-4 py-2 rounded-xl bg-apple-blue hover:bg-apple-blueHover text-white text-xs font-medium shadow-apple-glow-blue/30 shadow-md flex items-center gap-1.5 transition-all active:scale-[0.98] disabled:opacity-50"
+            className="twilight-btn-primary px-4 py-2 rounded-xl text-white text-xs font-semibold flex items-center gap-1.5 transition-all active:scale-[0.98] disabled:opacity-50"
           >
             {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
             保存配置
@@ -154,13 +154,13 @@ export const SettingsView: React.FC = () => {
       {/* 状态通知浮条 */}
       {toast && (
         <div
-          className={`p-3 rounded-xl border text-xs flex items-center gap-2 animate-in fade-in duration-200 ${
+          className={`p-3.5 rounded-2xl border text-xs flex items-center gap-2.5 animate-in fade-in duration-200 shadow-lg ${
             toast.type === 'success'
-              ? 'bg-apple-green/10 text-apple-green border-apple-green/20'
-              : 'bg-apple-coral/10 text-apple-coral border-apple-coral/20'
+              ? 'bg-emerald-500/20 text-emerald-100 border-emerald-400/40 backdrop-blur-md'
+              : 'bg-rose-500/20 text-rose-100 border-rose-400/40 backdrop-blur-md'
           }`}
         >
-          {toast.type === 'success' ? <CheckCircle2 className="w-4 h-4 shrink-0" /> : <AlertCircle className="w-4 h-4 shrink-0" />}
+          {toast.type === 'success' ? <CheckCircle2 className="w-4 h-4 text-emerald-300 shrink-0" /> : <AlertCircle className="w-4 h-4 text-rose-300 shrink-0" />}
           <span>{toast.message}</span>
         </div>
       )}
@@ -168,63 +168,54 @@ export const SettingsView: React.FC = () => {
       {/* ------------------------------------------------------------------- */}
       {/* 分组 1: 高校与认证体系 (特别优化层级防止遮挡) */}
       {/* ------------------------------------------------------------------- */}
-      <section className="liquid-card rounded-2xl p-5 space-y-4 relative z-20">
-        <div className="flex items-center gap-2 pb-2 border-b border-white/[0.08]">
-          <School className="w-4 h-4 text-apple-blue" />
+      <section className="twilight-glass-card rounded-2xl p-5 space-y-4 relative z-20">
+        <div className="flex items-center gap-2 pb-2 border-b border-white/20">
+          <School className="w-4 h-4 text-cyan-300" />
           <h3 className="text-xs font-semibold text-white uppercase tracking-wider font-mono">高校与认证体系</h3>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
           {/* 高校检索选择 */}
           <div className="space-y-1.5 relative">
-            <label className="text-apple-textSecondary font-medium flex items-center justify-between">
-              <span>所属高校体系</span>
-              <span className="text-[10px] text-apple-textTertiary">首字母模糊检索</span>
+            <label className="text-white/80 font-medium flex items-center justify-between">
+              <span>所属院校 / 预置模板</span>
+              <span className="text-[10px] text-cyan-300 font-mono">支持全拼/首字母搜索</span>
             </label>
+
             <div className="relative">
               <input
                 type="text"
                 value={config.university_name || ''}
+                onFocus={() => setShowSchoolDropdown(true)}
                 onChange={(e) => {
                   updateField('university_name', e.target.value);
                   searchSchools(e.target.value);
                   setShowSchoolDropdown(true);
                 }}
-                onFocus={() => setShowSchoolDropdown(true)}
-                placeholder="搜索高校，如：延安大学、清华、浙大..."
-                className="w-full px-3.5 py-2 rounded-xl bg-black/40 border border-white/[0.12] text-xs text-apple-textPrimary focus:outline-none focus:border-apple-blue font-mono"
+                placeholder="输入学校名或拼音检索（例如：延安大学 / 清华大学）"
+                className="w-full px-3.5 py-2 rounded-xl bg-white/10 border border-white/30 text-xs text-white placeholder-white/40 focus:outline-none focus:border-cyan-300"
               />
-              <Search className="w-3.5 h-3.5 text-apple-textTertiary absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <Search className="w-3.5 h-3.5 text-white/50 absolute right-3 top-1/2 -translate-y-1/2" />
             </div>
 
-            {/* 模糊下拉匹配面板 - 修复遮挡与层级 */}
+            {/* 独立防遮挡浮动弹层 */}
             {showSchoolDropdown && schools.length > 0 && (
               <>
                 <div
-                  className="fixed inset-0 z-40 bg-transparent"
+                  className="fixed inset-0 z-40"
                   onClick={() => setShowSchoolDropdown(false)}
                 />
-                <div className="absolute left-0 right-0 top-full mt-2 z-50 max-h-60 overflow-y-auto rounded-xl bg-[#12141f] border border-white/[0.18] shadow-[0_20px_50px_rgba(0,0,0,0.9)] p-1.5 space-y-1 backdrop-blur-2xl">
-                  <div className="px-2 py-1 text-[10px] text-apple-textTertiary font-mono flex items-center justify-between border-b border-white/[0.06]">
-                    <span>匹配高校模板 ({schools.length})</span>
+                <div className="absolute left-0 right-0 top-full mt-1.5 max-h-56 overflow-y-auto rounded-xl bg-[#1e1b4b]/95 border border-white/30 shadow-2xl z-50 divide-y divide-white/10 backdrop-blur-2xl">
+                  {schools.map((s) => (
                     <button
+                      key={s.id}
                       type="button"
-                      onClick={() => setShowSchoolDropdown(false)}
-                      className="text-apple-blue hover:underline"
+                      onClick={() => selectSchool(s)}
+                      className="w-full px-3.5 py-2.5 text-left text-xs hover:bg-white/15 flex items-center justify-between transition-colors"
                     >
-                      关闭
-                    </button>
-                  </div>
-                  {schools.map((item) => (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => selectSchool(item)}
-                      className="w-full text-left px-3 py-2 rounded-lg hover:bg-apple-blue/20 hover:text-white transition-colors flex items-center justify-between text-xs"
-                    >
-                      <span className="font-medium text-apple-textPrimary truncate">{item.name}</span>
-                      <span className="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-white/[0.08] text-apple-textSecondary shrink-0 ml-2">
-                        {item.protocol}
+                      <span className="font-medium text-white truncate">{s.name}</span>
+                      <span className="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-white/15 text-cyan-200 shrink-0 ml-2">
+                        {s.protocol}
                       </span>
                     </button>
                   ))}
@@ -233,13 +224,13 @@ export const SettingsView: React.FC = () => {
             )}
           </div>
 
-          {/* 核心认证协议 */}
+          {/* 认证协议 */}
           <div className="space-y-1.5">
-            <label className="text-apple-textSecondary font-medium">认证协议体系</label>
+            <label className="text-white/80 font-medium">认证协议体系</label>
             <select
               value={config.auth_protocol || 'drcom'}
               onChange={(e) => updateField('auth_protocol', e.target.value)}
-              className="w-full px-3.5 py-2 rounded-xl bg-black/40 border border-white/[0.12] text-xs text-apple-textPrimary focus:outline-none focus:border-apple-blue font-mono"
+              className="w-full px-3.5 py-2 rounded-xl bg-[#1e1b4b]/90 border border-white/30 text-xs text-white focus:outline-none focus:border-cyan-300 font-mono"
             >
               <option value="drcom">城市热点 Dr.COM Web (延安大学全校区置顶)</option>
               <option value="srun">深澜 Srun 4000 / Portal</option>
@@ -253,28 +244,28 @@ export const SettingsView: React.FC = () => {
       {/* ------------------------------------------------------------------- */}
       {/* 分组 2: 账号凭据 */}
       {/* ------------------------------------------------------------------- */}
-      <section className="liquid-card rounded-2xl p-5 space-y-4 relative z-10">
-        <div className="flex items-center gap-2 pb-2 border-b border-white/[0.08]">
-          <KeyRound className="w-4 h-4 text-apple-green" />
+      <section className="twilight-glass-card rounded-2xl p-5 space-y-4 relative z-10">
+        <div className="flex items-center gap-2 pb-2 border-b border-white/20">
+          <KeyRound className="w-4 h-4 text-emerald-300" />
           <h3 className="text-xs font-semibold text-white uppercase tracking-wider font-mono">账号与安全凭据</h3>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
           <div className="space-y-1.5">
-            <label className="text-apple-textSecondary font-medium">校园网学号 / 账号</label>
+            <label className="text-white/80 font-medium">校园网学号 / 账号</label>
             <input
               type="text"
               value={config.campus_account || ''}
               onChange={(e) => updateField('campus_account', e.target.value)}
               placeholder="请输入校园网认证账号"
-              className="w-full px-3.5 py-2 rounded-xl bg-black/40 border border-white/[0.12] text-xs text-apple-textPrimary focus:outline-none focus:border-apple-blue font-mono"
+              className="w-full px-3.5 py-2 rounded-xl bg-white/10 border border-white/30 text-xs text-white placeholder-white/40 focus:outline-none focus:border-cyan-300 font-mono"
             />
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-apple-textSecondary font-medium flex items-center justify-between">
+            <label className="text-white/80 font-medium flex items-center justify-between">
               <span>校园网认证密码</span>
-              <span className="text-[10px] text-apple-green flex items-center gap-1 font-mono">
+              <span className="text-[10px] text-emerald-300 flex items-center gap-1 font-mono">
                 <Shield className="w-3 h-3" /> 本地 Fernet 加密
               </span>
             </label>
@@ -284,12 +275,12 @@ export const SettingsView: React.FC = () => {
                 value={config.campus_password || ''}
                 onChange={(e) => updateField('campus_password', e.target.value)}
                 placeholder="请输入认证密码"
-                className="w-full px-3.5 py-2 pr-10 rounded-xl bg-black/40 border border-white/[0.12] text-xs text-apple-textPrimary focus:outline-none focus:border-apple-blue font-mono"
+                className="w-full px-3.5 py-2 pr-10 rounded-xl bg-white/10 border border-white/30 text-xs text-white placeholder-white/40 focus:outline-none focus:border-cyan-300 font-mono"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-apple-textTertiary hover:text-white"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-white/50 hover:text-white"
               >
                 {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
               </button>
@@ -299,39 +290,39 @@ export const SettingsView: React.FC = () => {
       </section>
 
       {/* ------------------------------------------------------------------- */}
-      {/* 分组 3: 网络与网关接口 */}
+      {/* 分组 3: 网络与网关参数 */}
       {/* ------------------------------------------------------------------- */}
-      <section className="liquid-card rounded-2xl p-5 space-y-4 relative z-10">
-        <div className="flex items-center gap-2 pb-2 border-b border-white/[0.08]">
-          <Network className="w-4 h-4 text-cyan-400" />
+      <section className="twilight-glass-card rounded-2xl p-5 space-y-4 relative z-10">
+        <div className="flex items-center gap-2 pb-2 border-b border-white/20">
+          <Network className="w-4 h-4 text-cyan-300" />
           <h3 className="text-xs font-semibold text-white uppercase tracking-wider font-mono">网络与认证参数</h3>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-mono">
           <div className="space-y-1.5">
-            <label className="text-apple-textSecondary font-medium">认证接口 URL</label>
+            <label className="text-white/80 font-medium">认证接口 URL</label>
             <input
               type="text"
               value={config.campus_auth_url || ''}
               onChange={(e) => updateField('campus_auth_url', e.target.value)}
               placeholder="http://10.200.84.3:801/eportal/index.jsp"
-              className="w-full px-3.5 py-2 rounded-xl bg-black/40 border border-white/[0.12] text-xs text-apple-textPrimary focus:outline-none focus:border-apple-blue"
+              className="w-full px-3.5 py-2 rounded-xl bg-white/10 border border-white/30 text-xs text-white placeholder-white/40 focus:outline-none focus:border-cyan-300"
             />
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-apple-textSecondary font-medium">网关探测 IP</label>
+            <label className="text-white/80 font-medium">网关探测 IP</label>
             <input
               type="text"
               value={config.campus_gateway || ''}
               onChange={(e) => updateField('campus_gateway', e.target.value)}
               placeholder="10.200.84.3"
-              className="w-full px-3.5 py-2 rounded-xl bg-black/40 border border-white/[0.12] text-xs text-apple-textPrimary focus:outline-none focus:border-apple-blue"
+              className="w-full px-3.5 py-2 rounded-xl bg-white/10 border border-white/30 text-xs text-white placeholder-white/40 focus:outline-none focus:border-cyan-300"
             />
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-apple-textSecondary font-medium">校园 WiFi SSID 名单</label>
+            <label className="text-white/80 font-medium">校园 WiFi SSID 名单 (逗号分隔)</label>
             <input
               type="text"
               value={Array.isArray(config.campus_wifi_ssids) ? config.campus_wifi_ssids.join(', ') : config.campus_wifi_ssids || ''}
@@ -342,12 +333,12 @@ export const SettingsView: React.FC = () => {
                 )
               }
               placeholder="YADX-STU, YAU-WiFi"
-              className="w-full px-3.5 py-2 rounded-xl bg-black/40 border border-white/[0.12] text-xs text-apple-textPrimary focus:outline-none focus:border-apple-blue"
+              className="w-full px-3.5 py-2 rounded-xl bg-white/10 border border-white/30 text-xs text-white placeholder-white/40 focus:outline-none focus:border-cyan-300"
             />
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-apple-textSecondary font-medium">信任免认证 WiFi (如宿舍热点/家庭)</label>
+            <label className="text-white/80 font-medium">信任免认证 WiFi (宿舍热点/家庭)</label>
             <input
               type="text"
               value={Array.isArray(config.trusted_home_ssids) ? config.trusted_home_ssids.join(', ') : config.trusted_home_ssids || ''}
@@ -358,43 +349,43 @@ export const SettingsView: React.FC = () => {
                 )
               }
               placeholder="Home_5G, MyHotspot"
-              className="w-full px-3.5 py-2 rounded-xl bg-black/40 border border-white/[0.12] text-xs text-apple-textPrimary focus:outline-none focus:border-apple-blue"
+              className="w-full px-3.5 py-2 rounded-xl bg-white/10 border border-white/30 text-xs text-white placeholder-white/40 focus:outline-none focus:border-cyan-300"
             />
           </div>
         </div>
       </section>
 
       {/* ------------------------------------------------------------------- */}
-      {/* 分组 4: 运行守护与开机常驻 */}
+      {/* 分组 4: 守护策略与自启 */}
       {/* ------------------------------------------------------------------- */}
-      <section className="liquid-card rounded-2xl p-5 space-y-4 relative z-10">
-        <div className="flex items-center gap-2 pb-2 border-b border-white/[0.08]">
-          <Cpu className="w-4 h-4 text-purple-400" />
+      <section className="twilight-glass-card rounded-2xl p-5 space-y-4 relative z-10">
+        <div className="flex items-center gap-2 pb-2 border-b border-white/20">
+          <Battery className="w-4 h-4 text-purple-300" />
           <h3 className="text-xs font-semibold text-white uppercase tracking-wider font-mono">后台守护策略</h3>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs font-mono">
           <div className="space-y-1.5">
-            <label className="text-apple-textSecondary font-medium">掉线探针周期 (秒)</label>
+            <label className="text-white/80 font-medium">掉线探针周期 (秒)</label>
             <input
               type="number"
               min={1}
               max={60}
               value={config.network_check_interval_seconds ?? 2}
               onChange={(e) => updateField('network_check_interval_seconds', parseInt(e.target.value, 10))}
-              className="w-full px-3.5 py-2 rounded-xl bg-black/40 border border-white/[0.12] text-xs text-apple-textPrimary focus:outline-none focus:border-apple-blue"
+              className="w-full px-3.5 py-2 rounded-xl bg-white/10 border border-white/30 text-xs text-white focus:outline-none focus:border-cyan-300"
             />
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-apple-textSecondary font-medium">断电安全关机阈值 (%)</label>
+            <label className="text-white/80 font-medium">断电安全关机阈值 (%)</label>
             <input
               type="number"
               min={5}
               max={50}
               value={config.auto_shutdown_threshold ?? 20}
               onChange={(e) => updateField('auto_shutdown_threshold', parseInt(e.target.value, 10))}
-              className="w-full px-3.5 py-2 rounded-xl bg-black/40 border border-white/[0.12] text-xs text-apple-textPrimary focus:outline-none focus:border-apple-blue"
+              className="w-full px-3.5 py-2 rounded-xl bg-white/10 border border-white/30 text-xs text-white focus:outline-none focus:border-cyan-300"
             />
           </div>
 
@@ -404,9 +395,9 @@ export const SettingsView: React.FC = () => {
                 type="checkbox"
                 checked={config.autostart ?? true}
                 onChange={(e) => updateField('autostart', e.target.checked)}
-                className="w-4 h-4 rounded text-apple-blue focus:ring-apple-blue bg-black/40 border-white/[0.2]"
+                className="w-4 h-4 rounded text-cyan-400 focus:ring-cyan-400 bg-white/20 border-white/40"
               />
-              <span className="text-apple-textPrimary font-medium font-sans">开机静默启动并在后台常驻</span>
+              <span className="text-white font-medium font-sans">开机静默启动并在后台常驻</span>
             </label>
           </div>
         </div>

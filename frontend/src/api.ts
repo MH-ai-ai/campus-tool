@@ -2,6 +2,7 @@ export interface BatteryInfo {
   has_battery: boolean;
   percent: number;
   plugged: boolean;
+  charging?: boolean;
   status_text: string;
 }
 
@@ -171,6 +172,21 @@ export const api = {
       return await window.pywebview.api.quick_setup(payload);
     }
     return { success: true, message: "一键极速打通成功！网络已正常连通" };
+  },
+
+  async quickConnect(account: string = "", password: string = ""): Promise<ApiResponse> {
+    if (window.pywebview?.api?.quick_connect) {
+      return await window.pywebview.api.quick_connect(account, password);
+    }
+    return {
+      success: true,
+      message: "认证成功：校园网已连通并开启后台自愈守护",
+      detected: {
+        university_name: "延安大学",
+        auth_protocol: "drcom",
+        campus_auth_url: "http://10.200.84.3:801/eportal/index.jsp",
+      },
+    };
   },
 
   async searchUniversities(keyword: string): Promise<UniversityItem[]> {
