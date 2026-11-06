@@ -118,7 +118,11 @@ class BatteryMonitor:
         self.running = True
 
     def check(self) -> None:
-        bat = psutil.sensors_battery()
+        try:
+            bat = psutil.sensors_battery()
+        except Exception:
+            bat = None
+
         if bat is None:
             return
 
@@ -181,7 +185,11 @@ class BatteryMonitor:
         self.was_plugged = plugged
 
     def get_status(self) -> str:
-        bat = psutil.sensors_battery()
+        try:
+            bat = psutil.sensors_battery()
+        except Exception:
+            bat = None
+
         if bat is None:
             return "未检测到电池（台式机交流供电）"
         plugged = bool(bat.power_plugged)
