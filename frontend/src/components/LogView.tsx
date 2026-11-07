@@ -1,5 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Terminal, Search, Trash2, RefreshCw, ArrowDown, ShieldAlert, CheckCircle, Info } from 'lucide-react';
+import {
+  Terminal,
+  Search,
+  Trash2,
+  RefreshCw,
+  ArrowDown,
+  ShieldAlert,
+  CheckCircle,
+  Info,
+  Download,
+  FolderOpen,
+} from 'lucide-react';
 import { api } from '../api';
 
 export const LogView: React.FC = () => {
@@ -8,7 +19,13 @@ export const LogView: React.FC = () => {
   const [search, setSearch] = useState('');
   const [levelFilter, setLevelFilter] = useState<'ALL' | 'INFO' | 'WARNING' | 'ERROR'>('ALL');
   const [autoScroll, setAutoScroll] = useState(true);
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
+
+  const showToast = (msg: string) => {
+    setToastMsg(msg);
+    setTimeout(() => setToastMsg(null), 3000);
+  };
 
   const fetchLogs = async () => {
     setLoading(true);
@@ -38,6 +55,38 @@ export const LogView: React.FC = () => {
     if (confirm('确定要清空当前的运行日志文件吗？')) {
       await api.clearLogs();
       fetchLogs();
+      showToast('日志已清空');
+    }
+  };
+
+  const handleExport = async () => {
+    try {
+      const res = await api.exportLogs();
+      const content = res?.data?.content || logs.join('\n');
+      const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const dateStr = new Date().toISOString().slice(0, 10);
+      a.href = url;
+      a.download = `campus_guard_logs_${dateStr}.log`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast('日志文件已成功导出');
+    } catch (err: any) {
+      console.error(err);
+      showToast(`导出失败: ${err.message || err}`);
+    }
+  };
+
+  const handleOpenFolder = async () => {
+    try {
+      const res = await api.openLogFolder();
+      showToast(res.message || '已打开日志目录');
+    } catch (err: any) {
+      console.error(err);
+      showToast(`打开失败: ${err.message || err}`);
     }
   };
 
@@ -66,6 +115,30 @@ export const LogView: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
+          {toastMsg && (
+            <span className="text-[11px] px-2.5 py-1 rounded-lg bg-cyan-500/20 text-cyan-200 border border-cyan-400/30 animate-in fade-in duration-150">
+              {toastMsg}
+            </span>
+          )}
+
+          <button
+            onClick={handleExport}
+            className="px-3 py-1.5 rounded-xl twilight-btn-secondary text-cyan-200 hover:text-white text-xs font-medium flex items-center gap-1.5 transition-all shadow-sm"
+            title="导出全量日志文件 (.log)"
+          >
+            <Download className="w-3.5 h-3.5" />
+            导出日志
+          </button>
+
+          <button
+            onClick={handleOpenFolder}
+            className="px-3 py-1.5 rounded-xl twilight-btn-secondary text-white/80 hover:text-white text-xs font-medium flex items-center gap-1.5 transition-all"
+            title="在系统资源管理器中打开日志目录"
+          >
+            <FolderOpen className="w-3.5 h-3.5" />
+            打开目录
+          </button>
+
           <button
             onClick={() => setAutoScroll(!autoScroll)}
             className={`px-3 py-1.5 rounded-xl border text-xs font-medium flex items-center gap-1.5 transition-all ${

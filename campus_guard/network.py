@@ -78,6 +78,11 @@ class NetworkMonitor:
         self._is_probing = False
         self._reconnecting = False
 
+    def record_event(self, text: str) -> None:
+        """记录外部（如一键联网、手动认证等）触发的网络事件。"""
+        with self._lock:
+            self.last_event = text
+
     def effective_check_interval(self, base_interval: int) -> int:
         """自适应动态心跳计算：
         - 稳定在线时心跳拉长至 10 秒（或 max(base_interval, 10)），让后台深度节能睡眠；

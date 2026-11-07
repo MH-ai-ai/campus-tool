@@ -291,6 +291,11 @@ class CampusGuardTests(unittest.TestCase):
         self.assertFalse(ok)
         self.assertIn("账号已欠费停机", msg)
 
+        # 验证数字错误代码 512 映射 (密码错误)
+        ok, msg = parse_drcom_response('dr1003({"result":0,"msg":"512"})')
+        self.assertFalse(ok)
+        self.assertIn("密码错误", msg)
+
         # 验证注销参数
         config = Config(
             telegram_bot_token="token",

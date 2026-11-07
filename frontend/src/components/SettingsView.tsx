@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Save,
   Search,
@@ -27,10 +27,19 @@ export const SettingsView: React.FC = () => {
   const [schools, setSchools] = useState<UniversityItem[]>([]);
   const [showSchoolDropdown, setShowSchoolDropdown] = useState(false);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const schoolDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     loadConfig();
     searchSchools('');
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (schoolDropdownRef.current && !schoolDropdownRef.current.contains(event.target as Node)) {
+        setShowSchoolDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   const loadConfig = async () => {
@@ -166,17 +175,17 @@ export const SettingsView: React.FC = () => {
       )}
 
       {/* ------------------------------------------------------------------- */}
-      {/* 分组 1: 高校与认证体系 (特别优化层级防止遮挡) */}
+      {/* 分组 1: 高校与认证体系 (特别优化层级防止遮挡，允许下拉溢出) */}
       {/* ------------------------------------------------------------------- */}
-      <section className="twilight-glass-card rounded-2xl p-5 space-y-4 relative z-20">
+      <section className="twilight-glass-card rounded-2xl p-5 space-y-4 relative z-30 overflow-visible">
         <div className="flex items-center gap-2 pb-2 border-b border-white/20">
           <School className="w-4 h-4 text-cyan-300" />
           <h3 className="text-xs font-semibold text-white uppercase tracking-wider font-mono">高校与认证体系</h3>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs overflow-visible">
           {/* 高校检索选择 */}
-          <div className="space-y-1.5 relative">
+          <div ref={schoolDropdownRef} className="space-y-1.5 relative">
             <label className="text-white/80 font-medium flex items-center justify-between">
               <span>所属院校 / 预置模板</span>
               <span className="text-[10px] text-cyan-300 font-mono">支持全拼/首字母搜索</span>
@@ -186,7 +195,10 @@ export const SettingsView: React.FC = () => {
               <input
                 type="text"
                 value={config.university_name || ''}
-                onFocus={() => setShowSchoolDropdown(true)}
+                onFocus={() => {
+                  searchSchools('');
+                  setShowSchoolDropdown(true);
+                }}
                 onChange={(e) => {
                   updateField('university_name', e.target.value);
                   searchSchools(e.target.value);
@@ -200,27 +212,21 @@ export const SettingsView: React.FC = () => {
 
             {/* 独立防遮挡浮动弹层 */}
             {showSchoolDropdown && schools.length > 0 && (
-              <>
-                <div
-                  className="fixed inset-0 z-40"
-                  onClick={() => setShowSchoolDropdown(false)}
-                />
-                <div className="absolute left-0 right-0 top-full mt-1.5 max-h-56 overflow-y-auto rounded-xl bg-[#1e1b4b]/95 border border-white/30 shadow-2xl z-50 divide-y divide-white/10 backdrop-blur-2xl">
-                  {schools.map((s) => (
-                    <button
-                      key={s.id}
-                      type="button"
-                      onClick={() => selectSchool(s)}
-                      className="w-full px-3.5 py-2.5 text-left text-xs hover:bg-white/15 flex items-center justify-between transition-colors"
-                    >
-                      <span className="font-medium text-white truncate">{s.name}</span>
-                      <span className="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-white/15 text-cyan-200 shrink-0 ml-2">
-                        {s.protocol}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </>
+              <div className="absolute left-0 right-0 top-full mt-1.5 max-h-56 overflow-y-auto rounded-xl bg-[#13112c]/95 border border-white/30 shadow-2xl z-50 divide-y divide-white/10 backdrop-blur-2xl">
+                {schools.map((s) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => selectSchool(s)}
+                    className="w-full px-3.5 py-2.5 text-left text-xs hover:bg-white/15 flex items-center justify-between transition-colors cursor-pointer"
+                  >
+                    <span className="font-medium text-white truncate">{s.name}</span>
+                    <span className="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-white/15 text-cyan-200 shrink-0 ml-2">
+                      {s.protocol}
+                    </span>
+                  </button>
+                ))}
+              </div>
             )}
           </div>
 

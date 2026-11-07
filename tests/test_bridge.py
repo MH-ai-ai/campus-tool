@@ -56,7 +56,32 @@ class TestApiBridge(unittest.TestCase):
         self.assertTrue(res["success"])
         self.assertIn("认证成功", res["message"])
 
+    @patch("campus_guard.bridge.campus_login", return_value=(True, "一键认证OK"))
+    def test_quick_connect_with_real_network_monitor(self, mock_login) -> None:
+        from campus_guard.battery import BatteryTracker
+        from campus_guard.network import NetworkMonitor
+
+        tracker = BatteryTracker()
+        net_mon = NetworkMonitor(notify_callback=lambda x: None, tracker=tracker)
+        bridge = ApiBridge(network_monitor=net_mon)
+
+        res = bridge.quick_connect("20240901001", "password123")
+        self.assertTrue(res["success"])
+        self.assertIn("一键认证OK", net_mon.last_event)
+
+    def test_export_logs_returns_dict(self) -> None:
+        res = self.bridge.export_logs()
+        self.assertIn("success", res)
+        self.assertIn("path", res)
+        self.assertIn("content", res)
+
+    @patch("subprocess.run")
+    def test_open_log_folder(self, mock_subproc) -> None:
+        res = self.bridge.open_log_folder()
+        self.assertTrue(res["success"])
+
 
 if __name__ == "__main__":
     unittest.main()
+
 

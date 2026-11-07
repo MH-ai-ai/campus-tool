@@ -241,6 +241,27 @@ export const api = {
     return { success: true, message: "日志已清空" };
   },
 
+  async exportLogs(): Promise<ApiResponse<{ content?: string; path?: string }>> {
+    if (window.pywebview?.api?.export_logs) {
+      return await window.pywebview.api.export_logs();
+    }
+    return {
+      success: true,
+      message: "日志文件就绪",
+      data: {
+        content: "[INFO] 模拟日志导出测试\n[INFO] 运行状态良好",
+        path: "C:\\Users\\User\\AppData\\Roaming\\CampusGuard\\campus_guard.log",
+      },
+    };
+  },
+
+  async openLogFolder(): Promise<ApiResponse> {
+    if (window.pywebview?.api?.open_log_folder) {
+      return await window.pywebview.api.open_log_folder();
+    }
+    return { success: true, message: "已在资源管理器中打开日志目录" };
+  },
+
   async lockScreen(): Promise<ApiResponse> {
     if (window.pywebview?.api?.lock_screen) {
       return await window.pywebview.api.lock_screen();

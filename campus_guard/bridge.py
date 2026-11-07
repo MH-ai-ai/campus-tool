@@ -167,7 +167,7 @@ class ApiBridge:
         """手动请求校园网登录认证。"""
         try:
             ok, msg = campus_login()
-            if self.network:
+            if self.network and hasattr(self.network, "record_event"):
                 self.network.record_event(f"手动认证: {msg}")
             return {"success": ok, "message": msg}
         except Exception as err:
@@ -177,7 +177,7 @@ class ApiBridge:
         """手动请求校园网注销下线。"""
         try:
             ok, msg = campus_logout()
-            if self.network:
+            if self.network and hasattr(self.network, "record_event"):
                 self.network.record_event(f"注销下线: {msg}")
             return {"success": ok, "message": msg}
         except Exception as err:
@@ -269,7 +269,7 @@ class ApiBridge:
             update_runtime_config(decrypt_config(cfg))
 
             ok, msg = campus_login()
-            if self.network:
+            if self.network and hasattr(self.network, "record_event"):
                 self.network.record_event(f"一键联网认证: {msg}")
             return {
                 "success": ok,
@@ -305,6 +305,43 @@ class ApiBridge:
             return [line.rstrip() for line in lines[-max_lines:]]
         except Exception as err:
             return [f"读取日志文件失败: {err}"]
+
+    def export_logs(self) -> dict[str, Any]:
+        """导出全量日志内容与本地存储路径。"""
+        if not LOG_PATH.exists():
+            return {"success": False, "message": "暂无日志文件", "content": "", "path": str(LOG_PATH)}
+        try:
+            with open(LOG_PATH, "r", encoding="utf-8", errors="replace") as f:
+                content = f.read()
+            return {
+                "success": True,
+                "message": f"日志已就绪: {LOG_PATH}",
+                "content": content,
+                "path": str(LOG_PATH),
+            }
+        except Exception as err:
+            return {"success": False, "message": f"读取日志失败: {err}", "content": "", "path": str(LOG_PATH)}
+
+    def open_log_folder(self) -> dict[str, Any]:
+        """在系统资源管理器中打开并高亮定位日志文件。"""
+        try:
+            if not LOG_PATH.exists():
+                LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+                LOG_PATH.touch()
+            
+            resolved_path = str(LOG_PATH.resolve())
+            if platform.system() == "Windows":
+                subprocess.run(
+                    ["explorer.exe", f"/select,{resolved_path}"],
+                    creationflags=0x08000000 if hasattr(subprocess, "CREATE_NO_WINDOW") else 0,
+                )
+            elif platform.system() == "Darwin":
+                subprocess.run(["open", "-R", resolved_path])
+            else:
+                subprocess.run(["xdg-open", str(LOG_PATH.parent)])
+            return {"success": True, "message": f"已在资源管理器中打开日志目录: {LOG_PATH.parent}"}
+        except Exception as err:
+            return {"success": False, "message": f"打开日志目录异常: {err}"}
 
     def clear_logs(self) -> dict[str, Any]:
         """清除运行日志文件。"""

@@ -141,6 +141,52 @@ def http_check(url: str, timeout: int = 3, trust_env: bool = False) -> bool:
         return False
 
 
+def get_default_gateway() -> str:
+    """提取操作系统当前网络活动网卡的默认路由网关 IP。"""
+    try:
+        if platform.system() == "Windows":
+            creationflags = 0x08000000 if hasattr(subprocess, "CREATE_NO_WINDOW") else 0
+            # 1. 优先从 route print 0.0.0.0 提取
+            res = subprocess.run(
+                ["route", "print", "0.0.0.0"],
+                capture_output=True,
+                timeout=4,
+                creationflags=creationflags,
+            )
+            out = decode_subprocess_output(res.stdout)
+            for line in out.splitlines():
+                parts = line.strip().split()
+                if len(parts) >= 5 and parts[0] == "0.0.0.0" and parts[1] == "0.0.0.0":
+                    gw = parts[2].strip()
+                    if gw and gw != "0.0.0.0" and not gw.startswith("127."):
+                        return gw
+
+            # 2. 回退尝试从 netsh interface ip show config 提取
+            res2 = subprocess.run(
+                ["netsh", "interface", "ip", "show", "config"],
+                capture_output=True,
+                timeout=4,
+                creationflags=creationflags,
+            )
+            out2 = decode_subprocess_output(res2.stdout)
+            for line in out2.splitlines():
+                stripped = line.strip()
+                if any(k in stripped for k in ("Default Gateway", "默认网关")) and ":" in stripped:
+                    gw = stripped.split(":", 1)[1].strip().split("(")[0].strip()
+                    if gw and gw != "0.0.0.0" and not gw.startswith("127."):
+                        return gw
+        else:
+            # Linux / macOS 环境
+            res = subprocess.run(["ip", "route", "show", "default"], capture_output=True, timeout=3)
+            out = decode_subprocess_output(res.stdout)
+            parts = out.strip().split()
+            if len(parts) >= 3 and parts[0] == "default" and parts[1] == "via":
+                return parts[2]
+    except Exception as err:
+        log.debug("获取系统默认网关失败: %s", err)
+    return ""
+
+
 def check_campus_gateway() -> bool:
     gateway = get_config_dict().get("campus_gateway", "10.212.0.1")
     return tcp_check(str(gateway), 80, timeout=3)

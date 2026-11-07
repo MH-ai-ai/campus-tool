@@ -12,7 +12,7 @@ from .adapters import get_adapter, guess_adapter_by_url
 from .config import get_config
 from .logging_setup import get_logger
 from .models import Config, normalize_auth_url
-from .system import get_local_ip, get_local_mac, get_wifi_info
+from .system import get_default_gateway, get_local_ip, get_local_mac, get_wifi_info
 from .universities import get_university_manager
 
 log = get_logger()
@@ -176,13 +176,32 @@ def auto_detect_portal_config() -> tuple[bool, str, dict[str, Any]]:
     if local_ip and local_ip != "未知" and "clash" not in local_ip.lower():
         extracted["wlan_user_ip"] = local_ip
 
-    # 3. 探针目标列表（常见直连探针）
+    # 3. 探针目标列表（官方标准 Captive Portal 探针，杜绝主动 HTTPS 跳转的主机）
     probe_urls = (
-        "http://connectivitycheck.gstatic.com/generate_204",
-        "http://www.msftconnecttest.com/connecttest.txt",
-        "http://1.1.1.1",
+        "http://connectivitycheck.platform.hicloud.com/generate_204",
+        "http://connect.rom.miui.com/generate_204",
+        "http://wifi.vivo.com.cn/generate_204",
         "http://captive.apple.com/hotspot-detect.html",
+        "http://www.msftconnecttest.com/connecttest.txt",
+        "http://connectivitycheck.gstatic.com/generate_204",
     )
+
+    def _is_captive_redirect(probe_url: str, redirect_candidate: str) -> bool:
+        if not redirect_candidate:
+            return False
+        try:
+            cand_parsed = urlparse(redirect_candidate)
+            cand_host = (cand_parsed.hostname or "").lower()
+            probe_host = (urlparse(probe_url).hostname or "").lower()
+            if not cand_host or cand_host == probe_host:
+                return False
+            # 排除公网 CDN / 常见探针原站自身跳转
+            ignored_domains = ("1.1.1.1", "cloudflare", "apple.com", "google", "gstatic", "msftconnecttest", "microsoft")
+            if any(dom in cand_host for dom in ignored_domains):
+                return False
+            return True
+        except Exception:
+            return False
 
     session = requests.Session()
     session.trust_env = False
@@ -194,18 +213,20 @@ def auto_detect_portal_config() -> tuple[bool, str, dict[str, Any]]:
             resp = session.get(url, allow_redirects=False, timeout=3)
             # 捕获 HTTP 30x 重定向
             if resp.status_code in (301, 302, 303, 307, 308) and "Location" in resp.headers:
-                target_redirect_url = resp.headers["Location"]
-                captured_html = resp.text or ""
-                break
+                loc = resp.headers["Location"]
+                if _is_captive_redirect(url, loc):
+                    target_redirect_url = loc
+                    captured_html = resp.text or ""
+                    break
             # 捕获 HTML 内部 JS 或 meta 刷新跳转
             if resp.text:
                 js_match = re.search(r"location\.(?:href|replace)\s*=\s*['\"]([^'\"]+)['\"]", resp.text, re.I)
-                if js_match:
+                if js_match and _is_captive_redirect(url, js_match.group(1)):
                     target_redirect_url = js_match.group(1)
                     captured_html = resp.text
                     break
                 meta_match = re.search(r"url=([^'\">]+)", resp.text, re.I)
-                if meta_match:
+                if meta_match and _is_captive_redirect(url, meta_match.group(1).strip()):
                     target_redirect_url = meta_match.group(1).strip()
                     captured_html = resp.text
                     break
@@ -222,7 +243,11 @@ def auto_detect_portal_config() -> tuple[bool, str, dict[str, Any]]:
         extracted["campus_auth_url"] = base_url
 
         host = parsed.hostname
-        if host:
+        # 优先提取操作系统活动物理网卡的真实默认网关 IP (如 10.211.0.1)
+        system_gw = get_default_gateway()
+        if system_gw and system_gw != "0.0.0.0" and not system_gw.startswith("127."):
+            extracted["campus_gateway"] = system_gw
+        elif host:
             extracted["campus_gateway"] = host
 
         qs = parse_qs(parsed.query)
