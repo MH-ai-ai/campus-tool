@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from campus_guard.bridge import ApiBridge
@@ -97,8 +98,18 @@ class TestApiBridge(unittest.TestCase):
         self.assertTrue(res["success"], res.get("message"))
         mock_subproc.assert_called_once()
 
+    @patch("campus_guard.bridge.platform.system", return_value="Windows")
+    @patch("campus_guard.bridge.subprocess.run")
+    def test_open_log_folder_when_resolve_fails(self, mock_subproc, mock_sys) -> None:
+        mock_subproc.return_value = MagicMock(returncode=0)
+        with patch("campus_guard.bridge.LOG_PATH") as mock_log_path:
+            mock_log_path.exists.return_value = True
+            mock_log_path.resolve.side_effect = TypeError("expected string or bytes-like object, got 'MagicMock'")
+            mock_log_path.parent = Path(".")
+            res = self.bridge.open_log_folder()
+        self.assertTrue(res["success"], res.get("message"))
+
 
 if __name__ == "__main__":
     unittest.main()
-
 

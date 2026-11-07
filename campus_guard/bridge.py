@@ -332,7 +332,10 @@ class ApiBridge:
                 except Exception:
                     pass
 
-            resolved_path = str(LOG_PATH.resolve())
+            try:
+                resolved_path = str(LOG_PATH.resolve())
+            except Exception:
+                resolved_path = str(LOG_PATH)
             if platform.system() == "Windows":
                 flags = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
                 try:
@@ -437,4 +440,3 @@ class ApiBridge:
             except Exception:
                 pass
         sys.exit(0)
-
