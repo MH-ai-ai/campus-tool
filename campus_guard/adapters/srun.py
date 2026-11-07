@@ -74,7 +74,7 @@ class SrunAdapter(BaseAuthAdapter):
                 "ip": local_ip,
                 "double_stack": "0",
             },
-            timeout=6,
+            timeout=(3.0, 4.0),
         )
         data = _extract_json_or_jsonp(resp.text)
         token = data.get("challenge") or data.get("token") or ""
@@ -137,7 +137,7 @@ class SrunAdapter(BaseAuthAdapter):
                 "double_stack": "0",
             }
 
-            resp = session.post(portal_url, data=form_data, timeout=10)
+            resp = session.post(portal_url, data=form_data, timeout=(3.0, 5.0))
             data = _extract_json_or_jsonp(resp.text)
 
             res = str(data.get("res", "")).lower()
@@ -178,7 +178,7 @@ class SrunAdapter(BaseAuthAdapter):
                 "ip": local_ip,
                 "ac_id": ac_id,
             }
-            resp = session.post(portal_url, data=form_data, timeout=8)
+            resp = session.post(portal_url, data=form_data, timeout=(3.0, 4.0))
             data = _extract_json_or_jsonp(resp.text)
             res = str(data.get("res", "")).lower()
             if res == "ok" or "ok" in resp.text.lower() or "success" in resp.text.lower():

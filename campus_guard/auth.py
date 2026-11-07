@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import concurrent.futures
 import json
 import random
 import re
 from typing import Any, Mapping
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, urljoin, urlparse
 
 import requests
 
@@ -161,14 +162,15 @@ def campus_logout(config: Config | None = None) -> tuple[bool, str]:
 def auto_detect_portal_config() -> tuple[bool, str, dict[str, Any]]:
     """通过 Captive Portal 劫持探针，全自动嗅探校园网认证网关与参数。
     支持自动识别全国高校所属认证体系（深澜 Srun、城市热点 Dr.COM、锐捷 Ruijie、Portal）。
+    优先采用纯 IP 零 DNS 探针并发探测，杜绝未认证状态下 DNS 阻断导致的 30 秒系统阻塞。
     返回元组: (是否成功捕获, 状态说明, 提取到的配置字典)
     """
     extracted: dict[str, Any] = {}
 
-    # 1. 尝试获取当前连接的 Wi-Fi 名称
-    wifi_raw = get_wifi_info(force=True)
+    # 1. 尝试获取当前连接的 Wi-Fi 名称（非强制快速读取，避免阻塞）
+    wifi_raw = get_wifi_info(force=False)
     current_ssid = wifi_raw.split("(", 1)[0].strip() if "(" in wifi_raw else wifi_raw.strip()
-    if current_ssid and current_ssid != "未连接" and current_ssid != "未知":
+    if current_ssid and current_ssid not in ("未连接", "未知"):
         extracted["campus_wifi_ssid"] = current_ssid
 
     # 2. 获取本机 IP
@@ -176,15 +178,26 @@ def auto_detect_portal_config() -> tuple[bool, str, dict[str, Any]]:
     if local_ip and local_ip != "未知" and "clash" not in local_ip.lower():
         extracted["wlan_user_ip"] = local_ip
 
-    # 3. 探针目标列表（官方标准 Captive Portal 探针，杜绝主动 HTTPS 跳转的主机）
-    probe_urls = (
-        "http://connectivitycheck.platform.hicloud.com/generate_204",
+    # 3. 构造零 DNS 延迟的优先 IP 探针列表 + 备选域名探针
+    system_gw = get_default_gateway()
+    if system_gw and system_gw != "0.0.0.0" and not system_gw.startswith("127."):
+        extracted["campus_gateway"] = system_gw
+
+    ip_probes = []
+    if system_gw and system_gw != "0.0.0.0" and not system_gw.startswith("127."):
+        ip_probes.append(f"http://{system_gw}/")
+    ip_probes.extend([
+        "http://1.2.3.4/",
+        "http://123.123.123.123/",
+        "http://10.255.255.254/",
+    ])
+
+    domain_probes = [
         "http://connect.rom.miui.com/generate_204",
-        "http://wifi.vivo.com.cn/generate_204",
+        "http://connectivitycheck.platform.hicloud.com/generate_204",
         "http://captive.apple.com/hotspot-detect.html",
         "http://www.msftconnecttest.com/connecttest.txt",
-        "http://connectivitycheck.gstatic.com/generate_204",
-    )
+    ]
 
     def _is_captive_redirect(probe_url: str, redirect_candidate: str) -> bool:
         if not redirect_candidate:
@@ -192,46 +205,107 @@ def auto_detect_portal_config() -> tuple[bool, str, dict[str, Any]]:
         try:
             cand_parsed = urlparse(redirect_candidate)
             cand_host = (cand_parsed.hostname or "").lower()
-            probe_host = (urlparse(probe_url).hostname or "").lower()
-            if not cand_host or cand_host == probe_host:
+            probe_parsed = urlparse(probe_url)
+            probe_host = (probe_parsed.hostname or "").lower()
+            if not cand_host:
                 return False
+
             # 排除公网 CDN / 常见探针原站自身跳转
-            ignored_domains = ("1.1.1.1", "cloudflare", "apple.com", "google", "gstatic", "msftconnecttest", "microsoft")
+            ignored_domains = (
+                "1.1.1.1", "cloudflare", "apple.com", "google", "gstatic",
+                "msftconnecttest", "microsoft", "miui.com", "hicloud.com", "vivo.com.cn"
+            )
             if any(dom in cand_host for dom in ignored_domains):
                 return False
-            return True
+
+            # 如果探针是公共探测 IP（如 1.2.3.4），只要发生跳转且目标非原探针即为合法劫持
+            if probe_host in ("1.2.3.4", "123.123.123.123", "10.255.255.254"):
+                return cand_host != probe_host
+
+            # 如果探针是网关 IP（如 10.211.0.1），同一 IP 下包含特征路径（/portal, /eportal, /srun, :801 等）也算成功
+            if probe_host == cand_host:
+                cand_lower = redirect_candidate.lower()
+                return any(k in cand_lower for k in ("portal", "login", "auth", "drcom", "srun", "eportal", ":801", ":8080", "userip", "wlan", "index.jsp"))
+
+            return cand_host != probe_host
         except Exception:
             return False
 
-    session = requests.Session()
-    session.trust_env = False
+    def _probe_single(probe_url: str) -> tuple[str, str]:
+        """探测单条 URL，返回 (redirect_url, html_content)"""
+        try:
+            session = requests.Session()
+            session.trust_env = False
+            resp = session.get(probe_url, allow_redirects=False, timeout=(1.5, 2.0))
+            raw_url = getattr(resp, "url", None)
+            base_url = raw_url if isinstance(raw_url, str) and raw_url else probe_url
+            raw_text = getattr(resp, "text", "")
+            resp_text = raw_text if isinstance(raw_text, str) else ""
+
+            # 捕获 HTTP 30x 重定向
+            if resp.status_code in (301, 302, 303, 307, 308) and "Location" in resp.headers:
+                loc = str(resp.headers["Location"]).strip()
+                full_loc = urljoin(base_url, loc)
+                if _is_captive_redirect(probe_url, full_loc):
+                    return full_loc, resp_text
+
+            # 捕获 HTML 内部 JS 或 meta 刷新跳转
+            if resp_text:
+                js_match = re.search(
+                    r"(?:location\.(?:href|replace)|window\.location)\s*=\s*['\"]([^'\"]+)['\"]",
+                    resp_text,
+                    re.I,
+                )
+                if js_match:
+                    full_js = urljoin(base_url, js_match.group(1).strip())
+                    if _is_captive_redirect(probe_url, full_js):
+                        return full_js, resp_text
+
+                meta_match = re.search(r"url=([^'\">]+)", resp_text, re.I)
+                if meta_match:
+                    full_meta = urljoin(base_url, meta_match.group(1).strip())
+                    if _is_captive_redirect(probe_url, full_meta):
+                        return full_meta, resp_text
+
+                form_match = re.search(r"<form[^>]+action=['\"]([^'\"]+)['\"]", resp_text, re.I)
+                if form_match:
+                    action_candidate = urljoin(base_url, form_match.group(1).strip())
+                    if any(k in action_candidate.lower() for k in ("portal", "login", "auth", "drcom", "srun", "eportal")):
+                        if _is_captive_redirect(probe_url, action_candidate):
+                            return action_candidate, resp_text
+        except Exception:
+            pass
+        return "", ""
 
     target_redirect_url = ""
     captured_html = ""
-    for url in probe_urls:
+
+    # Phase 1: 极速纯 IP 并发探测（0 DNS 延迟，5~50ms 即可完成）
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max(len(ip_probes), 1)) as executor:
+        futures = {executor.submit(_probe_single, url): url for url in ip_probes}
         try:
-            resp = session.get(url, allow_redirects=False, timeout=3)
-            # 捕获 HTTP 30x 重定向
-            if resp.status_code in (301, 302, 303, 307, 308) and "Location" in resp.headers:
-                loc = resp.headers["Location"]
-                if _is_captive_redirect(url, loc):
-                    target_redirect_url = loc
-                    captured_html = resp.text or ""
-                    break
-            # 捕获 HTML 内部 JS 或 meta 刷新跳转
-            if resp.text:
-                js_match = re.search(r"location\.(?:href|replace)\s*=\s*['\"]([^'\"]+)['\"]", resp.text, re.I)
-                if js_match and _is_captive_redirect(url, js_match.group(1)):
-                    target_redirect_url = js_match.group(1)
-                    captured_html = resp.text
-                    break
-                meta_match = re.search(r"url=([^'\">]+)", resp.text, re.I)
-                if meta_match and _is_captive_redirect(url, meta_match.group(1).strip()):
-                    target_redirect_url = meta_match.group(1).strip()
-                    captured_html = resp.text
+            for fut in concurrent.futures.as_completed(futures, timeout=2.0):
+                redir, html = fut.result()
+                if redir:
+                    target_redirect_url = redir
+                    captured_html = html
                     break
         except Exception:
-            continue
+            pass
+
+    # Phase 2: 如果纯 IP 探针未捕获，且总体耗时充裕，并发尝试备选域名探针（最多等待 1.5s）
+    if not target_redirect_url:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max(len(domain_probes), 1)) as executor:
+            futures = {executor.submit(_probe_single, url): url for url in domain_probes}
+            try:
+                for fut in concurrent.futures.as_completed(futures, timeout=1.5):
+                    redir, html = fut.result()
+                    if redir:
+                        target_redirect_url = redir
+                        captured_html = html
+                        break
+            except Exception:
+                pass
 
     if not target_redirect_url:
         return False, "未捕获到校园网重定向，可能网络已畅通或尚未连接校园 Wi-Fi", extracted
@@ -246,7 +320,6 @@ def auto_detect_portal_config() -> tuple[bool, str, dict[str, Any]]:
         if host and host not in ("1.1.1.1", "1.0.0.1", "cloudflare.com"):
             extracted["campus_gateway"] = host
         else:
-            system_gw = get_default_gateway()
             if system_gw and system_gw != "0.0.0.0" and not system_gw.startswith("127."):
                 extracted["campus_gateway"] = system_gw
 

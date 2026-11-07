@@ -41,7 +41,7 @@ class GenericPortalAdapter(BaseAuthAdapter):
                 "ip": local_ip,
                 "mac": local_mac,
             }
-            resp = session.post(config.campus_auth_url, data=form_data, timeout=10)
+            resp = session.post(config.campus_auth_url, data=form_data, timeout=(3.0, 5.0))
             text = resp.text.lower()
             if any(k in text for k in ("success", "ok", "成功", "登录成功", "认证成功", '"result":1')):
                 log.info("通用 Portal 认证响应成功")
@@ -67,7 +67,7 @@ class GenericPortalAdapter(BaseAuthAdapter):
                 if suffix not in logout_url:
                     logout_url = urljoin(config.campus_auth_url, suffix)
                     break
-            session.get(logout_url, timeout=8)
+            session.get(logout_url, timeout=(3.0, 4.0))
             return True, "下线请求已发送"
         except Exception as err:
             log.error("通用 Portal 下线异常: %s", err)

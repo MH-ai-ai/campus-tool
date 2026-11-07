@@ -4,6 +4,7 @@ import gc
 import platform
 import socket
 import subprocess
+import sys
 import time
 import uuid
 
@@ -150,16 +151,26 @@ def http_check(url: str, timeout: int = 3, trust_env: bool = False) -> bool:
         return False
 
 
+_gw_cache: tuple[float, str] = (0.0, "")
+GW_CACHE_TTL = 5.0
+
+
 def get_default_gateway() -> str:
     """提取操作系统当前网络活动网卡的默认路由网关 IP。"""
+    global _gw_cache
+    now = time.time()
+    cached_at, cached_gw = _gw_cache
+    if cached_gw and (now - cached_at < GW_CACHE_TTL):
+        return cached_gw
+
     try:
-        if platform.system() == "Windows":
+        if sys.platform == "win32":
             creationflags = 0x08000000 if hasattr(subprocess, "CREATE_NO_WINDOW") else 0
             # 1. 优先从 route print 0.0.0.0 提取
             res = subprocess.run(
                 ["route", "print", "0.0.0.0"],
                 capture_output=True,
-                timeout=4,
+                timeout=3,
                 creationflags=creationflags,
             )
             out = decode_subprocess_output(res.stdout)
@@ -168,13 +179,14 @@ def get_default_gateway() -> str:
                 if len(parts) >= 5 and parts[0] == "0.0.0.0" and parts[1] == "0.0.0.0":
                     gw = parts[2].strip()
                     if gw and gw != "0.0.0.0" and not gw.startswith("127."):
+                        _gw_cache = (now, gw)
                         return gw
 
             # 2. 回退尝试从 netsh interface ip show config 提取
             res2 = subprocess.run(
                 ["netsh", "interface", "ip", "show", "config"],
                 capture_output=True,
-                timeout=4,
+                timeout=3,
                 creationflags=creationflags,
             )
             out2 = decode_subprocess_output(res2.stdout)
@@ -183,22 +195,36 @@ def get_default_gateway() -> str:
                 if any(k in stripped for k in ("Default Gateway", "默认网关")) and ":" in stripped:
                     gw = stripped.split(":", 1)[1].strip().split("(")[0].strip()
                     if gw and gw != "0.0.0.0" and not gw.startswith("127."):
+                        _gw_cache = (now, gw)
                         return gw
         else:
             # Linux / macOS 环境
-            res = subprocess.run(["ip", "route", "show", "default"], capture_output=True, timeout=3)
+            res = subprocess.run(["ip", "route", "show", "default"], capture_output=True, timeout=2)
             out = decode_subprocess_output(res.stdout)
             parts = out.strip().split()
             if len(parts) >= 3 and parts[0] == "default" and parts[1] == "via":
-                return parts[2]
+                gw = parts[2].strip()
+                _gw_cache = (now, gw)
+                return gw
     except Exception as err:
         log.debug("获取系统默认网关失败: %s", err)
     return ""
 
 
 def check_campus_gateway() -> bool:
-    gateway = get_config_dict().get("campus_gateway", "10.212.0.1")
-    return tcp_check(str(gateway), 80, timeout=3)
+    """探测校园网网关是否可达。优先探测系统当前路由默认网关，回退探测配置网关。"""
+    # 1. 优先探测系统当前路由实际网关 (如 10.211.0.1)
+    sys_gw = get_default_gateway()
+    if sys_gw and sys_gw != "0.0.0.0" and not sys_gw.startswith("127."):
+        if tcp_check(sys_gw, 80, timeout=1.5):
+            return True
+
+    # 2. 回退探测用户配置的 campus_gateway
+    cfg_gw = str(get_config_dict().get("campus_gateway", "")).strip()
+    if cfg_gw and cfg_gw != sys_gw:
+        if tcp_check(cfg_gw, 80, timeout=1.5):
+            return True
+    return False
 
 
 def check_internet() -> bool:

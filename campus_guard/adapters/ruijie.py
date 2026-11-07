@@ -59,7 +59,7 @@ class RuijieAdapter(BaseAuthAdapter):
                 "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
             }
 
-            resp = session.post(target_url, data=form_data, headers=headers, timeout=10)
+            resp = session.post(target_url, data=form_data, headers=headers, timeout=(3.0, 5.0))
             text = resp.text.strip()
 
             try:
@@ -92,7 +92,7 @@ class RuijieAdapter(BaseAuthAdapter):
             form_data = {
                 "userId": config.campus_account,
             }
-            resp = session.post(target_url, data=form_data, timeout=8)
+            resp = session.post(target_url, data=form_data, timeout=(3.0, 4.0))
             if "success" in resp.text.lower():
                 log.info("锐捷校园网已成功下线")
                 return True, "已成功下线"

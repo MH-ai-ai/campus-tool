@@ -256,7 +256,8 @@ class ApiBridge:
                 return {"success": False, "message": "请先输入校园网学号/账号与认证密码"}
 
             detected_info = {}
-            if not cfg.get("campus_auth_url") or cfg.get("auth_protocol") in (None, "", "portal"):
+            current_url = str(cfg.get("campus_auth_url", "")).strip()
+            if not current_url or cfg.get("auth_protocol") in (None, "", "portal"):
                 sniff_ok, sniff_msg, detected = auto_detect_portal_config()
                 if sniff_ok and detected:
                     detected_info = detected
@@ -268,11 +269,34 @@ class ApiBridge:
                         cfg["auth_protocol"] = detected["auth_protocol"]
                     if detected.get("university_name"):
                         cfg["university_name"] = detected["university_name"]
+                    if detected.get("wlan_ac_ip"):
+                        cfg["wlan_ac_ip"] = detected["wlan_ac_ip"]
 
             save_config_raw(encrypt_sensitive_fields(cfg))
             update_runtime_config(decrypt_config(cfg))
 
             ok, msg = campus_login()
+
+            # 自动自愈重试：若因网关超时或网络地址漂移失败，尝试通过零延迟 IP 探针动态重新嗅探校准
+            if not ok and any(k in msg for k in ("超时", "无法连接", "未配置", "网关", "未获取")):
+                log.info("一键联网初次认证未成功（%s），正在自动嗅探网络网关进行二次自愈重试...", msg)
+                sniff_ok, sniff_msg, detected = auto_detect_portal_config()
+                if sniff_ok and detected and detected.get("campus_auth_url"):
+                    detected_info = detected
+                    cfg["campus_auth_url"] = detected["campus_auth_url"]
+                    if detected.get("campus_gateway"):
+                        cfg["campus_gateway"] = detected["campus_gateway"]
+                    if detected.get("auth_protocol"):
+                        cfg["auth_protocol"] = detected["auth_protocol"]
+                    if detected.get("university_name"):
+                        cfg["university_name"] = detected["university_name"]
+                    if detected.get("wlan_ac_ip"):
+                        cfg["wlan_ac_ip"] = detected["wlan_ac_ip"]
+
+                    save_config_raw(encrypt_sensitive_fields(cfg))
+                    update_runtime_config(decrypt_config(cfg))
+                    ok, msg = campus_login()
+
             if self._network and hasattr(self._network, "record_event"):
                 self._network.record_event(f"一键联网认证: {msg}")
             return {

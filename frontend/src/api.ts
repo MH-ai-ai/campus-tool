@@ -89,17 +89,29 @@ const MOCK_STATE: StateData = {
   campus_account: "20240901001",
 };
 
+function withTimeout<T>(promise: Promise<T>, ms: number, errorMsg: string): Promise<T> {
+  let timer: any;
+  const timeoutPromise = new Promise<T>((_, reject) => {
+    timer = setTimeout(() => {
+      reject(new Error(errorMsg));
+    }, ms);
+  });
+  return Promise.race([promise, timeoutPromise]).finally(() => {
+    clearTimeout(timer);
+  });
+}
+
 export const api = {
   async getState(): Promise<StateData> {
     if (window.pywebview?.api?.get_state) {
-      return await window.pywebview.api.get_state();
+      return await withTimeout(window.pywebview.api.get_state(), 4000, "获取系统状态超时");
     }
     return MOCK_STATE;
   },
 
   async getConfig(): Promise<Record<string, any>> {
     if (window.pywebview?.api?.get_config) {
-      return await window.pywebview.api.get_config();
+      return await withTimeout(window.pywebview.api.get_config(), 4000, "读取配置超时");
     }
     return {
       university_name: "延安大学 (默认 · Dr.COM)",
@@ -124,35 +136,51 @@ export const api = {
 
   async saveConfig(cfg: Record<string, any>): Promise<ApiResponse> {
     if (window.pywebview?.api?.save_config) {
-      return await window.pywebview.api.save_config(cfg);
+      return await withTimeout(window.pywebview.api.save_config(cfg), 4000, "保存配置超时");
     }
     return { success: true, message: "模拟保存配置成功" };
   },
 
   async reconnectWifi(): Promise<ApiResponse> {
     if (window.pywebview?.api?.reconnect_wifi) {
-      return await window.pywebview.api.reconnect_wifi();
+      return await withTimeout(
+        window.pywebview.api.reconnect_wifi(),
+        6000,
+        "重连 Wi-Fi 请求超时，请检查网卡开关"
+      );
     }
     return { success: true, message: "已向 Windows 发送重新连接 Wi-Fi 指令" };
   },
 
   async authCampus(): Promise<ApiResponse> {
     if (window.pywebview?.api?.auth_campus) {
-      return await window.pywebview.api.auth_campus();
+      return await withTimeout(
+        window.pywebview.api.auth_campus(),
+        7000,
+        "认证网关响应超时，请确认 Wi-Fi 信号良好"
+      );
     }
     return { success: true, message: "认证成功：账号已上线" };
   },
 
   async logoutCampus(): Promise<ApiResponse> {
     if (window.pywebview?.api?.logout_campus) {
-      return await window.pywebview.api.logout_campus();
+      return await withTimeout(
+        window.pywebview.api.logout_campus(),
+        5000,
+        "注销下线请求超时"
+      );
     }
     return { success: true, message: "注销成功：已安全下线" };
   },
 
   async autoSniff(): Promise<ApiResponse> {
     if (window.pywebview?.api?.auto_sniff) {
-      return await window.pywebview.api.auto_sniff();
+      return await withTimeout(
+        window.pywebview.api.auto_sniff(),
+        6000,
+        "嗅探网关超时：未捕获到重定向，请确认已连入校园 Wi-Fi"
+      );
     }
     return {
       success: true,
@@ -169,14 +197,22 @@ export const api = {
 
   async quickSetup(payload: Record<string, any>): Promise<ApiResponse> {
     if (window.pywebview?.api?.quick_setup) {
-      return await window.pywebview.api.quick_setup(payload);
+      return await withTimeout(
+        window.pywebview.api.quick_setup(payload),
+        8000,
+        "向导设置提交超时"
+      );
     }
     return { success: true, message: "一键极速打通成功！网络已正常连通" };
   },
 
   async quickConnect(account: string = "", password: string = ""): Promise<ApiResponse> {
     if (window.pywebview?.api?.quick_connect) {
-      return await window.pywebview.api.quick_connect(account, password);
+      return await withTimeout(
+        window.pywebview.api.quick_connect(account, password),
+        8000,
+        "一键极速联网超时：认证网关无响应，请检查校园 Wi-Fi 连接"
+      );
     }
     return {
       success: true,
@@ -191,7 +227,7 @@ export const api = {
 
   async searchUniversities(keyword: string): Promise<UniversityItem[]> {
     if (window.pywebview?.api?.search_universities) {
-      return await window.pywebview.api.search_universities(keyword);
+      return await withTimeout(window.pywebview.api.search_universities(keyword), 3000, "检索高校库超时");
     }
     return [
       {

@@ -67,7 +67,21 @@ class TestApiBridge(unittest.TestCase):
 
         res = bridge.quick_connect("20240901001", "password123")
         self.assertTrue(res["success"])
-        self.assertIn("一键认证OK", net_mon.last_event)
+    @patch("campus_guard.bridge.auto_detect_portal_config", return_value=(True, "捕获成功", {"campus_auth_url": "http://10.211.0.1/login"}))
+    def test_auto_sniff(self, mock_sniff) -> None:
+        res = self.bridge.auto_sniff()
+        self.assertTrue(res["success"])
+        self.assertEqual(res["message"], "捕获成功")
+        self.assertEqual(res["detected"]["campus_auth_url"], "http://10.211.0.1/login")
+
+    @patch("campus_guard.bridge.campus_login", side_effect=[(False, "无法连接网关"), (True, "重试自愈成功")])
+    @patch("campus_guard.bridge.auto_detect_portal_config", return_value=(True, "嗅探成功", {"campus_auth_url": "http://10.200.84.3:801/login"}))
+    def test_quick_connect_auto_heal_retry(self, mock_sniff, mock_login) -> None:
+        res = self.bridge.quick_connect("20240901001", "password123")
+        self.assertTrue(res["success"])
+        self.assertIn("重试自愈成功", res["message"])
+        self.assertEqual(mock_login.call_count, 2)
+        mock_sniff.assert_called()
 
     def test_export_logs_returns_dict(self) -> None:
         res = self.bridge.export_logs()

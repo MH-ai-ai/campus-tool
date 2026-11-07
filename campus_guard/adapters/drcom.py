@@ -140,7 +140,7 @@ class DrcomAdapter(BaseAuthAdapter):
             resp = session.get(
                 auth_url,
                 params=params,
-                timeout=10,
+                timeout=(3.0, 5.0),
             )
             success, msg = parse_drcom_response(resp.text)
             if success:
@@ -171,7 +171,7 @@ class DrcomAdapter(BaseAuthAdapter):
             resp = session.get(
                 logout_url,
                 params=params,
-                timeout=8,
+                timeout=(3.0, 4.0),
             )
             raw = resp.text
             if "result" in raw or "dr1004" in raw or "success" in raw.lower():
