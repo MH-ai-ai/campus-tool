@@ -26,13 +26,14 @@ def translate_network_error(err_msg: str) -> str:
         return "认证接口 URL 地址无效或缺少 http:// 前缀"
     if "connection refused" in lowered or "10061" in lowered:
         return "无法连接认证网关（目标服务器拒绝连接，请确认已连入校园 Wi-Fi）"
-    if "host is unreachable" in lowered or "10065" in lowered or "10051" in lowered:
-        return "网络不可达，请先确认电脑已成功连接校园无线网络"
+    if "host is unreachable" in lowered or "10065" in lowered or "10051" in lowered or "无法连接的主机" in err_msg or "不可达" in err_msg:
+        return "当前网络无法直连校园网认证服务器（网络不通或未连接校园 Wi-Fi）"
     if "timed out" in lowered or "timeout" in lowered:
         return "请求认证服务器超时，请检查校园 Wi-Fi 信号强度"
     if "name resolution failure" in lowered or "gaierror" in lowered:
         return "域名解析失败，请检查 DNS 配置或网络连接"
     return err_msg
+
 
 
 def _config_get(config: Config | Mapping[str, Any], key: str, default: Any = "") -> Any:

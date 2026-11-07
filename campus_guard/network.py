@@ -46,18 +46,23 @@ def detect_is_campus_network(ssid: str, gateway_ok: bool) -> bool:
     home_ssids = [str(s).strip().lower() for s in cfg.get("trusted_home_ssids", []) if s]
 
     cleaned_ssid = ssid.strip().lower()
-    # 1. 匹配已知校园 SSID 或通用校园关键词 (例如延安大学 YADX-STU, YADX-TEA)
-    if any(cs in cleaned_ssid for cs in campus_ssids if cs):
-        return True
-    if any(k in cleaned_ssid for k in ("yadx", "yau", "campus", "wlan", "wifi", "stu", "tea")):
-        return True
 
-    # 2. 匹配已知家庭/信任网络 SSID
+    # 1. 匹配已知家庭/信任网络 SSID
     if any(hs in cleaned_ssid for hs in home_ssids if hs):
         return False
 
-    # 3. 未知网络时: 网关可达才判定为校园网
+    # 2. 匹配已知校园 SSID
+    if any(cs in cleaned_ssid for cs in campus_ssids if cs):
+        return True
+
+    # 3. 匹配明确的校园特征关键字 (避免宽泛的 "wifi", "tea" 导致移动热点或家用 Wi-Fi 误判)
+    campus_keywords = ("yadx", "yau", "-stu", "_stu", "-tea", "_tea", "campus", "eduroam", ".edu")
+    if any(k in cleaned_ssid for k in campus_keywords):
+        return True
+
+    # 4. 未知网络时: 网关可达才判定为校园网
     return bool(gateway_ok)
+
 
 
 class NetworkMonitor:
@@ -273,19 +278,26 @@ class NetworkMonitor:
                 self.notify("❌ WiFi 重连失败，所有 SSID 均不可用")
                 return
 
-        # 2. 如果非校园网环境，WiFi 连上外网通了即算成功，无需执行 campus_login
-        if not is_campus:
-            if self._wait(2):
-                return
-            new_snap = self.probe_connectivity()
-            if new_snap.online:
-                self.is_online = True
-                self.retry_count = 0
-                self.last_snapshot = new_snap
-                self.last_event = "家庭网络恢复连接"
-                self.notify(self._format_restore_message(new_snap, 1))
-                self.aggressive_mode = False
-                return
+        # 2. 重新探活当前连通性与网络归属判定
+        if self._wait(1):
+            return
+        new_snap = self.probe_connectivity()
+        if new_snap.online:
+            self.is_online = True
+            self.retry_count = 0
+            self.last_snapshot = new_snap
+            self.last_event = f"网络连接恢复 ({new_snap.reason})"
+            self.notify(self._format_restore_message(new_snap, 1))
+            self.aggressive_mode = False
+            trigger_bot_health_check()
+            return
+
+        if not new_snap.is_campus_network:
+            log.info("当前网络未处于校园局域网环境 (或网关不可达)，跳过校园网登录认证")
+            self.last_snapshot = new_snap
+            self.aggressive_mode = False
+            return
+
 
         # 3. 校园网 Dr.COM 登录重试
         cfg = get_config_dict()

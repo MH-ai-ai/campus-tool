@@ -93,6 +93,54 @@ class TestAdapters(unittest.TestCase):
         score = adapter.inspect_fingerprint("http://10.212.0.1/eportal/index.jsp?wlanuserip=10.212.1.2")
         self.assertGreater(score, 0.5)
 
+    def test_account_candidates(self) -> None:
+        from campus_guard.adapters.drcom import _get_account_candidates
+
+        self.assertEqual(_get_account_candidates("20240001"), [",0,20240001", "20240001"])
+        self.assertEqual(_get_account_candidates(",0,20240001"), [",0,20240001"])
+        self.assertEqual(_get_account_candidates("20240001@cmcc"), ["20240001@cmcc"])
+        self.assertEqual(_get_account_candidates(""), [])
+
+    def test_drcom_candidate_retry_on_512(self) -> None:
+        adapter = DrcomAdapter()
+        with patch("requests.Session") as mock_session_cls:
+            mock_session = MagicMock()
+            mock_session_cls.return_value = mock_session
+
+            # 第一次响应：,0, 格式被拒 512
+            resp1 = MagicMock()
+            resp1.text = 'dr1003({"result":0,"msg":"512"})'
+            # 第二次响应：原账号格式成功上线
+            resp2 = MagicMock()
+            resp2.text = 'dr1003({"result":1,"msg":"Portal login success"})'
+
+            mock_session.get.side_effect = [resp1, resp2]
+
+            ok, msg = adapter.login(self.cfg, "10.212.1.2", "aa:bb:cc:dd:ee:ff")
+            self.assertTrue(ok)
+            self.assertTrue("success" in msg.lower() or "成功" in msg)
+            self.assertEqual(mock_session.get.call_count, 2)
+
+
+    def test_drcom_friendly_hint_on_both_candidates_512(self) -> None:
+        adapter = DrcomAdapter()
+        with patch("requests.Session") as mock_session_cls:
+            mock_session = MagicMock()
+            mock_session_cls.return_value = mock_session
+
+            resp1 = MagicMock()
+            resp1.text = 'dr1003({"result":0,"msg":"512"})'
+            resp2 = MagicMock()
+            resp2.text = 'dr1003({"result":0,"msg":"512"})'
+
+            mock_session.get.side_effect = [resp1, resp2]
+
+            ok, msg = adapter.login(self.cfg, "10.212.1.2", "aa:bb:cc:dd:ee:ff")
+            self.assertFalse(ok)
+            self.assertIn("self.yau.edu.cn", msg)
+            self.assertIn("双模验证", msg)
+
+
     def test_srun_fingerprint_and_mock(self) -> None:
         adapter = SrunAdapter()
         score = adapter.inspect_fingerprint("http://10.10.0.1/cgi-bin/srun_portal?ac_id=1")

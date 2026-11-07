@@ -154,6 +154,41 @@ class CampusGuardTests(unittest.TestCase):
         asyncio.run(bot._health_check())
         self.assertEqual(bot._consecutive_probe_failures, 0)
 
+    def test_telegram_bot_health_check_skips_when_network_offline(self):
+        import asyncio
+        from campus_guard.telegram_bot import TelegramBot
+        from unittest.mock import AsyncMock
+
+        mock_network = MagicMock()
+        mock_network.is_online = False
+
+        bot = TelegramBot(None, mock_network, BatteryTracker())
+        mock_app = MagicMock()
+        mock_app.updater.running = False  # updater not running
+        mock_app.updater.start_polling = AsyncMock()
+        bot.app = mock_app
+
+        # Because network.is_online is False, _health_check should return immediately without restarting polling
+        asyncio.run(bot._health_check())
+        mock_app.updater.start_polling.assert_not_called()
+
+    def test_sensitive_data_filter(self):
+        import logging
+        from campus_guard.logging_setup import SensitiveDataFilter
+
+        sanitized = SensitiveDataFilter.sanitize(
+            "Request failed: url=http://10.200.84.3:801/login?user_account=123&user_password=SecretPass123&v=10"
+        )
+        self.assertNotIn("SecretPass123", sanitized)
+        self.assertIn("user_password=******", sanitized)
+
+        token_sanitized = SensitiveDataFilter.sanitize(
+            "Connecting to https://api.telegram.org/bot12345678:ABCdefGHIjkLMNopQRsTuVwXyz/getUpdates"
+        )
+        self.assertNotIn("ABCdefGHIjkLMNopQRsTuVwXyz", token_sanitized)
+        self.assertIn("bot12345678:******", token_sanitized)
+
+
     def test_battery_thresholds_notify_once_and_shutdown_at_20(self):
         messages = []
         update_runtime_config(

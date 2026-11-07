@@ -77,6 +77,8 @@ class TelegramBot:
         self.pending_confirmations: dict[int, dict] = {}
         self._last_update_time = time.time()
         self._consecutive_probe_failures = 0
+        self._last_restart_attempt = 0.0
+        self._restart_cooldown_seconds = 120.0
 
     def _config(self) -> dict:
         return get_config_dict()
@@ -90,15 +92,19 @@ class TelegramBot:
         if not self.app:
             return
 
-        # 1. 检查 updater 自身是否处于运行状态
-        updater = getattr(self.app, "updater", None)
-        if updater is not None and not getattr(updater, "running", False):
-            log.warning("Bot polling 循环未在运行，尝试重新拉起")
-            await self._restart_polling()
+        # 1. 前置网络状态检查：如果当前网络处于离线或断网判定，绝不发起无效 Telegram 探测或重启 polling
+        if self.network and self.network.is_online is False:
             return
 
-        # 2. 如果当前网络处于离线判定，不执行无效的 Telegram 探测
-        if self.network and self.network.is_online is False:
+        # 2. 检查 updater 自身是否处于运行状态
+        updater = getattr(self.app, "updater", None)
+        if updater is not None and not getattr(updater, "running", False):
+            now = time.time()
+            if now - self._last_restart_attempt < self._restart_cooldown_seconds:
+                log.debug("Bot polling 处于静默冷却期，暂缓重启 (距离上次尝试 %.0fs)", now - self._last_restart_attempt)
+                return
+            log.warning("Bot polling 循环未在运行，尝试重新拉起")
+            await self._restart_polling()
             return
 
         # 3. 主动探活：通过 get_me API 测试与 Telegram 服务器通信是否畅通
@@ -110,13 +116,14 @@ class TelegramBot:
             self._consecutive_probe_failures += 1
             log.debug("Bot 探活通信受阻 (%d/3): %s", self._consecutive_probe_failures, err)
             if self._consecutive_probe_failures >= 3:
-                log.warning("Bot 连续 3 次探活失败，尝试重启 polling 自愈...")
-                self._consecutive_probe_failures = 0
-                await self._restart_polling()
+                now = time.time()
+                if now - self._last_restart_attempt >= self._restart_cooldown_seconds:
+                    log.warning("Bot 连续 3 次探活失败，尝试重启 polling 自愈...")
+                    self._consecutive_probe_failures = 0
+                    await self._restart_polling()
 
     async def _restart_polling(self) -> None:
-        import traceback
-
+        self._last_restart_attempt = time.time()
         try:
             await self.app.updater.stop()
             log.info("已停止旧 polling")
@@ -125,9 +132,16 @@ class TelegramBot:
         try:
             await self.app.updater.start_polling(drop_pending_updates=False)
             self._last_update_time = time.time()
+            self._consecutive_probe_failures = 0
             log.info("Bot polling 已重启")
-        except Exception:
-            log.error("重启 polling 失败:\n%s", traceback.format_exc())
+        except Exception as err:
+            err_name = type(err).__name__
+            err_msg = str(err)
+            if any(k in err_name.lower() or k in err_msg.lower() for k in ("connect", "network", "timeout", "oserror")):
+                log.warning("当前网络未连通或受限，Bot polling 暂缓拉起 (待网络恢复后自愈): %s: %s", err_name, err_msg)
+            else:
+                log.warning("重启 Bot polling 异常 (%s): %s", err_name, err_msg)
+
 
     def _register_handlers(self, app=None) -> None:
         from telegram.ext import CallbackQueryHandler, CommandHandler

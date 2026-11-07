@@ -178,7 +178,7 @@ export const api = {
     if (window.pywebview?.api?.auto_sniff) {
       return await withTimeout(
         window.pywebview.api.auto_sniff(),
-        6000,
+        10000,
         "嗅探网关超时：未捕获到重定向，请确认已连入校园 Wi-Fi"
       );
     }
@@ -199,7 +199,7 @@ export const api = {
     if (window.pywebview?.api?.quick_setup) {
       return await withTimeout(
         window.pywebview.api.quick_setup(payload),
-        8000,
+        10000,
         "向导设置提交超时"
       );
     }
@@ -210,10 +210,11 @@ export const api = {
     if (window.pywebview?.api?.quick_connect) {
       return await withTimeout(
         window.pywebview.api.quick_connect(account, password),
-        8000,
+        15000,
         "一键极速联网超时：认证网关无响应，请检查校园 Wi-Fi 连接"
       );
     }
+
     return {
       success: true,
       message: "认证成功：校园网已连通并开启后台自愈守护",

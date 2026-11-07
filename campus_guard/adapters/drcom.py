@@ -46,6 +46,20 @@ def _format_drcom_account(account: str) -> str:
     return f",0,{acc}"
 
 
+def _get_account_candidates(account: str) -> list[str]:
+    """生成 Dr.COM 候选账号列表。
+    若用户显式指定逗号前缀（如 ,0,xxx）或运营商后缀（如 @cmcc），按原样优先；
+    否则依次尝试 ,0, 前缀（延安大学等标准 Dr.COM Web 系统）与原始标准学号。
+    """
+    acc = account.strip()
+    if not acc:
+        return []
+    if acc.startswith(",") or "@" in acc:
+        return [acc]
+    return [f",0,{acc}", acc]
+
+
+
 def parse_drcom_response(text: str) -> tuple[bool, str]:
     """解析 Dr.COM 认证接口返回的 JSONP/JSON 响应。"""
     try:
@@ -137,11 +151,13 @@ class DrcomAdapter(BaseAuthAdapter):
         config: Config,
         local_ip: str,
         local_mac: str,
+        account_override: str | None = None,
     ) -> dict[str, str]:
+        account_str = account_override if account_override is not None else _format_drcom_account(config.campus_account)
         return {
             "callback": "dr1003",
             "login_method": "1",
-            "user_account": _format_drcom_account(config.campus_account),
+            "user_account": account_str,
             "user_password": str(config.campus_password),
             "wlan_user_ip": local_ip,
             "wlan_user_ipv6": "",
@@ -180,24 +196,57 @@ class DrcomAdapter(BaseAuthAdapter):
     ) -> tuple[bool, str]:
         try:
             auth_url, _ = build_drcom_urls(config.campus_auth_url)
-            params = self.build_auth_params(config, local_ip, local_mac)
             session = requests.Session()
             session.trust_env = False
             log.info("Dr.COM 认证请求目标: %s", auth_url)
-            resp = session.get(
-                auth_url,
-                params=params,
-                timeout=(3.0, 5.0),
-            )
-            success, msg = parse_drcom_response(resp.text)
-            if success:
-                log.info("Dr.COM 校园网认证成功: %s", msg)
-                return True, msg
-            log.warning("Dr.COM 校园网认证失败: %s", msg)
-            return False, msg
+
+            candidates = _get_account_candidates(config.campus_account)
+            last_msg = ""
+            for idx, cand in enumerate(candidates):
+                params = self.build_auth_params(config, local_ip, local_mac, account_override=cand)
+                try:
+                    resp = session.get(
+                        auth_url,
+                        params=params,
+                        timeout=(3.0, 5.0),
+                    )
+                except requests.exceptions.ConnectionError as conn_err:
+                    log.warning("Dr.COM 认证服务器连接失败 (请确认已连接校园 Wi-Fi): %s", conn_err)
+                    return False, "无法连接延安大学认证网关 (10.200.84.3)，请确认电脑已连接校园 Wi-Fi (如 YADX-STU)"
+                except requests.exceptions.Timeout:
+                    return False, "连接延安大学认证网关服务器超时，请检查校园 Wi-Fi 信号"
+
+                success, msg = parse_drcom_response(resp.text)
+                if success:
+                    log.info("Dr.COM 校园网认证成功: %s", msg)
+                    return True, msg
+
+                last_msg = msg
+                # 若是密码错误/账号不存在且还有备选候选账号格式，尝试下一种格式
+                if len(candidates) > 1 and idx < len(candidates) - 1:
+                    if any(k in msg for k in ("密码错误", "512", "账号不存在", "1024")):
+                        log.info(
+                            "Dr.COM 账号格式 [%s] 认证未通过 (%s)，自动尝试备选格式 [%s]...",
+                            cand,
+                            msg,
+                            candidates[idx + 1],
+                        )
+                        continue
+
+            if "512" in last_msg or "密码错误" in last_msg:
+                user_hint = (
+                    "校园网认证失败：密码错误 (Dr.COM 512)。已自动尝试「,0,前缀」与「标准学号」双模验证均被网关拒绝，"
+                    "请核对学号与密码大小写，或前往延安大学自助服务平台 self.yau.edu.cn 重置密码。"
+                )
+                log.warning("Dr.COM 校园网认证失败: %s", last_msg)
+                return False, user_hint
+
+            log.warning("Dr.COM 校园网认证失败: %s", last_msg)
+            return False, last_msg
         except Exception as err:
             log.error("Dr.COM 校园网认证请求异常: %s", err)
             return False, str(err)
+
 
     def logout(
         self,
