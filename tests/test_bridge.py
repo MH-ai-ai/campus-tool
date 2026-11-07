@@ -81,21 +81,25 @@ class TestApiBridge(unittest.TestCase):
         res = self.bridge.open_log_folder()
         self.assertTrue(res["success"], res.get("message"))
 
-    @patch("campus_guard.bridge.platform.system", return_value="Windows")
+    @patch("campus_guard.bridge.sys.platform", "win32")
     @patch("campus_guard.bridge.subprocess.run")
-    def test_open_log_folder_windows(self, mock_subproc, mock_sys) -> None:
+    def test_open_log_folder_windows(self, mock_subproc) -> None:
         mock_subproc.return_value = MagicMock(returncode=0)
         res = self.bridge.open_log_folder()
         self.assertTrue(res["success"], res.get("message"))
         mock_subproc.assert_called_once()
+        args = mock_subproc.call_args[0][0]
+        self.assertEqual(args[0], "explorer.exe")
 
-    @patch("campus_guard.bridge.platform.system", return_value="Linux")
+    @patch("campus_guard.bridge.sys.platform", "linux")
     @patch("campus_guard.bridge.subprocess.run")
-    def test_open_log_folder_linux(self, mock_subproc, mock_sys) -> None:
+    def test_open_log_folder_linux(self, mock_subproc) -> None:
         mock_subproc.return_value = MagicMock(returncode=0)
         res = self.bridge.open_log_folder()
         self.assertTrue(res["success"], res.get("message"))
         mock_subproc.assert_called_once()
+        args = mock_subproc.call_args[0][0]
+        self.assertEqual(args[0], "xdg-open")
 
 
 if __name__ == "__main__":

@@ -333,7 +333,7 @@ class ApiBridge:
                     pass
 
             resolved_path = str(LOG_PATH.resolve())
-            if platform.system() == "Windows":
+            if sys.platform == "win32":
                 flags = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
                 try:
                     subprocess.run(
@@ -343,7 +343,7 @@ class ApiBridge:
                 except Exception:
                     if hasattr(os, "startfile"):
                         os.startfile(str(LOG_PATH.parent))
-            elif platform.system() == "Darwin":
+            elif sys.platform == "darwin":
                 subprocess.run(["open", "-R", resolved_path])
             else:
                 subprocess.run(["xdg-open", str(LOG_PATH.parent)])
@@ -362,7 +362,7 @@ class ApiBridge:
 
     def lock_screen(self) -> dict[str, Any]:
         """快速锁定屏幕。"""
-        if platform.system() == "Windows":
+        if sys.platform == "win32":
             try:
                 import ctypes
 
