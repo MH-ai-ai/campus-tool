@@ -111,10 +111,11 @@ def campus_login(config: Config | None = None) -> tuple[bool, str]:
     local_mac = get_local_mac()
 
     log.info(
-        "开始校园网认证: 协议=%s, 高校=%s, IP=%s",
+        "开始校园网认证: 协议=%s, 高校=%s, IP=%s, 接口URL=%s",
         adapter.display_name,
         getattr(active_config, "university_name", "默认"),
         local_ip,
+        url,
     )
     try:
         ok, msg = adapter.login(active_config, local_ip, local_mac)
@@ -344,6 +345,20 @@ def auto_detect_portal_config() -> tuple[bool, str, dict[str, Any]]:
         else:
             extracted["university_id"] = f"generic_{protocol}"
             extracted["university_name"] = f"通用 {protocol.upper()} 模板"
+
+        # 根据识别到的协议体系，自动纠正并规范化认证 API 端点（彻底杜绝 index.jsp 造成的 404）
+        if protocol == "drcom":
+            from .adapters.drcom import build_drcom_urls
+            login_url, _ = build_drcom_urls(base_url)
+            extracted["campus_auth_url"] = login_url
+        elif protocol == "srun":
+            origin = f"{parsed.scheme}://{parsed.netloc}"
+            extracted["campus_auth_url"] = f"{origin}/cgi-bin/srun_portal"
+        elif protocol == "ruijie":
+            origin = f"{parsed.scheme}://{parsed.netloc}"
+            extracted["campus_auth_url"] = f"{origin}/eportal/InterFace.do?method=login"
+        else:
+            extracted["campus_auth_url"] = base_url
 
         return True, f"已成功捕获校园网认证参数！(识别体系: {protocol.upper()})", extracted
     except Exception as err:

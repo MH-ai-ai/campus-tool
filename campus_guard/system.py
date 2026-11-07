@@ -211,18 +211,46 @@ def get_default_gateway() -> str:
     return ""
 
 
+def ping_check(host: str, timeout_ms: int = 800) -> bool:
+    """通过系统原生 ICMP Ping 指令极速测试主机是否可达。"""
+    if not host or host in ("0.0.0.0", "未知") or host.startswith("127."):
+        return False
+    try:
+        if sys.platform == "win32":
+            cmd = ["ping", "-n", "1", "-w", str(timeout_ms), host]
+        else:
+            cmd = ["ping", "-c", "1", "-W", str(max(1, int(timeout_ms / 1000))), host]
+        proc = subprocess.run(
+            cmd,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=(timeout_ms / 1000) + 0.5,
+        )
+        return proc.returncode == 0
+    except Exception:
+        return False
+
+
+def _probe_gw_target(gw_ip: str) -> bool:
+    if not gw_ip or gw_ip in ("0.0.0.0", "未知") or gw_ip.startswith("127."):
+        return False
+    # 1. 尝试常用网关/DNS/Portal 端口
+    for port in (80, 801, 8080, 53, 443):
+        if tcp_check(gw_ip, port, timeout=0.6):
+            return True
+    # 2. 回退 ICMP Ping 测试
+    return ping_check(gw_ip, timeout_ms=800)
+
+
 def check_campus_gateway() -> bool:
     """探测校园网网关是否可达。优先探测系统当前路由默认网关，回退探测配置网关。"""
-    # 1. 优先探测系统当前路由实际网关 (如 10.211.0.1)
     sys_gw = get_default_gateway()
-    if sys_gw and sys_gw != "0.0.0.0" and not sys_gw.startswith("127."):
-        if tcp_check(sys_gw, 80, timeout=1.5):
-            return True
+    if sys_gw and _probe_gw_target(sys_gw):
+        return True
 
-    # 2. 回退探测用户配置的 campus_gateway
     cfg_gw = str(get_config_dict().get("campus_gateway", "")).strip()
     if cfg_gw and cfg_gw != sys_gw:
-        if tcp_check(cfg_gw, 80, timeout=1.5):
+        if _probe_gw_target(cfg_gw):
             return True
     return False
 

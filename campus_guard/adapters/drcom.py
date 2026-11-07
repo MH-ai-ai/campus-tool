@@ -78,6 +78,54 @@ def parse_drcom_response(text: str) -> tuple[bool, str]:
         return False, f"认证返回异常: {text[:200]}"
 
 
+def build_drcom_urls(raw_url: str) -> tuple[str, str]:
+    """智能解析并构建标准 Dr.COM 登录和注销 API 端点。
+    保证无论用户或探针输入 /index.jsp、/login、根目录还是缺少 801 端口，
+    都能精准重构为标准的 /eportal/portal/login 与 /eportal/portal/logout。
+    """
+    from urllib.parse import urlparse
+    from ..models import normalize_auth_url
+
+    url = normalize_auth_url(raw_url)
+    parsed = urlparse(url)
+
+    scheme = parsed.scheme or "http"
+    netloc = parsed.netloc
+    path = parsed.path or ""
+
+    # 针对延安大学等标准 Dr.COM，如果缺失端口且 host 为 10.200.84.3，补齐 :801
+    host = parsed.hostname or ""
+    port = parsed.port
+    if not port and host in ("10.200.84.3", "10.211.0.1"):
+        netloc = f"{host}:801"
+
+    origin = f"{scheme}://{netloc}"
+
+    # 统一提取/修正 path
+    if "/portal/login" in path:
+        login_path = path
+        logout_path = path.replace("/portal/login", "/portal/logout")
+    elif "/drcom/login" in path:
+        login_path = path
+        logout_path = path.replace("/drcom/login", "/drcom/logout")
+    elif "/eportal" in path:
+        # 如 /eportal/index.jsp, /eportal/, /eportal
+        login_path = "/eportal/portal/login"
+        logout_path = "/eportal/portal/logout"
+    elif path.endswith("/login"):
+        login_path = "/eportal/portal/login"
+        logout_path = "/eportal/portal/logout"
+    elif path.endswith("/logout"):
+        login_path = "/eportal/portal/login"
+        logout_path = "/eportal/portal/logout"
+    else:
+        # 兜底默认标准端点
+        login_path = "/eportal/portal/login"
+        logout_path = "/eportal/portal/logout"
+
+    return f"{origin}{login_path}", f"{origin}{logout_path}"
+
+
 class DrcomAdapter(BaseAuthAdapter):
     """城市热点 Dr.COM 系列（延安大学、吉林大学等）统一认证协议适配器。"""
 
@@ -131,12 +179,11 @@ class DrcomAdapter(BaseAuthAdapter):
         local_mac: str,
     ) -> tuple[bool, str]:
         try:
-            from ..models import normalize_auth_url
-
-            auth_url = normalize_auth_url(config.campus_auth_url)
+            auth_url, _ = build_drcom_urls(config.campus_auth_url)
             params = self.build_auth_params(config, local_ip, local_mac)
             session = requests.Session()
             session.trust_env = False
+            log.info("Dr.COM 认证请求目标: %s", auth_url)
             resp = session.get(
                 auth_url,
                 params=params,
@@ -159,15 +206,11 @@ class DrcomAdapter(BaseAuthAdapter):
         local_mac: str,
     ) -> tuple[bool, str]:
         try:
-            from ..models import normalize_auth_url
-
-            logout_url = normalize_auth_url(config.campus_auth_url)
-            if "/login" in logout_url:
-                logout_url = logout_url.replace("/login", "/logout")
-
+            _, logout_url = build_drcom_urls(config.campus_auth_url)
             params = self.build_logout_params(config, local_ip, local_mac)
             session = requests.Session()
             session.trust_env = False
+            log.info("Dr.COM 注销下线请求目标: %s", logout_url)
             resp = session.get(
                 logout_url,
                 params=params,

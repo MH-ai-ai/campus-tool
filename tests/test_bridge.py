@@ -9,6 +9,11 @@ from campus_guard.bridge import ApiBridge
 class TestApiBridge(unittest.TestCase):
     def setUp(self) -> None:
         self.bridge = ApiBridge()
+        self._save_patcher = patch("campus_guard.bridge.save_config_raw")
+        self._mock_save = self._save_patcher.start()
+
+    def tearDown(self) -> None:
+        self._save_patcher.stop()
 
     def test_get_state_structure(self) -> None:
         state = self.bridge.get_state()
@@ -75,7 +80,7 @@ class TestApiBridge(unittest.TestCase):
         self.assertEqual(res["detected"]["campus_auth_url"], "http://10.211.0.1/login")
 
     @patch("campus_guard.bridge.campus_login", side_effect=[(False, "无法连接网关"), (True, "重试自愈成功")])
-    @patch("campus_guard.bridge.auto_detect_portal_config", return_value=(True, "嗅探成功", {"campus_auth_url": "http://10.200.84.3:801/login"}))
+    @patch("campus_guard.bridge.auto_detect_portal_config", return_value=(True, "嗅探成功", {"campus_auth_url": "http://10.200.84.3:801/eportal/portal/login"}))
     def test_quick_connect_auto_heal_retry(self, mock_sniff, mock_login) -> None:
         res = self.bridge.quick_connect("20240901001", "password123")
         self.assertTrue(res["success"])

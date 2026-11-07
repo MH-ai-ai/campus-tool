@@ -191,18 +191,23 @@ class NetworkMonitor:
         if not wifi_ok:
             state = ConnectivityState.WIFI_DOWN
             reason = "WiFi 链路断开"
+        elif internet_direct_ok:
+            # 直连外网畅通：系统必然在线，默认网关必然已成功路由外网报文
+            state = ConnectivityState.ONLINE
+            reason = f"网络在线 ({'校园网' if is_campus else '家庭/免认证网络'})"
+            gateway_ok = True
         elif is_campus and not gateway_ok:
             state = ConnectivityState.GATEWAY_DOWN
             reason = "校园网网关不可达"
-        elif not internet_direct_ok and not internet_proxy_ok:
-            state = ConnectivityState.INTERNET_DOWN
-            reason = "外网不通（需重新认证校园网）" if is_campus else "外网完全不通"
-        elif not internet_direct_ok and is_campus:
+        elif is_campus and not internet_direct_ok:
             state = ConnectivityState.INTERNET_DOWN
             reason = "直连外网不通，可能需要重新认证校园网"
+        elif not internet_direct_ok and not internet_proxy_ok:
+            state = ConnectivityState.INTERNET_DOWN
+            reason = "外网完全不通"
         else:
             state = ConnectivityState.ONLINE
-            reason = f"网络在线 ({'校园网' if is_campus else '家庭/免认证网络'})"
+            reason = "网络在线 (通过代理/TUN)"
 
         return ConnectivitySnapshot(
             state=state,

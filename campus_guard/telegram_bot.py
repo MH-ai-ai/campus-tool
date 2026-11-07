@@ -76,6 +76,7 @@ class TelegramBot:
         self._start_time = time.time()
         self.pending_confirmations: dict[int, dict] = {}
         self._last_update_time = time.time()
+        self._consecutive_probe_failures = 0
 
     def _config(self) -> dict:
         return get_config_dict()
@@ -88,17 +89,30 @@ class TelegramBot:
     async def _health_check(self) -> None:
         if not self.app:
             return
-        stale_secs = int(self._config().get("bot_watchdog_stale_seconds", 300))
-        elapsed = time.time() - self._last_update_time
-        if elapsed < stale_secs:
-            log.info("Bot 健康检查通过（%.0fs 前收到消息）", elapsed)
+
+        # 1. 检查 updater 自身是否处于运行状态
+        updater = getattr(self.app, "updater", None)
+        if updater is not None and not getattr(updater, "running", False):
+            log.warning("Bot polling 循环未在运行，尝试重新拉起")
+            await self._restart_polling()
             return
-        log.warning(
-            "Bot polling 疑似挂掉：已 %.0fs 无消息更新（阈值 %ds），尝试重启",
-            elapsed,
-            stale_secs,
-        )
-        await self._restart_polling()
+
+        # 2. 如果当前网络处于离线判定，不执行无效的 Telegram 探测
+        if self.network and self.network.is_online is False:
+            return
+
+        # 3. 主动探活：通过 get_me API 测试与 Telegram 服务器通信是否畅通
+        try:
+            await asyncio.wait_for(self.app.bot.get_me(), timeout=5.0)
+            self._consecutive_probe_failures = 0
+            log.debug("Bot 健康检查通过（API 通信正常）")
+        except Exception as err:
+            self._consecutive_probe_failures += 1
+            log.debug("Bot 探活通信受阻 (%d/3): %s", self._consecutive_probe_failures, err)
+            if self._consecutive_probe_failures >= 3:
+                log.warning("Bot 连续 3 次探活失败，尝试重启 polling 自愈...")
+                self._consecutive_probe_failures = 0
+                await self._restart_polling()
 
     async def _restart_polling(self) -> None:
         import traceback
@@ -109,7 +123,7 @@ class TelegramBot:
         except Exception:
             pass
         try:
-            await self.app.updater.start_polling(drop_pending_updates=True)
+            await self.app.updater.start_polling(drop_pending_updates=False)
             self._last_update_time = time.time()
             log.info("Bot polling 已重启")
         except Exception:

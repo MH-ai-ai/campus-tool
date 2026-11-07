@@ -118,7 +118,7 @@ export const api = {
       auth_protocol: "drcom",
       campus_account: "20240901001",
       campus_password: "••••••••",
-      campus_auth_url: "http://10.200.84.3:801/eportal/index.jsp",
+      campus_auth_url: "http://10.200.84.3:801/eportal/portal/login",
       campus_gateway: "10.200.84.3",
       campus_wifi_ssids: ["YADX-STU", "YAU-WiFi"],
       trusted_home_ssids: ["Home_5G"],
@@ -186,7 +186,7 @@ export const api = {
       success: true,
       message: "成功捕获 Captive Portal 302 重定向",
       detected: {
-        campus_auth_url: "http://10.200.84.3:801/eportal/index.jsp",
+        campus_auth_url: "http://10.200.84.3:801/eportal/portal/login",
         campus_gateway: "10.200.84.3",
         campus_wifi_ssid: "YADX-STU",
         auth_protocol: "drcom",
@@ -220,7 +220,7 @@ export const api = {
       detected: {
         university_name: "延安大学",
         auth_protocol: "drcom",
-        campus_auth_url: "http://10.200.84.3:801/eportal/index.jsp",
+        campus_auth_url: "http://10.200.84.3:801/eportal/portal/login",
       },
     };
   },
@@ -234,7 +234,7 @@ export const api = {
         id: "yanan_university",
         name: "延安大学 (默认 · Dr.COM 认证)",
         protocol: "drcom",
-        auth_url: "http://10.200.84.3:801/eportal/index.jsp",
+        auth_url: "http://10.200.84.3:801/eportal/portal/login",
         gateway: "10.200.84.3",
         wifi_ssids: ["YADX-STU", "YAU-WIFI"],
       },

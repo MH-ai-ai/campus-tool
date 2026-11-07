@@ -125,8 +125,15 @@ def launch_gui(
     tray_mgr = PystrayTrayManager(bridge, window)
     tray_mgr.start()
 
-    # 监听关闭事件：关闭窗口时隐藏至后台系统托盘，而非直接终止进程
+    # 监听关闭事件：关闭窗口时隐藏至后台系统托盘，而非直接终止进程（防抖避免 Windows 快速连发 WM_CLOSE）
+    _last_close_time = 0.0
+
     def on_closing():
+        nonlocal _last_close_time
+        now = time.time()
+        if now - _last_close_time < 1.0:
+            return False
+        _last_close_time = now
         log.info("捕获窗口关闭事件，转入系统托盘后台静默守护")
         try:
             window.hide()

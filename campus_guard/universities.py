@@ -68,7 +68,7 @@ _DEFAULT_PROFILES: list[dict[str, Any]] = [
         "name": "城市热点通用模板 (Dr.COM Web)",
         "pinyin": "chengshiretian drcom generic",
         "protocol": "drcom",
-        "auth_url": "http://10.0.0.1/eportal/index.jsp",
+        "auth_url": "http://10.0.0.1:801/eportal/portal/login",
         "gateway": "10.0.0.1",
         "ac_ip": "",
         "wifi_ssids": [],

@@ -4,7 +4,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
 from types import SimpleNamespace
-from unittest.mock import Mock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import campus_guard.config as config_module
 import campus_guard.runtime as runtime
@@ -115,6 +115,44 @@ class CampusGuardTests(unittest.TestCase):
         self.assertTrue(snapshot.clash_tun)
         self.assertFalse(snapshot.internet_direct_ok)
         self.assertTrue(snapshot.internet_proxy_ok)
+
+    def test_network_probe_online_when_direct_internet_ok_even_if_gateway_fails(self):
+        update_runtime_config({"campus_wifi_ssids": ["Campus"]})
+        monitor = NetworkMonitor(lambda _: None, BatteryTracker())
+
+        with (
+            patch("campus_guard.network.is_wifi_link_up", return_value=True),
+            patch("campus_guard.network.check_campus_gateway", return_value=False),
+            patch("campus_guard.network.check_internet", return_value=True),
+            patch("campus_guard.network.check_proxy_internet", return_value=False),
+            patch("campus_guard.network.get_local_ip", return_value="10.211.89.86"),
+            patch("campus_guard.network.get_wifi_info", return_value="Campus (90%)"),
+        ):
+            snapshot = monitor.probe_connectivity()
+
+        self.assertEqual(snapshot.state, ConnectivityState.ONLINE)
+        self.assertTrue(snapshot.gateway_ok)
+        self.assertTrue(snapshot.internet_direct_ok)
+
+    def test_ping_check_fallback(self):
+        from campus_guard.system import ping_check
+
+        self.assertFalse(ping_check("0.0.0.0"))
+        self.assertFalse(ping_check(""))
+
+    def test_telegram_bot_health_check_keeps_running(self):
+        import asyncio
+        from campus_guard.telegram_bot import TelegramBot
+        from unittest.mock import AsyncMock
+
+        bot = TelegramBot(None, None, BatteryTracker())
+        mock_app = MagicMock()
+        mock_app.updater.running = True
+        mock_app.bot.get_me = AsyncMock(return_value=SimpleNamespace(username="test_bot"))
+        bot.app = mock_app
+
+        asyncio.run(bot._health_check())
+        self.assertEqual(bot._consecutive_probe_failures, 0)
 
     def test_battery_thresholds_notify_once_and_shutdown_at_20(self):
         messages = []

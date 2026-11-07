@@ -311,7 +311,7 @@ export const SettingsView: React.FC = () => {
               type="text"
               value={config.campus_auth_url || ''}
               onChange={(e) => updateField('campus_auth_url', e.target.value)}
-              placeholder="http://10.200.84.3:801/eportal/index.jsp"
+              placeholder="http://10.200.84.3:801/eportal/portal/login"
               className="w-full px-3.5 py-2 rounded-xl bg-white/10 border border-white/30 text-xs text-white placeholder-white/40 focus:outline-none focus:border-cyan-300"
             />
           </div>

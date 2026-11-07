@@ -122,6 +122,29 @@ class TestAdapters(unittest.TestCase):
         score = adapter.inspect_fingerprint("http://192.168.1.1/eportal/InterFace.do?method=login")
         self.assertGreater(score, 0.5)
 
+    def test_build_drcom_urls(self) -> None:
+        from campus_guard.adapters.drcom import build_drcom_urls
+
+        # 1. 解决 /login 路径 404
+        login_url, logout_url = build_drcom_urls("http://10.200.84.3:801/login")
+        self.assertEqual(login_url, "http://10.200.84.3:801/eportal/portal/login")
+        self.assertEqual(logout_url, "http://10.200.84.3:801/eportal/portal/logout")
+
+        # 2. 解决 /eportal/index.jsp 网页端点
+        login_url, logout_url = build_drcom_urls("http://10.200.84.3:801/eportal/index.jsp")
+        self.assertEqual(login_url, "http://10.200.84.3:801/eportal/portal/login")
+        self.assertEqual(logout_url, "http://10.200.84.3:801/eportal/portal/logout")
+
+        # 3. 解决缺失 801 端口与根路径
+        login_url, logout_url = build_drcom_urls("http://10.200.84.3")
+        self.assertEqual(login_url, "http://10.200.84.3:801/eportal/portal/login")
+        self.assertEqual(logout_url, "http://10.200.84.3:801/eportal/portal/logout")
+
+        # 4. 标准完整端点保持稳定
+        login_url, logout_url = build_drcom_urls("http://10.200.84.3:801/eportal/portal/login")
+        self.assertEqual(login_url, "http://10.200.84.3:801/eportal/portal/login")
+        self.assertEqual(logout_url, "http://10.200.84.3:801/eportal/portal/logout")
+
 
 class TestUniversityManager(unittest.TestCase):
     def setUp(self) -> None:
