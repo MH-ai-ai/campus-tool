@@ -158,7 +158,15 @@ py -3.12 -m venv .venv
 
 ---
 
+## 版本与变更记录 (Changelog)
+
+各版本解决的具体问题、架构演进及故障修复记录请参阅 [CHANGELOG.md](CHANGELOG.md)。  
+最新正式发行版发布说明请参阅 [RELEASE_NOTES.md](RELEASE_NOTES.md) 或 [GitHub Releases](https://github.com/MH-ai-ai/campus-tool/releases)。
+
+---
+
 ## 开源许可证 (License)
 
 本项目遵循 [MIT License](LICENSE) 许可协议发布。  
 特别致敬延安大学（Yan'an University）校园网络环境对本项目的测试支持。
+
