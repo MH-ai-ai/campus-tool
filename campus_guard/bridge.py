@@ -326,15 +326,23 @@ class ApiBridge:
         """在系统资源管理器中打开并高亮定位日志文件。"""
         try:
             if not LOG_PATH.exists():
-                LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
-                LOG_PATH.touch()
-            
+                try:
+                    LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+                    LOG_PATH.touch()
+                except Exception:
+                    pass
+
             resolved_path = str(LOG_PATH.resolve())
             if platform.system() == "Windows":
-                subprocess.run(
-                    ["explorer.exe", f"/select,{resolved_path}"],
-                    creationflags=0x08000000 if hasattr(subprocess, "CREATE_NO_WINDOW") else 0,
-                )
+                flags = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
+                try:
+                    subprocess.run(
+                        ["explorer.exe", f"/select,{resolved_path}"],
+                        creationflags=flags,
+                    )
+                except Exception:
+                    if hasattr(os, "startfile"):
+                        os.startfile(str(LOG_PATH.parent))
             elif platform.system() == "Darwin":
                 subprocess.run(["open", "-R", resolved_path])
             else:

@@ -75,10 +75,27 @@ class TestApiBridge(unittest.TestCase):
         self.assertIn("path", res)
         self.assertIn("content", res)
 
-    @patch("subprocess.run")
+    @patch("campus_guard.bridge.subprocess.run")
     def test_open_log_folder(self, mock_subproc) -> None:
+        mock_subproc.return_value = MagicMock(returncode=0)
         res = self.bridge.open_log_folder()
-        self.assertTrue(res["success"])
+        self.assertTrue(res["success"], res.get("message"))
+
+    @patch("campus_guard.bridge.platform.system", return_value="Windows")
+    @patch("campus_guard.bridge.subprocess.run")
+    def test_open_log_folder_windows(self, mock_subproc, mock_sys) -> None:
+        mock_subproc.return_value = MagicMock(returncode=0)
+        res = self.bridge.open_log_folder()
+        self.assertTrue(res["success"], res.get("message"))
+        mock_subproc.assert_called_once()
+
+    @patch("campus_guard.bridge.platform.system", return_value="Linux")
+    @patch("campus_guard.bridge.subprocess.run")
+    def test_open_log_folder_linux(self, mock_subproc, mock_sys) -> None:
+        mock_subproc.return_value = MagicMock(returncode=0)
+        res = self.bridge.open_log_folder()
+        self.assertTrue(res["success"], res.get("message"))
+        mock_subproc.assert_called_once()
 
 
 if __name__ == "__main__":
