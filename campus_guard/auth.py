@@ -243,12 +243,12 @@ def auto_detect_portal_config() -> tuple[bool, str, dict[str, Any]]:
         extracted["campus_auth_url"] = base_url
 
         host = parsed.hostname
-        # 优先提取操作系统活动物理网卡的真实默认网关 IP (如 10.211.0.1)
-        system_gw = get_default_gateway()
-        if system_gw and system_gw != "0.0.0.0" and not system_gw.startswith("127."):
-            extracted["campus_gateway"] = system_gw
-        elif host:
+        if host and host not in ("1.1.1.1", "1.0.0.1", "cloudflare.com"):
             extracted["campus_gateway"] = host
+        else:
+            system_gw = get_default_gateway()
+            if system_gw and system_gw != "0.0.0.0" and not system_gw.startswith("127."):
+                extracted["campus_gateway"] = system_gw
 
         qs = parse_qs(parsed.query)
         for k, v in qs.items():

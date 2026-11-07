@@ -333,6 +333,7 @@ class CampusGuardTests(unittest.TestCase):
             patch("requests.Session.get", return_value=mock_resp),
             patch("campus_guard.auth.get_wifi_info", return_value="Campus-5G (95%)"),
             patch("campus_guard.auth.get_local_ip", return_value="10.1.2.3"),
+            patch("campus_guard.auth.get_default_gateway", return_value=""),
         ):
             ok, msg, extracted = auto_detect_portal_config()
 
@@ -343,6 +344,20 @@ class CampusGuardTests(unittest.TestCase):
         self.assertEqual(extracted.get("campus_gateway"), "10.200.84.3")
         self.assertEqual(extracted.get("wlan_ac_ip"), "10.255.250.74")
         self.assertEqual(extracted.get("wlan_user_ip"), "10.1.2.3")
+
+        # 验证当跳转主机为公共 IP (如 1.1.1.1) 时，被安全过滤器拦截排除，杜绝误识别
+        mock_resp_1111 = Mock()
+        mock_resp_1111.status_code = 302
+        mock_resp_1111.headers = {"Location": "http://1.1.1.1/login"}
+        mock_resp_1111.text = ""
+        with (
+            patch("requests.Session.get", return_value=mock_resp_1111),
+            patch("campus_guard.auth.get_wifi_info", return_value="Campus-5G"),
+            patch("campus_guard.auth.get_local_ip", return_value="10.1.2.3"),
+            patch("campus_guard.auth.get_default_gateway", return_value="10.211.0.1"),
+        ):
+            ok, msg, extracted = auto_detect_portal_config()
+        self.assertFalse(ok)
 
     def test_auto_detect_portal_config_when_no_redirect(self):
         from campus_guard.auth import auto_detect_portal_config
