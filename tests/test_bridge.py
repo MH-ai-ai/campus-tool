@@ -101,6 +101,22 @@ class TestApiBridge(unittest.TestCase):
         args = mock_subproc.call_args[0][0]
         self.assertEqual(args[0], "xdg-open")
 
+    def test_bridge_exposes_only_callable_methods(self) -> None:
+        """验证 ApiBridge 公开属性全为 callable 方法，杜绝 pywebview 反射引发无限递归与 COM 死锁。"""
+        bridge = ApiBridge(window=MagicMock(), tg_bot=MagicMock())
+        public_attrs = [attr for attr in dir(bridge) if not attr.startswith("_")]
+        for attr in public_attrs:
+            val = getattr(bridge, attr)
+            self.assertTrue(
+                callable(val),
+                f"Attribute '{attr}' on ApiBridge is not callable! It will be traversed by pywebview reflection and risk deadlock.",
+            )
+
+    def test_set_window(self) -> None:
+        win = MagicMock()
+        self.bridge.set_window(win)
+        self.assertEqual(self.bridge._window, win)
+
 
 if __name__ == "__main__":
     unittest.main()

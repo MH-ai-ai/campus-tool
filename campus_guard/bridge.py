@@ -44,12 +44,16 @@ class ApiBridge:
         tg_bot: Any = None,
         window: Any = None,
     ) -> None:
-        self.battery = battery_monitor
-        self.network = network_monitor
-        self.tg_bot = tg_bot
-        self.window = window
-        self.start_time = time.time()
-        self.uni_manager = get_university_manager()
+        self._battery = battery_monitor
+        self._network = network_monitor
+        self._tg_bot = tg_bot
+        self._window = window
+        self._start_time = time.time()
+        self._uni_manager = get_university_manager()
+
+    def set_window(self, window: Any) -> None:
+        """设置关联的 webview.Window 实例（通过方法赋值避免被 pywebview 属性反射遍历）。"""
+        self._window = window
 
     def get_state(self) -> dict[str, Any]:
         """获取当前系统、网络、电源与守护状态的完整快照。"""
@@ -57,9 +61,9 @@ class ApiBridge:
         uni_name = cfg.get("university_name", "延安大学 (默认 · Dr.COM)")
         proto = str(cfg.get("auth_protocol", "drcom")).upper()
 
-        snap = self.network.last_snapshot if self.network else None
-        online = self.network.is_online if self.network else None
-        last_event = self.network.last_event if self.network else "守护服务就绪"
+        snap = self._network.last_snapshot if self._network else None
+        online = self._network.is_online if self._network else None
+        last_event = self._network.last_event if self._network else "守护服务就绪"
 
         # 电池与电源信息
         has_battery = False
@@ -117,7 +121,7 @@ class ApiBridge:
                 "status_text": status_text,
             },
             "system": {
-                "uptime_seconds": int(time.time() - self.start_time),
+                "uptime_seconds": int(time.time() - self._start_time),
                 "memory": get_memory_usage(),
                 "disk_free_gb": disk_free,
             },
@@ -128,7 +132,7 @@ class ApiBridge:
             "telegram": {
                 "configured": bool(str(cfg.get("telegram_bot_token", "")).strip() and int(cfg.get("telegram_user_id", 0))),
                 "user_id": str(cfg.get("telegram_user_id", "")),
-                "is_running": bool(self.tg_bot and getattr(self.tg_bot, "app", None)),
+                "is_running": bool(self._tg_bot and getattr(self._tg_bot, "app", None)),
             },
         }
 
@@ -167,8 +171,8 @@ class ApiBridge:
         """手动请求校园网登录认证。"""
         try:
             ok, msg = campus_login()
-            if self.network and hasattr(self.network, "record_event"):
-                self.network.record_event(f"手动认证: {msg}")
+            if self._network and hasattr(self._network, "record_event"):
+                self._network.record_event(f"手动认证: {msg}")
             return {"success": ok, "message": msg}
         except Exception as err:
             return {"success": False, "message": f"认证请求异常: {err}"}
@@ -177,8 +181,8 @@ class ApiBridge:
         """手动请求校园网注销下线。"""
         try:
             ok, msg = campus_logout()
-            if self.network and hasattr(self.network, "record_event"):
-                self.network.record_event(f"注销下线: {msg}")
+            if self._network and hasattr(self._network, "record_event"):
+                self._network.record_event(f"注销下线: {msg}")
             return {"success": ok, "message": msg}
         except Exception as err:
             return {"success": False, "message": f"注销请求异常: {err}"}
@@ -269,8 +273,8 @@ class ApiBridge:
             update_runtime_config(decrypt_config(cfg))
 
             ok, msg = campus_login()
-            if self.network and hasattr(self.network, "record_event"):
-                self.network.record_event(f"一键联网认证: {msg}")
+            if self._network and hasattr(self._network, "record_event"):
+                self._network.record_event(f"一键联网认证: {msg}")
             return {
                 "success": ok,
                 "message": msg,
@@ -282,7 +286,7 @@ class ApiBridge:
 
     def search_universities(self, keyword: str) -> list[dict[str, Any]]:
         """全拼/首字母/汉字高校库模糊检索。"""
-        matches = self.uni_manager.search(keyword)[:15]
+        matches = self._uni_manager.search(keyword)[:15]
         return [
             {
                 "id": u.id,
@@ -386,9 +390,9 @@ class ApiBridge:
 
     def minimize_to_tray(self) -> None:
         """隐藏窗口至系统托盘。"""
-        if self.window:
+        if self._window:
             try:
-                self.window.hide()
+                self._window.hide()
             except Exception:
                 pass
 
@@ -407,9 +411,9 @@ class ApiBridge:
             f"🕒 握手时间: {time.strftime('%Y-%m-%d %H:%M:%S')}\n"
             f"💡 发送 /status 即可调出手机端快速控制面板"
         )
-        if self.tg_bot:
+        if self._tg_bot:
             try:
-                self.tg_bot.send_notification(test_msg)
+                self._tg_bot.send_notification(test_msg)
                 return {"success": True, "message": "已成功向手机 Telegram 派发测试握手消息"}
             except Exception as err:
                 return {"success": False, "message": f"发送测试失败: {err}"}
@@ -431,9 +435,9 @@ class ApiBridge:
 
     def close_app(self) -> None:
         """退出应用。"""
-        if self.window:
+        if self._window:
             try:
-                self.window.destroy()
+                self._window.destroy()
             except Exception:
                 pass
         sys.exit(0)

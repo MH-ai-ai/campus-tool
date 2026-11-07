@@ -119,7 +119,7 @@ def launch_gui(
         easy_drag=True,
     )
 
-    bridge.window = window
+    bridge.set_window(window)
 
     # 启动 pystray 系统托盘常驻
     tray_mgr = PystrayTrayManager(bridge, window)
