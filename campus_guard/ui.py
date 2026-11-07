@@ -150,10 +150,23 @@ def launch_gui(
         except Exception as e:
             log.debug("注册 AppUserModelID 异常: %s", e)
 
-    # 启动 Webview 事件循环（Windows 上默认调用 edgechromium / WebView2）
+        # 注入 Edge WebView2 原生硬件加速与零拷贝平滑滚轮指令
+        current_args = os.environ.get("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS", "")
+        gpu_args = (
+            "--enable-gpu-rasterization "
+            "--enable-zero-copy "
+            "--ignore-gpu-blocklist "
+            "--enable-smooth-scrolling "
+            "--disable-features=msWebOOUI,msPdfOOUI"
+        )
+        if gpu_args not in current_args:
+            os.environ["WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS"] = f"{current_args} {gpu_args}".strip()
+
+    # 启动 Webview 事件循环（显式优先调用 edgechromium / WebView2 硬件加速渲染内核）
     try:
         icon_arg = str(icon_file.resolve()) if icon_file.exists() else None
-        webview.start(debug=False, icon=icon_arg)
+        gui_target = "edgechromium" if sys.platform == "win32" else None
+        webview.start(debug=False, icon=icon_arg, gui=gui_target)
     except Exception as err:
         log.error("Webview 运行时异常: %s", err)
         if sys.platform == "win32":

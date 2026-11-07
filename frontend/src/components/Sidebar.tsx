@@ -71,10 +71,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab, state
               <span
                 className={`w-2 h-2 rounded-full ${
                   isOnline
-                    ? 'bg-apple-green shadow-apple-glow-green animate-pulse'
+                    ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]'
                     : isOffline
-                    ? 'bg-apple-coral shadow-apple-glow-coral'
-                    : 'bg-apple-amber animate-pulse'
+                    ? 'bg-rose-400 shadow-[0_0_8px_rgba(251,113,133,0.8)]'
+                    : 'bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.8)]'
                 }`}
               />
               <span

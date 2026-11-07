@@ -12,7 +12,22 @@ export function App() {
   const fetchState = async () => {
     try {
       const data = await api.getState();
-      setState(data);
+      setState((prev) => {
+        if (
+          prev &&
+          prev.online === data.online &&
+          prev.wifi === data.wifi &&
+          prev.ip === data.ip &&
+          prev.battery?.percent === data.battery?.percent &&
+          prev.battery?.plugged === data.battery?.plugged &&
+          prev.last_event === data.last_event &&
+          prev.system?.memory === data.system?.memory &&
+          prev.telegram?.is_running === data.telegram?.is_running
+        ) {
+          return prev;
+        }
+        return data;
+      });
     } catch (err) {
       console.error('Failed to get state', err);
     }
@@ -20,7 +35,7 @@ export function App() {
 
   useEffect(() => {
     fetchState();
-    const interval = setInterval(fetchState, 3500);
+    const interval = setInterval(fetchState, 5000);
     return () => clearInterval(interval);
   }, []);
 

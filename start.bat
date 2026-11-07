@@ -16,7 +16,13 @@ if exist "%~dp0.venv\Scripts\python.exe" (
 )
 
 echo [1/2] 正在校验依赖环境...
-call "%PY_CMD%" -m pip install -r requirements.txt --disable-pip-version-check
+"%PY_CMD%" -c "import webview, requests, psutil, PIL, cryptography" >nul 2>&1
+if errorlevel 1 (
+    echo 首次运行或依赖缺失，正在安装依赖...
+    call "%PY_CMD%" -m pip install -r requirements.txt --disable-pip-version-check
+) else (
+    echo 依赖环境已就绪，秒级极速拉起！
+)
 
 echo.
 echo [2/2] 正在启动客户端...

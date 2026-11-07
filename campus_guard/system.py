@@ -113,12 +113,21 @@ def get_local_ip() -> str:
     return "未知"
 
 
+_cached_mac: str | None = None
+
+
 def get_local_mac() -> str:
+    global _cached_mac
+    if _cached_mac:
+        return _cached_mac
+
     _name, _ip, mac = get_primary_interface_info()
     if mac and len(mac) == 12:
-        return mac
+        _cached_mac = mac
+        return _cached_mac
     fallback_mac = uuid.getnode()
-    return "".join(f"{(fallback_mac >> i) & 0xFF:02x}" for i in range(40, -1, -8))
+    _cached_mac = "".join(f"{(fallback_mac >> i) & 0xFF:02x}" for i in range(40, -1, -8))
+    return _cached_mac
 
 
 def tcp_check(host: str, port: int, timeout: int = 3) -> bool:

@@ -149,7 +149,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ state, onRefresh }
           <div className="flex items-center gap-2.5">
             <h2 className="text-xl font-bold tracking-tight text-white drop-shadow-sm">Campus Guard 守护中枢</h2>
             <span className="px-2.5 py-0.5 rounded-full bg-emerald-400/20 border border-emerald-400/40 text-emerald-200 text-[10px] font-mono font-medium flex items-center gap-1.5 shadow-sm">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.9)]" />
               毫秒自愈链路活跃
             </span>
           </div>
@@ -276,7 +276,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ state, onRefresh }
               >
                 <span
                   className={`w-1.5 h-1.5 rounded-full ${
-                    isOnline ? 'bg-emerald-400 animate-pulse' : 'bg-rose-400'
+                    isOnline ? 'bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.9)]' : 'bg-rose-400'
                   }`}
                 />
                 {isOnline ? '持续自愈守护中' : '未连接 · 待认证'}
@@ -407,7 +407,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ state, onRefresh }
                       ? 'bg-gradient-to-r from-emerald-400 to-cyan-300'
                       : batteryPct > 20
                       ? 'bg-gradient-to-r from-amber-400 to-orange-400'
-                      : 'bg-gradient-to-r from-rose-500 to-red-500 animate-pulse'
+                      : 'bg-gradient-to-r from-rose-500 to-red-500 shadow-[0_0_8px_rgba(244,63,94,0.7)]'
                   }`}
                   style={{ width: `${Math.min(100, Math.max(5, batteryPct))}%` }}
                 />
@@ -435,7 +435,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ state, onRefresh }
               >
                 <span
                   className={`w-1.5 h-1.5 rounded-full ${
-                    tgRunning ? 'bg-cyan-300 animate-pulse' : tgConfigured ? 'bg-amber-300' : 'bg-white/40'
+                    tgRunning ? 'bg-cyan-300 shadow-[0_0_6px_rgba(103,232,249,0.9)]' : tgConfigured ? 'bg-amber-300' : 'bg-white/40'
                   }`}
                 />
                 {tgRunning ? '手机监听在线' : tgConfigured ? 'Bot 就绪' : '待绑定'}
