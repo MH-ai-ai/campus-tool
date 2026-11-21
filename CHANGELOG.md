@@ -4,6 +4,33 @@
 
 ---
 
+## [2.3.0] - 2026-11-21
+
+### 品牌与图标焕新 (Rebrand & Visuals)
+- **正式更名为「安澜」**：取「愿河海安澜」之意，桌面端窗口标题、侧边栏、托盘菜单与提示、多通道消息通知及安装包产物全面升级为「安澜」（内部包名 `campus_guard` 与配置文件保持兼容），开机自启动自动迁移并清理旧 `CampusGuard` 遗留项。
+- **全新水波应用图标** (`scripts/generate_icon.py`、`assets/app_icon.ico`)：重绘 iOS 连续圆角黛蓝底板与三道平缓水波图标（含 `16px`~`256px` 全尺寸）；托盘状态点同步升级为低饱和配色配白色描边环。
+
+### 前端体验与浅色典雅重构 (UI Overhaul)
+- **iOS 浅色典雅微透磨砂玻璃主题**：全面替代原有暗黑与紫粉渐变风格，采用柔和冷雾瓷白画布、磨砂玻璃卡片、单一典雅黛蓝主强调色与低饱和语义状态色，窗口初始底色同步为 `#eef2f7` 消除启动闪黑屏。
+- **全局悬浮 Toast 与日志页布局修复** (`frontend/src/components/ToastContext.tsx`、`LogView.tsx`)：
+  - 将全站提示迁移至右上角固定悬浮卡片，彻底解决导出日志时内联提示挤压按钮栏造成文字折行、标题截断及卡片顶跳的问题；
+  - 重构日志页为「页头 + 固定单行工具栏 + 浅色瓷白日志流」，支持导出原地微反馈、行内二次确认清空、文本划选复制，并修复 `exportLogs()` 读取字段错位导致未导出全量日志的 Bug；
+  - 重构配置页为独立固定顶栏与独立滚动表单区，消除滚动时卡片与标题栏重叠遮挡。
+
+### 断网自动重连与零定位闪烁 (Reliability & Privacy)
+- **彻底解决断网无法自动重连**：
+  - 修复 `NetworkMonitor` 使用不可重入 `Lock()` 在 `_run_probe_and_handle` 持有锁时调用 `_trigger_reconnect()` 导致的同线程自死锁，改用 `RLock` 并将通知与重连调度移出锁外执行；
+  - 修复 `ApiBridge.reconnect_wifi()` 解包 `bool` 返回值崩溃的 Bug，增强 `quick_connect()` 在断网时先强力拉起无线再认证；
+  - 强化 `reconnect_wifi(force=True)`：先断开假死关联再连接，并将未获取有效 IP 时的假返回 `True` 修正为继续尝试下一候选配置；
+  - 修复断网时 `get_local_ip()` 读取僵尸 IP 与 `get_local_mac()` 将蓝牙回退 MAC 永久写入缓存的问题；
+  - 新增持续离线周期重连调度与并发端口网关探活。
+- **彻底根除 Windows 定位图标闪烁** (`campus_guard/system.py`)：
+  - 基于 `psutil` 无线网卡状态与 IPv4 签名锁定缓存，稳态挂机不再周期性触发外部查询；
+  - 优先通过不触发位置权限的 Windows NLA（`Get-NetConnectionProfile`）获取当前网络配置名并自动剥离重名编号；
+  - 扩充延安大学新校区 `172.30.` / `172.31.` 私网段，新增 Dr.COM 已在线 512 防误判与 Telegram Bot `/boost`、`/sniff` 指令。
+
+---
+
 ## [2.2.2] - 2026-11-07
 
 ### 修复与优化 (Fixed & Improved)

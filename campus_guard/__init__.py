@@ -1,4 +1,4 @@
-"""Side-effect-free public API for Campus Guard."""
+"""Side-effect-free public API for 安澜 (internal package name: campus_guard)."""
 
 from .auth import build_auth_params, parse_drcom_response
 from .models import Config, GuardState

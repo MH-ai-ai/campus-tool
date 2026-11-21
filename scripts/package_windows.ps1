@@ -6,9 +6,9 @@ param(
 $ErrorActionPreference = "Stop"
 $RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $Python = Join-Path $RepoRoot ".venv\Scripts\python.exe"
-$Spec = Join-Path $RepoRoot "CampusGuard.spec"
-$DistDir = Join-Path $RepoRoot "dist\CampusGuard"
-$ExePath = Join-Path $DistDir "CampusGuard.exe"
+$Spec = Join-Path $RepoRoot "AnLan.spec"
+$DistDir = Join-Path $RepoRoot "dist\AnLan"
+$ExePath = Join-Path $DistDir "AnLan.exe"
 
 Set-Location $RepoRoot
 
@@ -54,5 +54,5 @@ if (-not (Test-Path -LiteralPath $ExePath)) {
 
 Copy-Item -LiteralPath (Join-Path $RepoRoot "config.example.json") -Destination (Join-Path $DistDir "config.example.json") -Force
 
-Write-Host "Campus Guard packaged successfully:"
+Write-Host "安澜 packaged successfully:"
 Write-Host $ExePath

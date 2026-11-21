@@ -4,26 +4,34 @@ export default {
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
-  darkMode: 'class',
   theme: {
     extend: {
       colors: {
-        apple: {
-          bg: "#0d0e12",
-          sidebar: "#14151b",
-          card: "#191b24",
-          cardHover: "#20232f",
-          border: "rgba(255, 255, 255, 0.08)",
-          textPrimary: "#f3f4f6",
-          textSecondary: "#9ca3af",
-          textTertiary: "#6b7280",
-          blue: "#0a84ff",
-          blueHover: "#2894ff",
-          green: "#32d74b",
-          amber: "#ff9f0a",
-          coral: "#ff453a",
-          purple: "#bf5af2",
-        }
+        canvas: {
+          base: "#eef2f7",
+          subtle: "#e6ebf3",
+        },
+        surface: {
+          card: "rgba(255, 255, 255, 0.74)",
+          sidebar: "rgba(247, 249, 253, 0.80)",
+          inset: "rgba(238, 242, 248, 0.66)",
+          elevated: "rgba(255, 255, 255, 0.94)",
+        },
+        ink: {
+          primary: "#18202c",
+          secondary: "#526075",
+          tertiary: "#7b8798",
+        },
+        accent: {
+          DEFAULT: "#2b5797",
+          hover: "#22477d",
+          active: "#1b3b68",
+        },
+        status: {
+          success: "#1f7a53",
+          warning: "#9a5b13",
+          danger: "#b43a40",
+        },
       },
       fontFamily: {
         sans: [
@@ -34,17 +42,16 @@ export default {
           '"PingFang SC"',
           '"Microsoft YaHei UI"',
           '"Segoe UI"',
-          "sans-serif"
-        ]
+          "sans-serif",
+        ],
       },
       boxShadow: {
-        'apple-card': '0 4px 20px -2px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.07)',
-        'apple-glow-green': '0 0 16px -2px rgba(50, 215, 75, 0.35)',
-        'apple-glow-blue': '0 0 16px -2px rgba(10, 132, 255, 0.35)',
-        'apple-glow-amber': '0 0 16px -2px rgba(255, 159, 10, 0.35)',
-        'apple-glow-coral': '0 0 16px -2px rgba(255, 69, 58, 0.35)',
-      }
+        "glass-card":
+          "0 1px 2px rgba(20, 32, 51, 0.04), 0 10px 26px -10px rgba(20, 32, 51, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.92)",
+        "glass-elevated":
+          "0 4px 12px rgba(20, 32, 51, 0.08), 0 18px 36px -12px rgba(20, 32, 51, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.96)",
+      },
     },
   },
   plugins: [],
-}
+};

@@ -238,7 +238,7 @@ class _DashboardPage(QWidget):
 
         # 头部标题
         header_box = QHBoxLayout()
-        header = QLabel("Campus Guard")
+        header = QLabel("安澜")
         header.setFont(get_apple_font(18, QFont.Weight.Bold))
         header_box.addWidget(header)
         header_box.addStretch()

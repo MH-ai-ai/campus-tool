@@ -30,10 +30,10 @@ def create_tray_icon(color: str, size: int = 64):
         icon_path = Path(__file__).resolve().parent.parent / "assets" / "app_icon.png"
 
     colors = {
-        "green": (50, 215, 75),    # Apple Mint Green
-        "yellow": (255, 159, 10),   # Apple Amber
-        "red": (255, 69, 58),       # Apple Coral Red
-        "gray": (142, 142, 147),    # Apple Neutral Gray
+        "green": (42, 157, 108),    # 低饱和松绿（在线）
+        "yellow": (207, 138, 39),   # 柔珀（警告）
+        "red": (207, 77, 84),       # 绛红（断网）
+        "gray": (142, 150, 164),    # 冷灰（未知）
     }
     fill_color = colors.get(color, colors["gray"])
 
@@ -41,10 +41,12 @@ def create_tray_icon(color: str, size: int = 64):
         try:
             base_img = Image.open(icon_path).convert("RGBA").resize((size, size), Image.Resampling.LANCZOS)
             draw = ImageDraw.Draw(base_img)
-            dot_r = max(4, int(size * 0.16))
-            dot_cx = int(size * 0.78)
-            dot_cy = int(size * 0.78)
-            draw.ellipse([dot_cx - dot_r - 2, dot_cy - dot_r - 2, dot_cx + dot_r + 2, dot_cy + dot_r + 2], fill=(15, 17, 24, 240))
+            dot_r = max(4, int(size * 0.17))
+            dot_cx = int(size * 0.77)
+            dot_cy = int(size * 0.77)
+            ring = max(2, int(size * 0.04))
+            # 白色描边环，使状态点在黛蓝底板与深浅任务栏上均清晰可辨
+            draw.ellipse([dot_cx - dot_r - ring, dot_cy - dot_r - ring, dot_cx + dot_r + ring, dot_cy + dot_r + ring], fill=(255, 255, 255, 245))
             draw.ellipse([dot_cx - dot_r, dot_cy - dot_r, dot_cx + dot_r, dot_cy + dot_r], fill=fill_color)
             return base_img
         except Exception:
@@ -94,11 +96,11 @@ class PystrayTrayManager:
                 MenuItem("重新连接 Wi-Fi", self._on_reconnect_wifi),
                 MenuItem("立即认证校园网", self._on_auth_campus),
                 Menu.SEPARATOR,
-                MenuItem("退出 Campus Guard", self._on_exit),
+                MenuItem("退出 安澜", self._on_exit),
             )
 
             initial_icon = create_tray_icon("green")
-            self.icon = pystray.Icon("CampusGuard", initial_icon, "Campus Guard 校园网守护", menu=menu)
+            self.icon = pystray.Icon("AnLan", initial_icon, "安澜 · 校园网守护", menu=menu)
             self._running = True
 
             def _run():

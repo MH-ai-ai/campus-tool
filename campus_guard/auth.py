@@ -10,7 +10,7 @@ from urllib.parse import parse_qs, urljoin, urlparse
 import requests
 
 from .adapters import get_adapter, guess_adapter_by_url
-from .config import get_config
+from .config import get_config, get_config_dict
 from .logging_setup import get_logger
 from .models import Config, normalize_auth_url
 from .system import get_default_gateway, get_local_ip, get_local_mac, get_wifi_info
@@ -162,14 +162,14 @@ def campus_logout(config: Config | None = None) -> tuple[bool, str]:
 
 
 def auto_detect_portal_config() -> tuple[bool, str, dict[str, Any]]:
-    """通过 Captive Portal 劫持探针，全自动嗅探校园网认证网关与参数。
+    """通过 Captive Portal 劫持探针与高校智能库，全自动嗅探校园网认证网关与参数。
     支持自动识别全国高校所属认证体系（深澜 Srun、城市热点 Dr.COM、锐捷 Ruijie、Portal）。
-    优先采用纯 IP 零 DNS 探针并发探测，杜绝未认证状态下 DNS 阻断导致的 30 秒系统阻塞。
+    优先采用纯 IP 零 DNS 探针并发探测，并支持根据 SSID/IP 与内网认证服务器主动探活智能回退。
     返回元组: (是否成功捕获, 状态说明, 提取到的配置字典)
     """
     extracted: dict[str, Any] = {}
 
-    # 1. 尝试获取当前连接的 Wi-Fi 名称（非强制快速读取，避免阻塞）
+    # 1. 尝试获取当前连接的 Wi-Fi 名称（基于网卡签名实时感知且不触发定位）
     wifi_raw = get_wifi_info(force=False)
     current_ssid = wifi_raw.split("(", 1)[0].strip() if "(" in wifi_raw else wifi_raw.strip()
     if current_ssid and current_ssid not in ("未连接", "未知"):
@@ -196,6 +196,7 @@ def auto_detect_portal_config() -> tuple[bool, str, dict[str, Any]]:
 
     domain_probes = [
         "http://connect.rom.miui.com/generate_204",
+        "http://wifi.vivo.com.cn/generate_204",
         "http://connectivitycheck.platform.hicloud.com/generate_204",
         "http://captive.apple.com/hotspot-detect.html",
         "http://www.msftconnecttest.com/connecttest.txt",
@@ -212,7 +213,7 @@ def auto_detect_portal_config() -> tuple[bool, str, dict[str, Any]]:
             if not cand_host:
                 return False
 
-            # 排除公网 CDN / 常见探针原站自身跳转
+            # 排除公网 CDN / 常见探针原站自身跳转 (如 apple 跳 apple)
             ignored_domains = (
                 "1.1.1.1", "cloudflare", "apple.com", "google", "gstatic",
                 "msftconnecttest", "microsoft", "miui.com", "hicloud.com", "vivo.com.cn"
@@ -220,11 +221,11 @@ def auto_detect_portal_config() -> tuple[bool, str, dict[str, Any]]:
             if any(dom in cand_host for dom in ignored_domains):
                 return False
 
-            # 如果探针是公共探测 IP（如 1.2.3.4），只要发生跳转且目标非原探针即为合法劫持
+            # 如果探针是公共探测 IP（如 1.2.3.4），发生跳转且目标非原探针即为合法劫持
             if probe_host in ("1.2.3.4", "123.123.123.123", "10.255.255.254"):
                 return cand_host != probe_host
 
-            # 如果探针是网关 IP（如 10.211.0.1），同一 IP 下包含特征路径（/portal, /eportal, /srun, :801 等）也算成功
+            # 如果探针是网关 IP（如 10.211.0.1），同一 IP 下包含特征路径也算成功
             if probe_host == cand_host:
                 cand_lower = redirect_candidate.lower()
                 return any(k in cand_lower for k in ("portal", "login", "auth", "drcom", "srun", "eportal", ":801", ":8080", "userip", "wlan", "index.jsp"))
@@ -232,6 +233,41 @@ def auto_detect_portal_config() -> tuple[bool, str, dict[str, Any]]:
             return cand_host != probe_host
         except Exception:
             return False
+
+    def _extract_redirect_from_html(resp_text: str, base_url: str) -> str:
+        if not resp_text:
+            return ""
+        # 1. 匹配 location.replace('url') 或 location.assign('url') 或 window.navigate('url')
+        call_match = re.search(
+            r"(?:location\.(?:replace|assign)|window\.navigate)\s*\(\s*['\"]([^'\"]+)['\"]\s*\)",
+            resp_text,
+            re.I,
+        )
+        if call_match:
+            return urljoin(base_url, call_match.group(1).strip())
+
+        # 2. 匹配 [window.|top.|self.|top.self.]location[.href] = 'url'
+        assign_match = re.search(
+            r"(?:(?:window|top|self|top\.self)\.)*(?:location|document\.location)(?:\.href)?\s*=\s*['\"]([^'\"]+)['\"]",
+            resp_text,
+            re.I,
+        )
+        if assign_match:
+            return urljoin(base_url, assign_match.group(1).strip())
+
+        # 3. 匹配 HTML meta refresh: url=...
+        meta_match = re.search(r"content=['\"][^'\"]*url=([^'\">]+)['\"]?", resp_text, re.I)
+        if meta_match:
+            return urljoin(base_url, meta_match.group(1).strip())
+
+        # 4. 匹配 form action 包含 portal/login/eportal
+        form_match = re.search(r"<form[^>]+action=['\"]([^'\"]+)['\"]", resp_text, re.I)
+        if form_match:
+            action_cand = urljoin(base_url, form_match.group(1).strip())
+            if any(k in action_cand.lower() for k in ("portal", "login", "auth", "drcom", "srun", "eportal")):
+                return action_cand
+
+        return ""
 
     def _probe_single(probe_url: str) -> tuple[str, str]:
         """探测单条 URL，返回 (redirect_url, html_content)"""
@@ -252,29 +288,9 @@ def auto_detect_portal_config() -> tuple[bool, str, dict[str, Any]]:
                     return full_loc, resp_text
 
             # 捕获 HTML 内部 JS 或 meta 刷新跳转
-            if resp_text:
-                js_match = re.search(
-                    r"(?:location\.(?:href|replace)|window\.location)\s*=\s*['\"]([^'\"]+)['\"]",
-                    resp_text,
-                    re.I,
-                )
-                if js_match:
-                    full_js = urljoin(base_url, js_match.group(1).strip())
-                    if _is_captive_redirect(probe_url, full_js):
-                        return full_js, resp_text
-
-                meta_match = re.search(r"url=([^'\">]+)", resp_text, re.I)
-                if meta_match:
-                    full_meta = urljoin(base_url, meta_match.group(1).strip())
-                    if _is_captive_redirect(probe_url, full_meta):
-                        return full_meta, resp_text
-
-                form_match = re.search(r"<form[^>]+action=['\"]([^'\"]+)['\"]", resp_text, re.I)
-                if form_match:
-                    action_candidate = urljoin(base_url, form_match.group(1).strip())
-                    if any(k in action_candidate.lower() for k in ("portal", "login", "auth", "drcom", "srun", "eportal")):
-                        if _is_captive_redirect(probe_url, action_candidate):
-                            return action_candidate, resp_text
+            html_redir = _extract_redirect_from_html(resp_text, base_url)
+            if html_redir and _is_captive_redirect(probe_url, html_redir):
+                return html_redir, resp_text
         except Exception:
             pass
         return "", ""
@@ -295,7 +311,7 @@ def auto_detect_portal_config() -> tuple[bool, str, dict[str, Any]]:
         except Exception:
             pass
 
-    # Phase 2: 如果纯 IP 探针未捕获，且总体耗时充裕，并发尝试备选域名探针（最多等待 1.5s）
+    # Phase 2: 若纯 IP 探针未捕获，并发尝试备选域名探针（最多等待 1.5s）
     if not target_redirect_url:
         with concurrent.futures.ThreadPoolExecutor(max_workers=max(len(domain_probes), 1)) as executor:
             futures = {executor.submit(_probe_single, url): url for url in domain_probes}
@@ -309,7 +325,57 @@ def auto_detect_portal_config() -> tuple[bool, str, dict[str, Any]]:
             except Exception:
                 pass
 
+    # Phase 3: 智能高校回退推导与主动探活机制
+    # 当网络已畅通（公网探针未被 302 劫持）或处于特定校园无线环境时，根据当前 SSID/IP 与高校库智能推导
+    uni_mgr = get_university_manager()
     if not target_redirect_url:
+        matched_prof = uni_mgr.infer_by_ssid_and_ip(current_ssid, local_ip)
+        if not matched_prof:
+            cfg = get_config_dict()
+            ssid_lower = current_ssid.lower()
+            saved_uni = str(cfg.get("university_id", "")).strip()
+            if saved_uni and saved_uni not in ("generic_portal", ""):
+                candidate_prof = uni_mgr.get_profile(saved_uni)
+                if candidate_prof:
+                    match_ssid = any(s and s.lower() in ssid_lower for s in candidate_prof.wifi_ssids)
+                    match_ip = any(k.endswith(".") and local_ip.startswith(k) for k in candidate_prof.domain_keywords if local_ip)
+                    if match_ssid or match_ip:
+                        matched_prof = candidate_prof
+
+        if matched_prof:
+            candidate_auth_url = matched_prof.auth_url
+            extracted["auth_protocol"] = matched_prof.protocol
+            extracted["university_id"] = matched_prof.id
+            extracted["university_name"] = matched_prof.name
+            extracted["campus_auth_url"] = matched_prof.auth_url
+            extracted["campus_gateway"] = system_gw or matched_prof.gateway or "10.211.0.1"
+            if matched_prof.ac_ip:
+                extracted["wlan_ac_ip"] = matched_prof.ac_ip
+            if current_ssid and current_ssid not in ("未连接", "未知"):
+                extracted["campus_wifi_ssid"] = current_ssid
+            if local_ip and local_ip != "未知":
+                extracted["wlan_user_ip"] = local_ip
+
+            # 针对匹配到的高校认证网关主动探活
+            gw_alive = False
+            try:
+                cand_parsed = urlparse(candidate_auth_url)
+                cand_host = cand_parsed.hostname or ""
+                cand_port = cand_parsed.port or (443 if cand_parsed.scheme == "https" else (801 if "801" in candidate_auth_url else 80))
+                from .system import tcp_check
+                if cand_host and tcp_check(cand_host, cand_port, timeout=0.8):
+                    gw_alive = True
+                    log.info("高校智能库主动探活成功: %s -> %s:%d", matched_prof.name, cand_host, cand_port)
+            except Exception as err:
+                log.debug("主动探活候选高校异常: %s", err)
+
+            status_msg = (
+                f"已智能识别{matched_prof.name}校园网环境，认证网关与参数已自动同步校准！"
+                if gw_alive
+                else f"已根据网络特征识别{matched_prof.name}，认证参数已成功同步校准！"
+            )
+            return True, status_msg, extracted
+
         return False, "未捕获到校园网重定向，可能网络已畅通或尚未连接校园 Wi-Fi", extracted
 
     # 4. 解析目标重定向 URL 并智能识别高校体系
@@ -334,14 +400,20 @@ def auto_detect_portal_config() -> tuple[bool, str, dict[str, Any]]:
                 extracted["wlan_user_ip"] = v[0]
 
         # 5. 调用高校知识库反推归属高校及协议
-        uni_mgr = get_university_manager()
         prof, protocol = uni_mgr.infer_by_url_and_html(target_redirect_url, captured_html)
+        if not prof and current_ssid:
+            prof = uni_mgr.infer_by_ssid_and_ip(current_ssid, local_ip)
+            if prof:
+                protocol = prof.protocol
+
         extracted["auth_protocol"] = protocol
         if prof:
             extracted["university_id"] = prof.id
             extracted["university_name"] = prof.name
             if prof.gateway and not extracted.get("campus_gateway"):
                 extracted["campus_gateway"] = prof.gateway
+            if prof.ac_ip and not extracted.get("wlan_ac_ip"):
+                extracted["wlan_ac_ip"] = prof.ac_ip
             log.info("智能嗅探命中高校: %s (协议: %s)", prof.name, protocol)
         else:
             extracted["university_id"] = f"generic_{protocol}"

@@ -1,113 +1,109 @@
+"""生成「安澜 AnLan」应用图标（iOS 风连续圆角黛蓝底板 + 三道平缓水波）。
+
+输出：assets/app_icon.png（512px）与多尺寸 assets/app_icon.ico。
+运行：.venv\\Scripts\\python.exe scripts/generate_icon.py
+"""
 from __future__ import annotations
 
 import math
 from pathlib import Path
-from PIL import Image, ImageDraw, ImageFilter
+
+from PIL import Image, ImageChops, ImageDraw
+
+SIZE = 512
+SS = 4  # 超采样倍数，保证边缘平滑
+S = SIZE * SS
+
+# 黛蓝渐变（顶部略亮，底部沉稳）
+SLATE_TOP = (74, 123, 184)
+SLATE_BOT = (30, 66, 116)
 
 
-def draw_cyber_shield(size: int = 512) -> Image.Image:
-    # 4x 超采样绘制以获得顶级超采样抗锯齿
-    scale = 4
-    canvas_size = size * scale
-    img = Image.new("RGBA", (canvas_size, canvas_size), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(img)
-
-    cx = canvas_size / 2
-    cy = canvas_size / 2
-
-    # 1. 外部环境光晕 (Glow layer)
-    glow_img = Image.new("RGBA", (canvas_size, canvas_size), (0, 0, 0, 0))
-    glow_draw = ImageDraw.Draw(glow_img)
-    glow_box = [cx - canvas_size * 0.38, cy - canvas_size * 0.40, cx + canvas_size * 0.38, cy + canvas_size * 0.42]
-    glow_draw.ellipse(glow_box, fill=(10, 132, 255, 60))
-    glow_draw.ellipse([cx - canvas_size * 0.28, cy - canvas_size * 0.28, cx + canvas_size * 0.28, cy + canvas_size * 0.35], fill=(50, 215, 75, 45))
-    glow_img = glow_img.filter(ImageFilter.GaussianBlur(radius=30 * scale))
-    img.alpha_composite(glow_img)
-
-    # 2. 盾牌外部轮廓多边形
-    # 顶部平滑微弧、侧边向下微收、底部尖角圆润
-    pad_x = canvas_size * 0.16
-    pad_y = canvas_size * 0.12
-    bot_y = canvas_size * 0.88
-    mid_y = canvas_size * 0.58
-
-    shield_pts = [
-        (cx, pad_y + canvas_size * 0.02),
-        (canvas_size - pad_x, pad_y + canvas_size * 0.06),
-        (canvas_size - pad_x * 1.08, mid_y),
-        (cx, bot_y),
-        (pad_x * 1.08, mid_y),
-        (pad_x, pad_y + canvas_size * 0.06),
-    ]
-
-    # 外圈深色金属微反光边缘
-    draw.polygon(shield_pts, fill=(28, 30, 42, 255), outline=(10, 132, 255, 230), width=int(5 * scale))
-
-    # 3. 盾牌主体内部渐变底色
-    inner_pad = canvas_size * 0.03
-    inner_pts = [
-        (cx, pad_y + canvas_size * 0.02 + inner_pad),
-        (canvas_size - pad_x - inner_pad, pad_y + canvas_size * 0.06 + inner_pad),
-        (canvas_size - pad_x * 1.08 - inner_pad, mid_y - inner_pad * 0.5),
-        (cx, bot_y - inner_pad * 1.2),
-        (pad_x * 1.08 + inner_pad, mid_y - inner_pad * 0.5),
-        (pad_x + inner_pad, pad_y + canvas_size * 0.06 + inner_pad),
-    ]
-    draw.polygon(inner_pts, fill=(17, 18, 25, 255))
-
-    # 4. 核心符号：翡翠绿脉冲雷达 / 守护锁环
-    # 绘制同心圆自愈波纹弧
-    arc_center = (cx, cy + canvas_size * 0.02)
-    # 外波纹
-    r1 = canvas_size * 0.22
-    draw.arc(
-        [arc_center[0] - r1, arc_center[1] - r1, arc_center[0] + r1, arc_center[1] + r1],
-        start=210,
-        end=330,
-        fill=(50, 215, 75, 180),
-        width=int(6 * scale),
-    )
-    # 内波纹
-    r2 = canvas_size * 0.15
-    draw.arc(
-        [arc_center[0] - r2, arc_center[1] - r2, arc_center[0] + r2, arc_center[1] + r2],
-        start=205,
-        end=335,
-        fill=(50, 215, 75, 240),
-        width=int(7 * scale),
-    )
-
-    # 5. 核心脉冲发光微球 (Pulse Core)
-    r_core = canvas_size * 0.065
-    draw.ellipse(
-        [arc_center[0] - r_core, arc_center[1] - r_core * 0.8, arc_center[0] + r_core, arc_center[1] + r_core * 1.2],
-        fill=(50, 215, 75, 255),
-    )
-    # 核心高光点
-    draw.ellipse(
-        [arc_center[0] - r_core * 0.45, arc_center[1] - r_core * 0.45, arc_center[0] + r_core * 0.45, arc_center[1] + r_core * 0.45],
-        fill=(255, 255, 255, 220),
-    )
-
-    # 下采样至目标分辨率（顶级抗锯齿）
-    final_img = img.resize((size, size), Image.Resampling.LANCZOS)
-    return final_img
+def squircle_mask(n: float = 5.0, radius: float = 0.46) -> Image.Image:
+    """iOS 风格连续圆角（超椭圆）遮罩。"""
+    mask = Image.new("L", (S, S), 0)
+    pts = []
+    steps = 720
+    for i in range(steps):
+        t = 2 * math.pi * i / steps
+        c, s = math.cos(t), math.sin(t)
+        x = math.copysign(abs(c) ** (2 / n), c)
+        y = math.copysign(abs(s) ** (2 / n), s)
+        pts.append((S / 2 + x * radius * S, S / 2 + y * radius * S))
+    ImageDraw.Draw(mask).polygon(pts, fill=255)
+    return mask
 
 
-def main():
+def vgradient(top: tuple[int, int, int], bot: tuple[int, int, int]) -> Image.Image:
+    grad = Image.linear_gradient("L").resize((S, S))
+    return Image.composite(
+        Image.new("RGB", (S, S), bot), Image.new("RGB", (S, S), top), grad
+    ).convert("RGBA")
+
+
+def base_tile() -> Image.Image:
+    """渐变底板 + 顶部柔和高光 + 极细内描边。"""
+    tile = vgradient(SLATE_TOP, SLATE_BOT)
+    grad = Image.linear_gradient("L").rotate(180).resize((S, int(S * 0.55)))
+    gloss = Image.new("RGBA", (S, int(S * 0.55)), (255, 255, 255, 0))
+    gloss.putalpha(grad.point(lambda v: int(v * 0.16)))
+    tile.alpha_composite(gloss, (0, 0))
+
+    mask = squircle_mask()
+    out = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+    out.paste(tile, (0, 0), mask)
+    ring = ImageChops.subtract(mask, squircle_mask(radius=0.455))
+    out.paste(Image.new("RGBA", (S, S), (255, 255, 255, 60)), (0, 0), ring)
+    return out
+
+
+def stroke(img: Image.Image, pts, width: float, rgb, alpha: int = 255) -> None:
+    """沿路径用圆章叠加成平滑圆头描边（单次合成，避免 alpha 叠加出现断点）。"""
+    mask = Image.new("L", (S, S), 0)
+    d = ImageDraw.Draw(mask)
+    r = width / 2
+    step = max(1.0, r / 3)
+    dense = [pts[0]]
+    for (x0, y0), (x1, y1) in zip(pts, pts[1:]):
+        n = max(1, int(math.hypot(x1 - x0, y1 - y0) / step))
+        for k in range(1, n + 1):
+            dense.append((x0 + (x1 - x0) * k / n, y0 + (y1 - y0) * k / n))
+    for x, y in dense:
+        d.ellipse([x - r, y - r, x + r, y + r], fill=255)
+    if alpha < 255:
+        mask = mask.point(lambda v: v * alpha // 255)
+    img.paste(Image.new("RGBA", (S, S), tuple(rgb) + (255,)), (0, 0), mask)
+
+
+def draw_anlan(size: int = SIZE) -> Image.Image:
+    """绘制「澜」：三道自上而下渐淡的平缓水波，寓意风平浪静。"""
+    img = base_tile()
+    x0, x1 = S * 0.25, S * 0.75
+    amp = S * 0.04
+    for row, (y, alpha) in enumerate(((0.37, 255), (0.5, 210), (0.63, 160))):
+        phase = row * 0.8
+        pts = []
+        for i in range(241):
+            t = i / 240
+            pts.append((x0 + (x1 - x0) * t, S * y + amp * math.sin(t * 2 * math.pi * 1.5 + phase)))
+        stroke(img, pts, S * 0.052, (255, 255, 255), alpha)
+    return img.resize((size, size), Image.Resampling.LANCZOS)
+
+
+def main() -> None:
     root = Path(__file__).resolve().parent.parent
     assets_dir = root / "assets"
     assets_dir.mkdir(parents=True, exist_ok=True)
 
-    img = draw_cyber_shield(512)
+    img = draw_anlan(SIZE)
     png_path = assets_dir / "app_icon.png"
     ico_path = assets_dir / "app_icon.ico"
 
     img.save(png_path, "PNG")
     print(f"Saved PNG icon to: {png_path}")
 
-    # 生成包含全部 Windows 标准尺寸的多层 ICO 文件
-    sizes = [(256, 256), (128, 128), (64, 64), (48, 48), (32, 32), (16, 16)]
+    # 多尺寸 ICO：覆盖 Windows 任务栏、托盘、资源管理器全部标准尺寸
+    sizes = [(256, 256), (128, 128), (64, 64), (48, 48), (32, 32), (24, 24), (16, 16)]
     img.save(ico_path, format="ICO", sizes=sizes)
     print(f"Saved multi-resolution ICO icon to: {ico_path}")
 

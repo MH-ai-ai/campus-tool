@@ -1,6 +1,6 @@
-# Campus Guard 打包说明
+# 安澜 打包说明
 
-本文档说明如何把 Campus Guard 打包成本地 Windows 桌面程序。
+本文档说明如何把 安澜 打包成本地 Windows 桌面程序。
 
 打包产物只保留在本地 `dist/` 目录中。`dist/`、`build/`、`config.json`、`campus_guard.key` 和日志文件都已被 `.gitignore` 忽略，不应提交到公共仓库。
 
@@ -28,16 +28,16 @@
 脚本会先运行单元测试和语法检查，然后调用 PyInstaller：
 
 ```powershell
-.\.venv\Scripts\python.exe -m PyInstaller --noconfirm --clean CampusGuard.spec
+.\.venv\Scripts\python.exe -m PyInstaller --noconfirm --clean AnLan.spec
 ```
 
 成功后，可执行文件位于：
 
 ```text
-dist\CampusGuard\CampusGuard.exe
+dist\AnLan\AnLan.exe
 ```
 
-脚本还会把 `config.example.json` 复制到 `dist\CampusGuard\`，方便打包版首次运行时自动创建本地配置。
+脚本还会把 `config.example.json` 复制到 `dist\AnLan\`，方便打包版首次运行时自动创建本地配置。
 
 如只想快速重新打包并跳过单元测试，可执行：
 
@@ -50,18 +50,18 @@ dist\CampusGuard\CampusGuard.exe
 进入打包目录：
 
 ```powershell
-cd dist\CampusGuard
+cd dist\AnLan
 ```
 
 启动程序：
 
 ```powershell
-.\CampusGuard.exe
+.\AnLan.exe
 ```
 
 如果 `config.json` 不存在，程序会先从同目录的 `config.example.json` 自动创建一个模板。首次启动后，请填写 `config.json` 中的本地配置，包括校园网账号、Bot token、Telegram 用户 ID 和校园 WiFi SSID，然后重启程序。Bot token 或 Telegram 用户 ID 为空时，桌面窗口仍会启动，但 Bot 线程会跳过。
 
-打包版运行时会把以下本地文件放在 `dist\CampusGuard\`：
+打包版运行时会把以下本地文件放在 `dist\AnLan\`：
 
 - `config.json`
 - `campus_guard.key`
@@ -78,7 +78,7 @@ cd dist\CampusGuard
 打包版运行时，自启动任务会直接指向：
 
 ```text
-dist\CampusGuard\CampusGuard.exe
+dist\AnLan\AnLan.exe
 ```
 
 这样移动或发布打包版时，不需要依赖源码入口文件。
@@ -89,8 +89,8 @@ dist\CampusGuard\CampusGuard.exe
 
 最小验证项：
 
-1. 双击 `dist\CampusGuard\CampusGuard.exe` 能打开窗口。
-2. 系统托盘出现 Campus Guard 图标。
+1. 双击 `dist\AnLan\AnLan.exe` 能打开窗口。
+2. 系统托盘出现 安澜 图标。
 3. “状态 / 控制 / 日志 / 设置”四个标签页可打开。
 4. Telegram Bot 能响应 `/ping`。
 5. 退出程序后没有残留异常进程。

@@ -3,6 +3,7 @@ import { Sidebar } from './components/Sidebar';
 import { DashboardView } from './components/DashboardView';
 import { LogView } from './components/LogView';
 import { SettingsView } from './components/SettingsView';
+import { ToastProvider } from './components/ToastContext';
 import { api, StateData } from './api';
 
 export function App() {
@@ -40,22 +41,21 @@ export function App() {
   }, []);
 
   return (
-    <div className="relative flex h-screen w-screen twilight-sky-backdrop text-white overflow-hidden font-sans select-none">
-      {/* 左侧暮色水晶通透侧边栏 */}
-      <Sidebar currentTab={currentTab} onSelectTab={setCurrentTab} state={state} />
+    <ToastProvider>
+      <div className="relative flex h-screen w-screen ios-canvas-backdrop text-ink-primary overflow-hidden font-sans select-none">
+        {/* 左侧 iOS 浅色微透侧边栏 */}
+        <Sidebar currentTab={currentTab} onSelectTab={setCurrentTab} state={state} />
 
-      {/* 右侧主视窗内容区 (极速硬件加速的高透玻璃容器) */}
-      <main className="relative z-10 flex-1 h-full overflow-hidden flex flex-col will-change-transform">
-        {currentTab === 'dashboard' && (
-          <DashboardView
-            state={state}
-            onRefresh={fetchState}
-          />
-        )}
-        {currentTab === 'logs' && <LogView />}
-        {currentTab === 'settings' && <SettingsView />}
-      </main>
-    </div>
+        {/* 右侧主视窗内容区 */}
+        <main className="relative z-10 flex-1 min-w-0 h-full overflow-hidden flex flex-col">
+          {currentTab === 'dashboard' && (
+            <DashboardView state={state} onRefresh={fetchState} />
+          )}
+          {currentTab === 'logs' && <LogView />}
+          {currentTab === 'settings' && <SettingsView />}
+        </main>
+      </div>
+    </ToastProvider>
   );
 }
 

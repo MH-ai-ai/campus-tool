@@ -6,26 +6,32 @@ import {
   RefreshCw,
   ArrowDown,
   ShieldAlert,
-  CheckCircle,
+  CheckCircle2,
   Info,
   Download,
   FolderOpen,
+  Check,
+  Loader2,
+  X,
 } from 'lucide-react';
 import { api } from '../api';
+import { useToast } from './ToastContext';
+
+type ExportState = 'idle' | 'exporting' | 'done';
 
 export const LogView: React.FC = () => {
+  const toast = useToast();
   const [logs, setLogs] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [levelFilter, setLevelFilter] = useState<'ALL' | 'INFO' | 'WARNING' | 'ERROR'>('ALL');
   const [autoScroll, setAutoScroll] = useState(true);
-  const [toastMsg, setToastMsg] = useState<string | null>(null);
-  const endRef = useRef<HTMLDivElement>(null);
+  const [exportState, setExportState] = useState<ExportState>('idle');
+  const [confirmClear, setConfirmClear] = useState(false);
 
-  const showToast = (msg: string) => {
-    setToastMsg(msg);
-    setTimeout(() => setToastMsg(null), 3000);
-  };
+  const endRef = useRef<HTMLDivElement>(null);
+  const exportTimerRef = useRef<number | null>(null);
+  const clearTimerRef = useRef<number | null>(null);
 
   const fetchLogs = async () => {
     setLoading(true);
@@ -41,8 +47,12 @@ export const LogView: React.FC = () => {
 
   useEffect(() => {
     fetchLogs();
-    const timer = setInterval(fetchLogs, 4000);
-    return () => clearInterval(timer);
+    const timer = window.setInterval(fetchLogs, 4000);
+    return () => {
+      window.clearInterval(timer);
+      if (exportTimerRef.current) window.clearTimeout(exportTimerRef.current);
+      if (clearTimerRef.current) window.clearTimeout(clearTimerRef.current);
+    };
   }, []);
 
   useEffect(() => {
@@ -51,18 +61,39 @@ export const LogView: React.FC = () => {
     }
   }, [logs, autoScroll]);
 
-  const handleClear = async () => {
-    if (confirm('确定要清空当前的运行日志文件吗？')) {
-      await api.clearLogs();
-      fetchLogs();
-      showToast('日志已清空');
+  const handleClearClick = async () => {
+    if (!confirmClear) {
+      setConfirmClear(true);
+      if (clearTimerRef.current) window.clearTimeout(clearTimerRef.current);
+      clearTimerRef.current = window.setTimeout(() => {
+        setConfirmClear(false);
+      }, 3000);
+      return;
+    }
+
+    if (clearTimerRef.current) window.clearTimeout(clearTimerRef.current);
+    setConfirmClear(false);
+    try {
+      const res = await api.clearLogs();
+      await fetchLogs();
+      if (res.success) {
+        toast.success(res.message || '运行日志已清空');
+      } else {
+        toast.error(res.message || '清空日志失败');
+      }
+    } catch (err: any) {
+      toast.error(`清空失败: ${err?.message || err}`);
     }
   };
 
   const handleExport = async () => {
+    if (exportState === 'exporting') return;
+    setExportState('exporting');
+    if (exportTimerRef.current) window.clearTimeout(exportTimerRef.current);
+
     try {
       const res = await api.exportLogs();
-      const content = res?.data?.content || logs.join('\n');
+      const content = res?.content || res?.data?.content || logs.join('\n');
       const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -73,20 +104,30 @@ export const LogView: React.FC = () => {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      showToast('日志文件已成功导出');
+
+      setExportState('done');
+      toast.success('全量日志文件已导出');
+      exportTimerRef.current = window.setTimeout(() => {
+        setExportState('idle');
+      }, 1800);
     } catch (err: any) {
       console.error(err);
-      showToast(`导出失败: ${err.message || err}`);
+      setExportState('idle');
+      toast.error(`导出失败: ${err?.message || err}`);
     }
   };
 
   const handleOpenFolder = async () => {
     try {
       const res = await api.openLogFolder();
-      showToast(res.message || '已打开日志目录');
+      if (res.success) {
+        toast.info(res.message || '已打开日志目录');
+      } else {
+        toast.error(res.message || '打开日志目录失败');
+      }
     } catch (err: any) {
       console.error(err);
-      showToast(`打开失败: ${err.message || err}`);
+      toast.error(`打开失败: ${err?.message || err}`);
     }
   };
 
@@ -102,143 +143,241 @@ export const LogView: React.FC = () => {
     return false;
   });
 
+  const hasFilter = Boolean(search) || levelFilter !== 'ALL';
+
   return (
-    <div className="flex-1 h-full p-6 flex flex-col space-y-4 overflow-hidden">
-      {/* 头部标题与操作 */}
-      <div className="flex items-center justify-between shrink-0">
-        <div>
-          <h2 className="text-xl font-bold tracking-tight text-white flex items-center gap-2 drop-shadow-sm">
-            <Terminal className="w-5 h-5 text-cyan-300" />
-            运行与守护日志
-          </h2>
-          <p className="text-xs text-white/70">实时滚动呈现网络探针、重连事件与系统电源日志流</p>
+    <div className="flex-1 h-full flex flex-col overflow-hidden">
+      {/* 顶部固定玻璃页头与单行工具栏 */}
+      <header className="shrink-0 ios-glass-header px-6 pt-5 pb-4 z-20">
+        <div className="flex items-center justify-between gap-4">
+          <div className="min-w-0">
+            <h2 className="text-lg font-bold tracking-tight text-ink-primary flex items-center gap-2">
+              <Terminal className="w-4 h-4 text-[#2b5797] shrink-0" />
+              <span className="truncate">运行与守护日志</span>
+            </h2>
+            <p className="text-xs text-ink-secondary mt-0.5 truncate">
+              实时呈现网络探针、断网自愈与系统电源记录
+            </p>
+          </div>
+
+          <span className="shrink-0 whitespace-nowrap px-2.5 py-1 rounded-full text-[11px] font-medium ios-glass-inset text-ink-secondary font-mono">
+            {hasFilter ? `显示 ${filteredLogs.length} / ${logs.length} 条` : `共 ${logs.length} 条`}
+          </span>
         </div>
 
-        <div className="flex items-center gap-2">
-          {toastMsg && (
-            <span className="text-[11px] px-2.5 py-1 rounded-lg bg-cyan-500/20 text-cyan-200 border border-cyan-400/30 animate-in fade-in duration-150">
-              {toastMsg}
-            </span>
-          )}
+        {/* 第二行：检索过滤 + 固定宽度不折行按钮组 */}
+        <div className="mt-3.5 flex items-center justify-between gap-2.5">
+          {/* 左侧搜索与级别过滤 */}
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <div className="relative min-w-[96px] flex-1 max-w-[200px]">
+              <Search className="w-3.5 h-3.5 text-ink-tertiary absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                type="text"
+                placeholder="搜索关键词..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                aria-label="搜索日志关键词"
+                className="ios-input w-full h-8 pl-8 pr-7 rounded-lg text-xs"
+              />
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => setSearch('')}
+                  aria-label="清除搜索"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-ink-tertiary hover:text-ink-primary"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </div>
 
-          <button
-            onClick={handleExport}
-            className="px-3 py-1.5 rounded-xl twilight-btn-secondary text-cyan-200 hover:text-white text-xs font-medium flex items-center gap-1.5 transition-all shadow-sm"
-            title="导出全量日志文件 (.log)"
-          >
-            <Download className="w-3.5 h-3.5" />
-            导出日志
-          </button>
+            <div
+              role="group"
+              aria-label="日志级别过滤"
+              className="flex items-center p-0.5 h-8 rounded-lg ios-glass-inset text-[11px] shrink-0"
+            >
+              {(
+                [
+                  { id: 'ALL', label: '全部' },
+                  { id: 'INFO', label: 'INFO' },
+                  { id: 'WARNING', label: 'WARN' },
+                  { id: 'ERROR', label: 'ERROR' },
+                ] as const
+              ).map((lvl) => (
+                <button
+                  key={lvl.id}
+                  type="button"
+                  onClick={() => setLevelFilter(lvl.id)}
+                  className={`px-2 py-1 rounded-md font-medium whitespace-nowrap transition-all ${
+                    levelFilter === lvl.id
+                      ? 'bg-white text-ink-primary shadow-sm'
+                      : 'text-ink-secondary hover:text-ink-primary'
+                  }`}
+                >
+                  {lvl.label}
+                </button>
+              ))}
+            </div>
+          </div>
 
-          <button
-            onClick={handleOpenFolder}
-            className="px-3 py-1.5 rounded-xl twilight-btn-secondary text-white/80 hover:text-white text-xs font-medium flex items-center gap-1.5 transition-all"
-            title="在系统资源管理器中打开日志目录"
-          >
-            <FolderOpen className="w-3.5 h-3.5" />
-            打开目录
-          </button>
-
-          <button
-            onClick={() => setAutoScroll(!autoScroll)}
-            className={`px-3 py-1.5 rounded-xl border text-xs font-medium flex items-center gap-1.5 transition-all ${
-              autoScroll
-                ? 'bg-cyan-500/20 text-cyan-200 border-cyan-400/40 shadow-sm'
-                : 'twilight-btn-secondary text-white/70'
-            }`}
-          >
-            <ArrowDown className="w-3.5 h-3.5" />
-            自动滚动
-          </button>
-
-          <button
-            onClick={fetchLogs}
-            disabled={loading}
-            className="p-2 rounded-xl twilight-btn-secondary text-white/80 hover:text-white transition-all disabled:opacity-50"
-            title="刷新日志"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-          </button>
-
-          <button
-            onClick={handleClear}
-            className="p-2 rounded-xl twilight-btn-secondary text-white/70 hover:text-rose-300 transition-all"
-            title="清空日志"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      </div>
-
-      {/* 搜索与级别过滤栏 */}
-      <div className="flex items-center justify-between gap-3 shrink-0">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="w-3.5 h-3.5 text-white/50 absolute left-3 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            placeholder="搜索日志关键词..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-3.5 py-1.5 rounded-xl bg-white/10 border border-white/20 text-xs text-white placeholder-white/40 focus:outline-none focus:border-cyan-300 transition-all"
-          />
-        </div>
-
-        {/* 级别过滤器 */}
-        <div className="flex p-1 rounded-xl bg-white/10 border border-white/20 text-[11px]">
-          {(['ALL', 'INFO', 'WARNING', 'ERROR'] as const).map((lvl) => (
+          {/* 右侧操作按钮组：全部强制单行防折行，导出按钮固定 min-w 杜绝位移 */}
+          <div className="flex items-center gap-1.5 shrink-0">
             <button
-              key={lvl}
-              onClick={() => setLevelFilter(lvl)}
-              className={`px-3 py-1 rounded-lg font-medium transition-all ${
-                levelFilter === lvl
-                  ? 'bg-gradient-to-r from-indigo-500 to-pink-500 text-white shadow-sm'
-                  : 'text-white/70 hover:text-white'
+              type="button"
+              onClick={handleExport}
+              disabled={exportState === 'exporting'}
+              title="导出全量日志文件 (.log)"
+              className={`h-8 min-w-[84px] px-2.5 rounded-lg text-xs font-medium whitespace-nowrap shrink-0 inline-flex items-center justify-center gap-1.5 transition-all ${
+                exportState === 'done'
+                  ? 'bg-[#1f7a53]/10 text-[#1f7a53] border border-[#1f7a53]/25'
+                  : 'ios-btn-secondary text-[#2b5797]'
               }`}
             >
-              {lvl === 'ALL' ? '全部' : lvl}
+              {exportState === 'exporting' ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 shrink-0 animate-spin" />
+                  <span>导出中</span>
+                </>
+              ) : exportState === 'done' ? (
+                <>
+                  <Check className="w-3.5 h-3.5 shrink-0" />
+                  <span>已导出</span>
+                </>
+              ) : (
+                <>
+                  <Download className="w-3.5 h-3.5 shrink-0" />
+                  <span>导出日志</span>
+                </>
+              )}
             </button>
-          ))}
-        </div>
-      </div>
 
-      {/* 日志终端显示容器 (高透暮色终端) */}
-      <div className="flex-1 rounded-2xl p-4 overflow-y-auto font-mono text-xs leading-relaxed space-y-1 twilight-glass-card border border-white/25">
-        {filteredLogs.length === 0 ? (
-          <div className="h-full flex items-center justify-center text-white/50 text-xs">
-            暂无匹配的运行日志
+            <button
+              type="button"
+              onClick={handleOpenFolder}
+              title="在系统资源管理器中打开日志目录"
+              className="h-8 px-2.5 rounded-lg ios-btn-secondary text-xs font-medium text-ink-secondary hover:text-ink-primary whitespace-nowrap shrink-0 inline-flex items-center gap-1.5"
+            >
+              <FolderOpen className="w-3.5 h-3.5 shrink-0" />
+              <span>目录</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setAutoScroll(!autoScroll)}
+              aria-pressed={autoScroll}
+              title={autoScroll ? '已开启自动滚动追踪最新日志' : '已暂停自动滚动'}
+              className={`h-8 px-2.5 rounded-lg text-xs font-medium whitespace-nowrap shrink-0 inline-flex items-center gap-1.5 transition-all ${
+                autoScroll
+                  ? 'bg-[#2b5797]/10 text-[#2b5797] border border-[#2b5797]/25'
+                  : 'ios-btn-secondary text-ink-secondary hover:text-ink-primary'
+              }`}
+            >
+              <ArrowDown className="w-3.5 h-3.5 shrink-0" />
+              <span>追踪</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={fetchLogs}
+              disabled={loading}
+              aria-label="刷新日志"
+              title="刷新日志"
+              className="w-8 h-8 rounded-lg ios-btn-secondary text-ink-secondary hover:text-ink-primary shrink-0 inline-flex items-center justify-center disabled:opacity-50"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+            </button>
+
+            <button
+              type="button"
+              onClick={handleClearClick}
+              aria-label={confirmClear ? '确认清空日志' : '清空日志'}
+              title={confirmClear ? '再次点击立即清空全部日志' : '清空日志'}
+              className={`h-8 rounded-lg text-xs font-medium whitespace-nowrap shrink-0 inline-flex items-center justify-center gap-1 transition-all ${
+                confirmClear
+                  ? 'ios-btn-danger px-2.5'
+                  : 'w-8 ios-btn-secondary text-ink-secondary hover:text-[#b43a40]'
+              }`}
+            >
+              <Trash2 className="w-3.5 h-3.5 shrink-0" />
+              {confirmClear && <span>确认清空</span>}
+            </button>
           </div>
-        ) : (
-          filteredLogs.map((line, idx) => {
-            const isError = line.includes('ERROR');
-            const isWarning = line.includes('WARNING') || line.includes('WARN');
-            const isInfo = line.includes('INFO');
+        </div>
+      </header>
 
-            let color = 'text-white/80';
-            let icon = null;
-
-            if (isError) {
-              color = 'text-rose-300 font-semibold';
-              icon = <ShieldAlert className="w-3 h-3 text-rose-300 shrink-0 inline mr-1.5" />;
-            } else if (isWarning) {
-              color = 'text-amber-300';
-              icon = <Info className="w-3 h-3 text-amber-300 shrink-0 inline mr-1.5" />;
-            } else if (isInfo && (line.includes('成功') || line.includes('在线'))) {
-              color = 'text-emerald-300';
-              icon = <CheckCircle className="w-3 h-3 text-emerald-300 shrink-0 inline mr-1.5" />;
-            }
-
-            return (
-              <div key={idx} className={`hover:bg-white/10 px-2 py-0.5 rounded transition-colors ${color} flex items-start`}>
-                <span className="text-white/30 mr-2 select-none shrink-0">{String(idx + 1).padStart(3, '0')}</span>
-                <span className="break-all">
-                  {icon}
-                  {line}
-                </span>
+      {/* 浅色瓷白微透日志面板 */}
+      <div className="flex-1 min-h-0 p-5 pt-4 overflow-hidden">
+        <div className="h-full ios-glass-card rounded-2xl flex flex-col overflow-hidden">
+          <div className="flex-1 overflow-y-auto p-3.5 font-mono text-[11.5px] leading-6 space-y-0.5 select-text">
+            {filteredLogs.length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center text-ink-tertiary text-xs gap-2.5 select-none">
+                <Terminal className="w-7 h-7 text-ink-tertiary/50" />
+                <span>{hasFilter ? '当前筛选条件下暂无匹配的日志记录' : '暂无运行日志记录'}</span>
+                {hasFilter && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearch('');
+                      setLevelFilter('ALL');
+                    }}
+                    className="px-3 py-1.5 rounded-lg ios-btn-secondary text-xs text-[#2b5797]"
+                  >
+                    清除筛选条件
+                  </button>
+                )}
               </div>
-            );
-          })
-        )}
-        <div ref={endRef} />
+            ) : (
+              filteredLogs.map((line, idx) => {
+                const isError = line.includes('ERROR');
+                const isWarning = line.includes('WARNING') || line.includes('WARN');
+                const isSuccess = !isError && !isWarning && (line.includes('成功') || line.includes('在线'));
+
+                let badgeText = 'INFO';
+                let badgeClass = 'bg-[#142033]/[0.06] text-ink-secondary';
+                let textClass = 'text-ink-primary';
+                let icon = null;
+
+                if (isError) {
+                  badgeText = 'ERR';
+                  badgeClass = 'bg-[#b43a40]/10 text-[#b43a40]';
+                  textClass = 'text-[#9e2c32] font-medium';
+                  icon = <ShieldAlert className="w-3 h-3 text-[#b43a40] shrink-0 mr-1 inline" />;
+                } else if (isWarning) {
+                  badgeText = 'WARN';
+                  badgeClass = 'bg-[#b47319]/10 text-[#9a5b13]';
+                  textClass = 'text-[#844d10]';
+                  icon = <Info className="w-3 h-3 text-[#9a5b13] shrink-0 mr-1 inline" />;
+                } else if (isSuccess) {
+                  badgeText = 'OK';
+                  badgeClass = 'bg-[#1f7a53]/10 text-[#1f7a53]';
+                  textClass = 'text-[#196343]';
+                  icon = <CheckCircle2 className="w-3 h-3 text-[#1f7a53] shrink-0 mr-1 inline" />;
+                }
+
+                return (
+                  <div
+                    key={idx}
+                    className="px-2 py-0.5 rounded-lg hover:bg-[#142033]/[0.04] transition-colors flex items-baseline gap-2"
+                  >
+                    <span className="text-ink-tertiary/70 w-8 text-right shrink-0 select-none text-[10.5px]">
+                      {String(idx + 1).padStart(3, '0')}
+                    </span>
+                    <span
+                      className={`px-1.5 py-0 rounded text-[10px] font-semibold shrink-0 select-none ${badgeClass}`}
+                    >
+                      {badgeText}
+                    </span>
+                    <span className={`break-all ${textClass}`}>
+                      {icon}
+                      {line}
+                    </span>
+                  </div>
+                );
+              })
+            )}
+            <div ref={endRef} />
+          </div>
+        </div>
       </div>
     </div>
   );

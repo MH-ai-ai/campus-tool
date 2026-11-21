@@ -39,6 +39,7 @@ log = get_logger()
 def bot_command_specs() -> tuple[tuple[str, str], ...]:
     return (
         ("status", "📊 查看电量·电源·网络状态"),
+        ("boost", "🚀 自动嗅探网络并一键自愈连通"),
         ("network", "🌐 查看网络、网关、代理和 Clash/TUN 状态"),
         ("battery", "🔋 查看电量、供电和关机阈值"),
         ("mode", "🌐 查看/切换网络环境模式 (自动/校园/家庭)"),
@@ -148,6 +149,8 @@ class TelegramBot:
 
         active_app = app or self.app
         active_app.add_handler(CommandHandler("status", self._touch_update(self._cmd_status)))
+        active_app.add_handler(CommandHandler("boost", self._touch_update(self._cmd_boost)))
+        active_app.add_handler(CommandHandler("sniff", self._touch_update(self._cmd_boost)))
         active_app.add_handler(CommandHandler("network", self._touch_update(self._cmd_network)))
         active_app.add_handler(CommandHandler("battery", self._touch_update(self._cmd_battery)))
         active_app.add_handler(CommandHandler("mode", self._touch_update(self._cmd_mode)))
@@ -374,6 +377,63 @@ class TelegramBot:
             ],
         ]
         await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
+
+    async def _cmd_boost(self, update, context) -> None:
+        if not self._is_authorized(update):
+            return
+        await update.message.reply_text("🚀 收到自愈加速指令！正在全自动嗅探校园网并执行连通自愈...")
+        loop = asyncio.get_event_loop()
+
+        def _do_boost():
+            from .auth import auto_detect_portal_config, campus_login
+            from .config import update_runtime_config
+            from .system import check_campus_gateway, check_internet, get_wifi_info, get_local_ip
+
+            # 1. 执行自动嗅探与参数同步
+            sniff_ok, sniff_msg, detected = auto_detect_portal_config()
+            cfg_updated = self._config().copy()
+            if sniff_ok and detected:
+                if detected.get("campus_auth_url"):
+                    cfg_updated["campus_auth_url"] = detected["campus_auth_url"]
+                if detected.get("wlan_ac_ip"):
+                    cfg_updated["wlan_ac_ip"] = detected["wlan_ac_ip"]
+                if detected.get("campus_gateway"):
+                    cfg_updated["campus_gateway"] = detected["campus_gateway"]
+                if detected.get("auth_protocol"):
+                    cfg_updated["auth_protocol"] = detected["auth_protocol"]
+                if detected.get("university_name"):
+                    cfg_updated["university_name"] = detected["university_name"]
+                update_runtime_config(cfg_updated)
+
+            # 2. 尝试登录认证
+            login_ok, login_msg = campus_login()
+            time.sleep(1)
+            gw_ok = check_campus_gateway()
+            inet_ok = check_internet()
+            return sniff_ok, sniff_msg, detected, login_ok, login_msg, gw_ok, inet_ok, get_wifi_info(force=False), get_local_ip()
+
+        sniff_ok, sniff_msg, detected, login_ok, login_msg, gw_ok, inet_ok, wifi_name, cur_ip = await loop.run_in_executor(None, _do_boost)
+        if self.network and hasattr(self.network, "check"):
+            self.network.check()
+
+        uni_name = detected.get("university_name") if detected else self._config().get("university_name", "校园网")
+        proto = detected.get("auth_protocol") if detected else self._config().get("auth_protocol", "drcom")
+        gw_icon = "🟢 可达" if gw_ok else "🔴 不可达"
+        inet_icon = "🟢 畅通" if inet_ok else "🔴 受阻"
+        res_icon = "✅" if (login_ok or inet_ok) else "⚠️"
+
+        reply = (
+            f"{res_icon} 网络自愈加速执行完成\n"
+            f"{'─' * 26}\n"
+            f"🏫 所属高校: {uni_name} [{str(proto).upper()}]\n"
+            f"📶 当前 WiFi: {wifi_name}\n"
+            f"🌐 本机 IP: {cur_ip}\n"
+            f"🚪 认证网关: {gw_icon}\n"
+            f"🌍 外网连通: {inet_icon}\n"
+            f"🔐 认证反馈: {login_msg}\n"
+            f"💡 嗅探说明: {sniff_msg}"
+        )
+        await update.message.reply_text(reply)
 
     async def _cmd_network(self, update, context) -> None:
         if not self._is_authorized(update):
@@ -703,7 +763,7 @@ class TelegramBot:
         if not self._is_authorized(update):
             return
         await update.message.reply_text(
-            "📖 Campus Guard 命令\n\n"
+            "📖 安澜 命令\n\n"
             "/status — 查看电量、电源、网络状态\n"
             "/network — 查看网络、网关、代理和 Clash/TUN 状态\n"
             "/battery — 查看电量阈值和关机策略\n"

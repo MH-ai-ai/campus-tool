@@ -178,8 +178,8 @@ export const api = {
     if (window.pywebview?.api?.auto_sniff) {
       return await withTimeout(
         window.pywebview.api.auto_sniff(),
-        10000,
-        "嗅探网关超时：未捕获到重定向，请确认已连入校园 Wi-Fi"
+        18000,
+        "嗅探网关超时：请确认已连入校园 Wi-Fi 且信号良好"
       );
     }
     return {
@@ -199,7 +199,7 @@ export const api = {
     if (window.pywebview?.api?.quick_setup) {
       return await withTimeout(
         window.pywebview.api.quick_setup(payload),
-        10000,
+        15000,
         "向导设置提交超时"
       );
     }
@@ -210,8 +210,8 @@ export const api = {
     if (window.pywebview?.api?.quick_connect) {
       return await withTimeout(
         window.pywebview.api.quick_connect(account, password),
-        15000,
-        "一键极速联网超时：认证网关无响应，请检查校园 Wi-Fi 连接"
+        30000,
+        "一键极速联网超时：认证请求耗时较长，请检查校园 Wi-Fi 信号或稍后重试"
       );
     }
 
@@ -278,16 +278,20 @@ export const api = {
     return { success: true, message: "日志已清空" };
   },
 
-  async exportLogs(): Promise<ApiResponse<{ content?: string; path?: string }>> {
+  async exportLogs(): Promise<
+    ApiResponse<{ content?: string; path?: string }> & { content?: string; path?: string }
+  > {
     if (window.pywebview?.api?.export_logs) {
       return await window.pywebview.api.export_logs();
     }
     return {
       success: true,
       message: "日志文件就绪",
+      content: "[INFO] 模拟日志导出测试\n[INFO] 运行状态良好",
+      path: "C:\\Users\\User\\AppData\\Roaming\\AnLan\\campus_guard.log",
       data: {
         content: "[INFO] 模拟日志导出测试\n[INFO] 运行状态良好",
-        path: "C:\\Users\\User\\AppData\\Roaming\\CampusGuard\\campus_guard.log",
+        path: "C:\\Users\\User\\AppData\\Roaming\\AnLan\\campus_guard.log",
       },
     };
   },

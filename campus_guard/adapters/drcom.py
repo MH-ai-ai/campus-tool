@@ -146,6 +146,27 @@ class DrcomAdapter(BaseAuthAdapter):
     name = "drcom"
     display_name = "城市热点 Dr.COM / ePortal"
 
+    @staticmethod
+    def _check_already_online(auth_url: str, account: str) -> tuple[bool, str]:
+        """轻量探针检测网关当前是否已在线。
+        延安大学等 Dr.COM 网关在处于已认证状态时，根目录（80端口）会直接返回含有 <title>注销页</title> 或包含当前账号 uid 的页面。
+        此时如果盲目发起 login 请求，网关会因为状态冲突直接返回 512 拒绝，造成密码错误的假象。
+        """
+        try:
+            from urllib.parse import urlparse
+            parsed = urlparse(auth_url)
+            host = parsed.hostname or "10.200.84.3"
+            check_url = f"{parsed.scheme or 'http'}://{host}/"
+            resp = requests.get(check_url, timeout=2.0)
+            text = getattr(resp, "text", "")
+            clean_acc = account.strip().lstrip(",0,")
+            if "注销页" in text or "Dr.COMWebLoginID_1.htm" in text or (clean_acc and f"uid='{clean_acc}'" in text):
+                return True, f"网关确认当前设备已处于在线状态（账号: {clean_acc}）"
+        except BaseException:
+            pass
+        return False, ""
+
+
     def build_auth_params(
         self,
         config: Config,
@@ -200,6 +221,8 @@ class DrcomAdapter(BaseAuthAdapter):
             session.trust_env = False
             log.info("Dr.COM 认证请求目标: %s", auth_url)
 
+            
+
             candidates = _get_account_candidates(config.campus_account)
             last_msg = ""
             for idx, cand in enumerate(candidates):
@@ -233,10 +256,23 @@ class DrcomAdapter(BaseAuthAdapter):
                         )
                         continue
 
+            # 2. 后置复核：若认证返回 512，再次确认设备是否其实已经在线（网关在已在线时收到登录请求会拒绝并返回 512）
+            is_online, online_msg = self._check_already_online(auth_url, config.campus_account)
+            if is_online:
+                log.info("Dr.COM 收到 512 但网关确认当前设备已在线，判定为已连通")
+                return True, online_msg
+
             if "512" in last_msg or "密码错误" in last_msg:
+                # 若双模验证被拒，复核网关是否已处于在线注销页（避免已在线时的假报错）
+                is_online, online_msg = self._check_already_online(auth_url, config.campus_account)
+                if is_online:
+                    log.info("Dr.COM 收到 512 但网关确认当前设备已在线，判定为已连通")
+                    return True, online_msg
+
                 user_hint = (
                     "校园网认证失败：密码错误 (Dr.COM 512)。已自动尝试「,0,前缀」与「标准学号」双模验证均被网关拒绝，"
-                    "请核对学号与密码大小写，或前往延安大学自助服务平台 self.yau.edu.cn 重置密码。"
+                    "若开通了运营商宽带可添加后缀（如 @dx 电信、@cmcc 移动、@lt 联通），"
+                    "或前往延安大学自助服务平台 self.yau.edu.cn 重置密码。"
                 )
                 log.warning("Dr.COM 校园网认证失败: %s", last_msg)
                 return False, user_hint

@@ -59,8 +59,8 @@ _DEFAULT_PROFILES: list[dict[str, Any]] = [
         "auth_url": "http://10.200.84.3:801/eportal/portal/login",
         "gateway": "10.211.0.1",
         "ac_ip": "10.255.250.74",
-        "wifi_ssids": ["YADX-STU", "YADX-TEA", "YAU", "YAU_5G", "i-YAU"],
-        "domain_keywords": ["10.200.84.3", "10.211.", "10.212.", "yadx", "yau.edu.cn"],
+        "wifi_ssids": ["YADX-STU", "YADX-TEA", "YAU", "YAU_5G", "i-YAU", "YADX"],
+        "domain_keywords": ["10.200.84.3", "10.211.", "10.212.", "172.30.", "172.31.", "yadx", "yau.edu.cn"],
         "description": "延安大学新校区/杨家岭校区/萃园 Dr.COM ePortal 校园网 (YADX-STU / YADX-TEA)",
     },
     {
@@ -281,6 +281,44 @@ class UniversityManager:
         }
         gen_id = generic_map.get(protocol, "generic_portal")
         return self._profiles.get(gen_id), protocol
+
+    def infer_by_ssid_and_ip(
+        self,
+        ssid: str,
+        ip: str = "",
+    ) -> UniversityProfile | None:
+        """根据当前连接的 Wi-Fi SSID 和本机 IP，智能反推归属高校。"""
+        ssid_clean = ssid.strip().lower() if ssid else ""
+        ip_clean = ip.strip() if ip else ""
+
+        # 1. 优先通过 Wi-Fi SSID 匹配已收录的高校无线标识
+        if ssid_clean and ssid_clean not in ("未连接", "未知"):
+            for prof in self.get_all_profiles():
+                if prof.id.startswith("generic_"):
+                    continue
+                for target_ssid in prof.wifi_ssids:
+                    if target_ssid and target_ssid.lower() in ssid_clean:
+                        log.info("SSID 特征命中高校: %s (SSID: %s)", prof.name, ssid)
+                        return prof
+
+        # 2. 尝试从 IP 网段/网关关键字匹配具体高校
+        if ip_clean and ip_clean not in ("未知", ""):
+            for prof in self.get_all_profiles():
+                if prof.id.startswith("generic_"):
+                    continue
+                for kw in prof.domain_keywords:
+                    if kw.endswith(".") and ip_clean.startswith(kw):
+                        log.info("IP 网段特征命中高校: %s (IP: %s)", prof.name, ip_clean)
+                        return prof
+
+        # 3. 模糊匹配延安大学典型 SSID 关键字 (如 -stu, -tea, yadx, yau)
+        if ssid_clean and any(k in ssid_clean for k in ("yadx", "yau", "-stu", "_stu", "-tea", "_tea")):
+            yau_prof = self._profiles.get("yau")
+            if yau_prof:
+                log.info("SSID 模糊特征命中延安大学: %s (SSID: %s)", yau_prof.name, ssid)
+                return yau_prof
+
+        return None
 
     def sync_from_remote(self, timeout: int = 5) -> tuple[bool, str]:
         """从远程仓库同步更新高校规则库并持久化。"""

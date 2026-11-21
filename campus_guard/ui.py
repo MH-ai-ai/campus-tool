@@ -99,22 +99,22 @@ def launch_gui(
     else:
         # 开发模式或产物缺失时的后备内置简易页面
         target_url = "data:text/html;charset=utf-8," + (
-            "<!DOCTYPE html><html><body style='background:#111216;color:#f3f4f6;font-family:sans-serif;padding:40px;'>"
-            "<h2>Campus Guard 控制中心载入中...</h2>"
-            "<p style='color:#9ca3af;'>前端资源正在构建中，请在 frontend/ 目录下运行 npm run build 生成静态包。</p>"
+            "<!DOCTYPE html><html><body style='background:#eef2f7;color:#18202c;font-family:sans-serif;padding:40px;'>"
+            "<h2>安澜 控制中心载入中...</h2>"
+            "<p style='color:#526075;'>前端资源正在构建中，请在 frontend/ 目录下运行 npm run build 生成静态包。</p>"
             "</body></html>"
         )
 
     log.info("启动 Webview 窗口，加载资源: %s", target_url)
 
     window = webview.create_window(
-        title="Campus Guard",
+        title="安澜",
         url=target_url,
         js_api=bridge,
         width=960,
         height=640,
         min_size=(840, 560),
-        background_color="#111216",
+        background_color="#eef2f7",
         frameless=False,
         easy_drag=True,
     )
@@ -143,7 +143,7 @@ def launch_gui(
 
     window.events.closing += on_closing
 
-    # 查找定制的 Cyber Shield 图标文件
+    # 查找「安澜」专属图标文件
     icon_file = APP_DIR / "assets" / "app_icon.ico"
     if not icon_file.exists():
         icon_file = Path(__file__).resolve().parent.parent / "assets" / "app_icon.ico"
@@ -153,7 +153,7 @@ def launch_gui(
             import ctypes
 
             # 注册独立 Windows AppUserModelID，彻底剥离 Python 任务栏标识
-            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("MH.CampusGuard.Desktop.2.1")
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("MH.AnLan.Desktop.2.2")
         except Exception as e:
             log.debug("注册 AppUserModelID 异常: %s", e)
 
@@ -182,8 +182,8 @@ def launch_gui(
 
                 ctypes.windll.user32.MessageBoxW(
                     0,
-                    f"Campus Guard 启动异常: {err}\n\n可能原因：缺失 pythonnet 或 Edge WebView2 运行时。\n请尝试在终端执行: pip install pythonnet",
-                    "Campus Guard 错误",
+                    f"安澜 启动异常: {err}\n\n可能原因：缺失 pythonnet 或 Edge WebView2 运行时。\n请尝试在终端执行: pip install pythonnet",
+                    "安澜 错误",
                     0x10,
                 )
             except Exception:

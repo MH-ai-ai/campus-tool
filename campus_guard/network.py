@@ -1,7 +1,7 @@
 import threading
 import time
 from datetime import timedelta
-from threading import Event, Lock
+from threading import Event, RLock
 from typing import Callable
 
 from .auth import campus_login
@@ -28,7 +28,7 @@ NotifyCallback = Callable[[str], None]
 log = get_logger()
 
 
-def detect_is_campus_network(ssid: str, gateway_ok: bool) -> bool:
+def detect_is_campus_network(ssid: str, gateway_ok: bool, local_ip: str = "") -> bool:
     """智能推断当前网络环境是否属于校园网。"""
     cfg = get_config_dict()
     forced = str(cfg.get("forced_network_mode", "auto")).lower()
@@ -60,7 +60,15 @@ def detect_is_campus_network(ssid: str, gateway_ok: bool) -> bool:
     if any(k in cleaned_ssid for k in campus_keywords):
         return True
 
-    # 4. 未知网络时: 网关可达才判定为校园网
+    # 4. 匹配典型高校私网 IP 网段（如延安大学 10.211.、10.212. 或私网 10.x.x.x）
+    ip_clean = local_ip.strip() if local_ip else ""
+    if ip_clean and not ip_clean.startswith("127.") and not ip_clean.startswith("169.254."):
+        if ip_clean.startswith(("10.211.", "10.212.", "10.200.")):
+            return True
+        if ip_clean.startswith("10.") and bool(str(cfg.get("campus_account", "")).strip()):
+            return True
+
+    # 5. 未知网络时: 网关可达才判定为校园网
     return bool(gateway_ok)
 
 
@@ -78,10 +86,11 @@ class NetworkMonitor:
         self.offline_since: float | None = None
         self.last_snapshot: ConnectivitySnapshot | None = None
         self.last_event = "等待首次网络检测"
-        self._lock = Lock()
+        self._lock = RLock()
         self._stop_event = Event()
         self._is_probing = False
         self._reconnecting = False
+        self._last_reconnect_attempt: float = 0.0
 
     def record_event(self, text: str) -> None:
         """记录外部（如一键联网、手动认证等）触发的网络事件。"""
@@ -135,6 +144,9 @@ class NetworkMonitor:
                 else:
                     self.weak_signal_count = 0
 
+            notify_msg: str | None = None
+            should_reconnect = False
+
             with self._lock:
                 self.last_snapshot = snapshot
 
@@ -154,18 +166,32 @@ class NetworkMonitor:
                     )
                     if not online:
                         self.offline_since = time.time()
-                        self.notify(self._format_down_message(snapshot))
-                        self._trigger_reconnect()
-                    return
-
-                if self.is_online and not online:
+                        notify_msg = self._format_down_message(snapshot)
+                        should_reconnect = True
+                # 状态边缘触发：首次由在线变为断开
+                elif self.is_online and not online:
                     self.offline_since = time.time()
                     self.last_event = f"网络断开: {snapshot.reason}"
                     log.warning("检测到网络断开（%s），尝试重连...", snapshot.reason)
-                    self.notify(self._format_down_message(snapshot))
-                    self._trigger_reconnect()
+                    notify_msg = self._format_down_message(snapshot)
+                    should_reconnect = True
+                    self.is_online = online
+                # 状态持续离线守护：若未连通且不在重连中，按照冷却周期自动再次触发自愈重连
+                elif not online and not self._reconnecting:
+                    now = time.time()
+                    cooldown = min(15, max(3, 2 + min(self.retry_count * 2, 10)))
+                    if now - self._last_reconnect_attempt >= cooldown:
+                        log.info("网络仍处于离线状态（%s），掉线探针自动调度自愈重连...", snapshot.reason)
+                        should_reconnect = True
+                    self.is_online = online
+                else:
+                    self.is_online = online
 
-                self.is_online = online
+            # 退出锁后再执行通知与重连调度，杜绝锁内阻塞或自死锁
+            if notify_msg:
+                self.notify(notify_msg)
+            if should_reconnect:
+                self._trigger_reconnect()
         except Exception as err:
             log.error("后台网络探测异常: %s", err)
         finally:
@@ -190,7 +216,7 @@ class NetworkMonitor:
         clash_tun = is_clash_tun_ip(local_ip)
 
         # 智能识别是否处于校园网环境
-        is_campus = detect_is_campus_network(wifi_info, gateway_ok)
+        is_campus = detect_is_campus_network(wifi_info, gateway_ok, local_ip)
 
         # 状态判定
         if not wifi_ok:
@@ -229,12 +255,19 @@ class NetworkMonitor:
         )
 
     def _get_campus_ssids(self) -> list[str]:
+        """按优先级返回校园网 SSID 列表：首选单数配置排在最前，再去重追加列表项。"""
         cfg = get_config_dict()
-        ssids = cfg.get("campus_wifi_ssids", [])
-        if not ssids:
-            old_ssid = cfg.get("campus_wifi_ssid", "")
-            ssids = [old_ssid] if old_ssid else []
-        return [str(s) for s in ssids if str(s)]
+        result: list[str] = []
+        primary = str(cfg.get("campus_wifi_ssid", "")).strip()
+        if primary:
+            result.append(primary)
+        raw_list = cfg.get("campus_wifi_ssids", [])
+        if isinstance(raw_list, (list, tuple)):
+            for item in raw_list:
+                s = str(item).strip()
+                if s and s not in result:
+                    result.append(s)
+        return result
 
     def _get_home_ssids(self) -> list[str]:
         cfg = get_config_dict()
@@ -246,6 +279,7 @@ class NetworkMonitor:
             if self._reconnecting:
                 return
             self._reconnecting = True
+            self._last_reconnect_attempt = time.time()
         threading.Thread(target=self._async_reconnect_job, daemon=True).start()
 
     def _async_reconnect_job(self) -> None:
@@ -262,18 +296,25 @@ class NetworkMonitor:
         self.aggressive_mode = True
         self.aggressive_start_time = time.time()
 
-        # 1. 尝试重连 WiFi
-        if not is_wifi_link_up():
+        # 1. 尝试重连 WiFi：当 WiFi 断开，或网关持续不可达且已连续失败（网卡假死/ARP脱节）时强制重连
+        need_force_wifi = (not snapshot.wifi_ok) or (not snapshot.gateway_ok and self.retry_count > 0)
+        if not snapshot.wifi_ok or need_force_wifi:
             target_ssids = self._get_campus_ssids() if is_campus else (self._get_home_ssids() or self._get_campus_ssids())
+            if not target_ssids:
+                snap_ssid = snapshot.wifi_info.split("(", 1)[0].strip() if snapshot.wifi_info else ""
+                if snap_ssid and snap_ssid not in ("未连接", "未知"):
+                    target_ssids = [snap_ssid]
+                else:
+                    target_ssids = [""]
             wifi_connected = False
             for ssid in target_ssids:
-                self.notify(f"📶 WiFi 已断开，正在重连 {ssid}...")
-                if reconnect_wifi(ssid):
+                log.info("执行 Wi-Fi 自愈连接: %s (force=%s)...", ssid, need_force_wifi)
+                if reconnect_wifi(ssid, force=need_force_wifi):
                     wifi_connected = True
-                    self.notify(f"✅ WiFi 已重连: {ssid}")
+                    log.info("Wi-Fi 链路自愈成功: %s", ssid)
                     break
                 log.warning("WiFi %s 重连失败，尝试下一个...", ssid)
-            if not wifi_connected:
+            if not wifi_connected and not snapshot.wifi_ok:
                 self.aggressive_mode = False
                 self.notify("❌ WiFi 重连失败，所有 SSID 均不可用")
                 return
@@ -292,17 +333,28 @@ class NetworkMonitor:
             trigger_bot_health_check()
             return
 
-        if not new_snap.is_campus_network:
-            log.info("当前网络未处于校园局域网环境 (或网关不可达)，跳过校园网登录认证")
+        cfg = get_config_dict()
+        has_campus_account = bool(str(cfg.get("campus_account", "")).strip())
+        is_home = any(hs in new_snap.wifi_info.lower() for hs in self._get_home_ssids() if hs)
+        forced_mode = str(cfg.get("forced_network_mode", "auto")).lower()
+        should_attempt_campus = (
+            new_snap.is_campus_network
+            or forced_mode == NetworkMode.CAMPUS.value
+            or (forced_mode != NetworkMode.HOME.value and has_campus_account and not is_home)
+        )
+
+        if not should_attempt_campus:
+            log.info("当前网络未处于校园局域网环境 (或判定为受信任家庭网络)，跳过校园网登录认证")
             self.last_snapshot = new_snap
             self.aggressive_mode = False
             return
 
+        if not new_snap.is_campus_network:
+            log.info("当前瞬时网关探活未通，但设备具备校园网配置且非家庭网络，尝试自愈认证重试...")
 
-        # 3. 校园网 Dr.COM 登录重试
-        cfg = get_config_dict()
-        max_retries = int(cfg.get("reconnect_max_retries", 3))
-        verify_delay = int(cfg.get("reconnect_verify_delay_seconds", 3))
+        # 3. 校园网 Dr.COM 登录重试（含动态嗅探与网关漂移自愈校准）
+        max_retries = max(2, int(cfg.get("reconnect_max_retries", 3)))
+        verify_delay = int(cfg.get("reconnect_verify_delay_seconds", 2))
         fast_retry_delay = int(cfg.get("reconnect_fast_retry_seconds", 2))
 
         for attempt in range(1, max_retries + 1):
@@ -328,6 +380,25 @@ class NetworkMonitor:
                     "OK" if new_snap.gateway_ok else "不可达",
                     "OK" if new_snap.internet_direct_ok else "不通",
                 )
+            else:
+                # 若初次重试出现无法连接网关或超时，尝试快速嗅探更新校准参数并强力刷新链路
+                if attempt == 1 and any(k in msg for k in ("无法连接", "超时", "未配置", "网关", "未获取", "10065")):
+                    log.info("重连初次认证未成功 (%s)，正在自动嗅探网络网关进行二次校准...", msg)
+                    try:
+                        from .auth import auto_detect_portal_config
+                        sniff_ok, _, detected = auto_detect_portal_config()
+                        if sniff_ok and detected and detected.get("campus_auth_url"):
+                            cfg_updated = get_config_dict()
+                            cfg_updated["campus_auth_url"] = detected["campus_auth_url"]
+                            if detected.get("wlan_ac_ip"):
+                                cfg_updated["wlan_ac_ip"] = detected["wlan_ac_ip"]
+                            if detected.get("campus_gateway"):
+                                cfg_updated["campus_gateway"] = detected["campus_gateway"]
+                            from .config import update_runtime_config
+                            update_runtime_config(cfg_updated)
+                            log.info("自愈重连动态校准完成: %s", detected)
+                    except Exception as sniff_err:
+                        log.debug("重连自愈嗅探异常: %s", sniff_err)
 
             if self.aggressive_mode and self.aggressive_start_time:
                 elapsed = time.time() - self.aggressive_start_time

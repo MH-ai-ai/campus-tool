@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, Terminal, Settings2, Shield, Wifi, Send, Radio } from 'lucide-react';
+import { LayoutDashboard, Terminal, Settings2, Waves, Wifi, Send } from 'lucide-react';
 import { StateData } from '../api';
 
 interface SidebarProps {
@@ -20,37 +20,36 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab, state
   ];
 
   return (
-    <aside className="w-56 h-full twilight-glass-sidebar flex flex-col justify-between p-4.5 z-20 shrink-0">
+    <aside className="w-52 h-full ios-glass-sidebar flex flex-col justify-between p-4 z-20 shrink-0">
       <div>
-        {/* Cyber Shield 品牌标识 */}
-        <div className="flex items-center gap-3 px-2 py-3 mb-6">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-pink-500 via-indigo-500 to-cyan-400 p-[1.5px] shadow-lg shadow-pink-500/20">
-            <div className="w-full h-full bg-[#1e1b4b]/80 rounded-[10px] flex items-center justify-center text-white backdrop-blur-md">
-              <Shield className="w-4.5 h-4.5 text-cyan-300 stroke-[2.2]" />
-            </div>
+        {/* 典雅品牌标识 */}
+        <div className="flex items-center gap-2.5 px-2 py-2.5 mb-5">
+          <div className="w-9 h-9 rounded-xl bg-[#2b5797]/10 border border-[#2b5797]/20 flex items-center justify-center text-[#2b5797] shrink-0 shadow-sm">
+            <Waves className="w-4 h-4 stroke-[2.2]" />
           </div>
-          <div>
-            <h1 className="text-xs font-bold tracking-wider uppercase text-white font-mono drop-shadow">Campus Guard</h1>
-            <p className="text-[10px] text-white/70 tracking-wide">无感自愈守护内核</p>
+          <div className="min-w-0">
+            <h1 className="text-[15px] font-bold tracking-wide text-ink-primary truncate">安澜</h1>
+            <p className="text-[11px] text-ink-tertiary truncate">校园网无感守护</p>
           </div>
         </div>
 
         {/* 导航菜单 */}
-        <nav className="space-y-1.5">
+        <nav className="space-y-1">
           {navItems.map((item) => {
             const Icon = item.icon;
             const active = currentTab === item.id;
             return (
               <button
                 key={item.id}
+                type="button"
                 onClick={() => onSelectTab(item.id)}
-                className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all duration-200 ${
+                className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-medium whitespace-nowrap transition-all duration-150 ${
                   active
-                    ? 'twilight-btn-primary text-white font-semibold'
-                    : 'text-white/80 hover:text-white hover:bg-white/10'
+                    ? 'ios-btn-primary text-white font-semibold'
+                    : 'text-ink-secondary hover:text-ink-primary hover:bg-[#142033]/[0.05]'
                 }`}
               >
-                <Icon className={`w-4 h-4 stroke-[2] ${active ? 'text-white' : 'text-white/70'}`} />
+                <Icon className={`w-4 h-4 shrink-0 stroke-[2] ${active ? 'text-white' : 'text-ink-tertiary'}`} />
                 <span>{item.label}</span>
               </button>
             );
@@ -58,28 +57,28 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab, state
         </nav>
       </div>
 
-      {/* 底部实时状态呼吸指示药丸 */}
-      <div className="space-y-3 pt-4 border-t border-white/[0.08]">
-        <div className="p-3 rounded-xl bg-white/[0.03] border border-white/[0.08] space-y-2">
+      {/* 底部状态概览卡片 */}
+      <div className="space-y-2.5 pt-3 border-t border-[#142033]/[0.08]">
+        <div className="p-3 rounded-xl ios-glass-card space-y-2">
           {/* 网络自愈状态 */}
           <div className="flex items-center justify-between text-[11px]">
-            <span className="text-apple-textSecondary flex items-center gap-1.5">
-              <Wifi className="w-3.5 h-3.5 text-apple-blue" />
+            <span className="text-ink-secondary flex items-center gap-1.5">
+              <Wifi className="w-3.5 h-3.5 text-[#2b5797]" />
               链路状态
             </span>
             <div className="flex items-center gap-1.5">
               <span
                 className={`w-2 h-2 rounded-full ${
                   isOnline
-                    ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]'
+                    ? 'bg-[#2a9d6c]'
                     : isOffline
-                    ? 'bg-rose-400 shadow-[0_0_8px_rgba(251,113,133,0.8)]'
-                    : 'bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.8)]'
+                    ? 'bg-[#cf4d54]'
+                    : 'bg-[#cf8a27]'
                 }`}
               />
               <span
                 className={`font-medium ${
-                  isOnline ? 'text-apple-green' : isOffline ? 'text-apple-coral' : 'text-apple-amber'
+                  isOnline ? 'text-[#1f7a53]' : isOffline ? 'text-[#b43a40]' : 'text-[#9a5b13]'
                 }`}
               >
                 {isOnline ? '在线' : isOffline ? '自愈中' : '就绪'}
@@ -88,23 +87,20 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab, state
           </div>
 
           {/* Telegram 手机中枢状态 */}
-          <div className="flex items-center justify-between text-[11px] pt-1.5 border-t border-white/[0.04]">
-            <span className="text-apple-textSecondary flex items-center gap-1.5">
-              <Send className="w-3 h-3 text-cyan-400" />
+          <div className="flex items-center justify-between text-[11px] pt-2 border-t border-[#142033]/[0.06]">
+            <span className="text-ink-secondary flex items-center gap-1.5">
+              <Send className="w-3 h-3 text-ink-tertiary" />
               Telegram
             </span>
-            <span className={`text-[10px] font-mono ${tgRunning ? 'text-cyan-400 font-medium' : 'text-apple-textTertiary'}`}>
-              {tgRunning ? '手机已连通' : '未挂载'}
+            <span className={`text-[11px] font-medium ${tgRunning ? 'text-[#2b5797]' : 'text-ink-tertiary'}`}>
+              {tgRunning ? '已连通' : '未挂载'}
             </span>
           </div>
         </div>
 
-        {/* 底部架构标志 */}
-        <div className="px-2 flex items-center justify-between text-[10px] text-apple-textTertiary font-mono">
-          <span>Pro Edition</span>
-          <span className="uppercase tracking-wider px-1.5 py-0.5 rounded bg-white/[0.05] border border-white/[0.05]">
-            Liquid Glass
-          </span>
+        <div className="px-2 flex items-center justify-between text-[10px] text-ink-tertiary">
+          <span>校园守护 · 桌面端</span>
+          <span className="font-mono">v2.2</span>
         </div>
       </div>
     </aside>

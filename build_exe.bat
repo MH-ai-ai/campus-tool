@@ -1,10 +1,10 @@
 @echo off
 chcp 65001 >nul
-title Campus Guard 一键编译独立 EXE 应用程序
+title 安澜 一键编译独立 EXE 应用程序
 cd /d "%~dp0"
 
 echo ====================================================
-echo    Campus Guard 编译独立 Windows 桌面程序 (.EXE)
+echo    安澜 编译独立 Windows 桌面程序 (.EXE)
 echo ====================================================
 echo.
 
@@ -20,7 +20,7 @@ call "%PY_CMD%" -m pip install -r requirements.txt pyinstaller --disable-pip-ver
 
 echo.
 echo [2/3] 正在使用 PyInstaller 深度编译独立 EXE 二进制文件...
-call "%PY_CMD%" -m PyInstaller CampusGuard.spec --noconfirm --clean
+call "%PY_CMD%" -m PyInstaller AnLan.spec --noconfirm --clean
 
 if errorlevel 1 (
     echo.
@@ -34,10 +34,10 @@ if errorlevel 1 (
 echo.
 echo ====================================================
 echo [3/3] 编译成功！独立原生应用已生成：
-echo 路径: %~dp0dist\CampusGuard\CampusGuard.exe
+echo 路径: %~dp0dist\AnLan\AnLan.exe
 echo.
-echo 提示：您可以直接双击运行 CampusGuard.exe，或者将该快捷方式发送到桌面。
-echo 运行时完全脱离控制台黑框与 Python 环境，自带专属 Cyber Shield 图标！
+echo 提示：您可以直接双击运行 AnLan.exe，或者将该快捷方式发送到桌面。
+echo 运行时完全脱离控制台黑框与 Python 环境，自带专属 安澜专属图标！
 echo ====================================================
 echo.
 pause

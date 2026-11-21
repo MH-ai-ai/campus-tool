@@ -208,11 +208,17 @@ def initialize_runtime_config() -> dict[str, Any]:
 
 
 def get_config_dict() -> dict[str, Any]:
+    global _runtime_config
+    if not _runtime_config:
+        try:
+            initialize_runtime_config()
+        except Exception:
+            pass
     return _runtime_config
 
 
 def get_config() -> Config:
-    return Config.from_mapping(_runtime_config)
+    return Config.from_mapping(get_config_dict())
 
 
 def update_runtime_config(config: dict[str, Any]) -> None:

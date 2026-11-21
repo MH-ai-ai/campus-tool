@@ -1,10 +1,10 @@
 @echo off
 chcp 65001 >nul
-title Campus Guard
+title 安澜
 cd /d "%~dp0"
 
 echo ====================================================
-echo        Campus Guard 高校校园网守护控制中心
+echo        安澜 高校校园网守护控制中心
 echo ====================================================
 echo.
 

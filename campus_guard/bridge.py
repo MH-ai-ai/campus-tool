@@ -27,6 +27,7 @@ from .system import (
     get_local_mac,
     get_memory_usage,
     get_wifi_info,
+    is_wifi_link_up,
     reconnect_wifi,
 )
 from .universities import get_university_manager
@@ -162,8 +163,11 @@ class ApiBridge:
     def reconnect_wifi(self) -> dict[str, Any]:
         """手动请求重新连接 Wi-Fi。"""
         try:
-            ok, msg = reconnect_wifi()
-            return {"success": ok, "message": msg}
+            ok = bool(reconnect_wifi(force=True))
+            return {
+                "success": ok,
+                "message": "Wi-Fi 已重新连接并获取有效 IP" if ok else "Wi-Fi 重连失败，请确认校园 Wi-Fi 信号或网卡开关",
+            }
         except Exception as err:
             return {"success": False, "message": f"Wi-Fi 重连异常: {err}"}
 
@@ -275,11 +279,22 @@ class ApiBridge:
             save_config_raw(encrypt_sensitive_fields(cfg))
             update_runtime_config(decrypt_config(cfg))
 
+            # 若 Wi-Fi 未连接或尚无有效局域网 IP，先自动拉起校园 Wi-Fi
+            if not is_wifi_link_up() or get_local_ip() == "未知":
+                log.info("一键联网检测到 Wi-Fi 未连接或无有效 IP，先自动拉起校园 Wi-Fi...")
+                if not reconnect_wifi(force=True):
+                    return {
+                        "success": False,
+                        "message": "无法连接校园 Wi-Fi，请确认无线网卡已开启且处于校园网覆盖区域",
+                        "detected": detected_info,
+                    }
+
             ok, msg = campus_login()
 
-            # 自动自愈重试：若因网关超时或网络地址漂移失败，尝试通过零延迟 IP 探针动态重新嗅探校准
-            if not ok and any(k in msg for k in ("超时", "无法连接", "未配置", "网关", "未获取")):
-                log.info("一键联网初次认证未成功（%s），正在自动嗅探网络网关进行二次自愈重试...", msg)
+            # 自动自愈重试：若因网关超时或网络地址漂移失败，先刷新假死 Wi-Fi 再嗅探校准重试
+            if not ok and any(k in msg for k in ("超时", "无法连接", "10065", "未配置", "网关", "未获取")):
+                log.info("一键联网初次认证未成功（%s），正在刷新链路并自动嗅探网关进行二次自愈重试...", msg)
+                reconnect_wifi(force=True)
                 sniff_ok, sniff_msg, detected = auto_detect_portal_config()
                 if sniff_ok and detected and detected.get("campus_auth_url"):
                     detected_info = detected
@@ -295,10 +310,12 @@ class ApiBridge:
 
                     save_config_raw(encrypt_sensitive_fields(cfg))
                     update_runtime_config(decrypt_config(cfg))
-                    ok, msg = campus_login()
+                ok, msg = campus_login()
 
             if self._network and hasattr(self._network, "record_event"):
                 self._network.record_event(f"一键联网认证: {msg}")
+            if self._network and hasattr(self._network, "check"):
+                self._network.check()
             return {
                 "success": ok,
                 "message": msg,
@@ -429,7 +446,7 @@ class ApiBridge:
             return {"success": False, "message": "尚未配置 Telegram Bot Token 或 用户 ID"}
 
         test_msg = (
-            "🛰️ Campus Guard 控制中枢握手成功\n"
+            "🛰️ 安澜 控制中枢握手成功\n"
             f"{'─' * 28}\n"
             f"📱 设备已成功与本客户端建立加密双向链路\n"
             f"🕒 握手时间: {time.strftime('%Y-%m-%d %H:%M:%S')}\n"

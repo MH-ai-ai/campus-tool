@@ -19,6 +19,10 @@ from .telegram_bot import TelegramBot
 
 log = get_logger()
 
+# 开机自启项名称：改名后使用 AnLan；旧版（CampusGuard）名称仅用于迁移清理
+AUTOSTART_NAME = "AnLan"
+LEGACY_AUTOSTART_NAME = "CampusGuard"
+
 
 def check_disk_space(notify_callback) -> None:
     try:
@@ -96,6 +100,38 @@ def build_autostart_command() -> str:
     return f'"{pythonw}" "{script_path}"'
 
 
+def _remove_legacy_autostart() -> None:
+    """清理改名前（CampusGuard）遗留的自启项，避免开机重复拉起两个实例。"""
+    if platform.system() != "Windows":
+        return
+    try:
+        import winreg
+
+        key = winreg.OpenKey(
+            winreg.HKEY_CURRENT_USER,
+            r"Software\Microsoft\Windows\CurrentVersion\Run",
+            0,
+            winreg.KEY_SET_VALUE,
+        )
+        try:
+            winreg.DeleteValue(key, LEGACY_AUTOSTART_NAME)
+            log.info("已迁移并清理旧版开机自启项: %s", LEGACY_AUTOSTART_NAME)
+        except FileNotFoundError:
+            pass
+        finally:
+            winreg.CloseKey(key)
+    except Exception:
+        pass
+    try:
+        subprocess.run(
+            ["schtasks", "/delete", "/tn", LEGACY_AUTOSTART_NAME, "/f"],
+            capture_output=True,
+            creationflags=0x08000000,
+        )
+    except Exception:
+        pass
+
+
 def setup_autostart() -> None:
     if platform.system() != "Windows":
         return
@@ -110,7 +146,7 @@ def setup_autostart() -> None:
             0,
             winreg.KEY_SET_VALUE,
         )
-        winreg.SetValueEx(key, "CampusGuard", 0, winreg.REG_SZ, cmd)
+        winreg.SetValueEx(key, AUTOSTART_NAME, 0, winreg.REG_SZ, cmd)
         winreg.CloseKey(key)
         log.info("已成功注册 Windows 开机自启动 (HKCU Run): %s", cmd)
     except Exception as err:
@@ -123,7 +159,7 @@ def setup_autostart() -> None:
                 "schtasks",
                 "/create",
                 "/tn",
-                "CampusGuard",
+                AUTOSTART_NAME,
                 "/tr",
                 cmd,
                 "/sc",
@@ -136,6 +172,9 @@ def setup_autostart() -> None:
         )
     except Exception:
         pass
+
+    # 3. 迁移：清理改名前遗留的旧自启项
+    _remove_legacy_autostart()
 
 
 def remove_autostart() -> None:
@@ -150,19 +189,20 @@ def remove_autostart() -> None:
             0,
             winreg.KEY_SET_VALUE,
         )
-        winreg.DeleteValue(key, "CampusGuard")
+        winreg.DeleteValue(key, AUTOSTART_NAME)
         winreg.CloseKey(key)
         log.info("已注销 Windows 自启动项")
     except Exception:
         pass
     try:
         subprocess.run(
-            ["schtasks", "/delete", "/tn", "CampusGuard", "/f"],
+            ["schtasks", "/delete", "/tn", AUTOSTART_NAME, "/f"],
             capture_output=True,
             creationflags=0x08000000,
         )
     except Exception:
         pass
+    _remove_legacy_autostart()
 
 
 def _run_main() -> None:
@@ -171,12 +211,12 @@ def _run_main() -> None:
         try:
             import ctypes
 
-            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("MH.CampusGuard.Desktop.2.1")
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("MH.AnLan.Desktop.2.2")
         except Exception:
             pass
 
     log.info("=" * 40)
-    log.info("Campus Guard 启动")
+    log.info("安澜 启动")
     log.info("Python: %s", sys.version)
     log.info("应用路径: %s", APP_DIR)
 
@@ -222,7 +262,7 @@ def main() -> None:
 
         tb = traceback.format_exc()
         try:
-            log.critical("Campus Guard 启动异常: %s\n%s", err, tb)
+            log.critical("安澜 启动异常: %s\n%s", err, tb)
         except Exception:
             pass
         if sys.platform == "win32":
@@ -231,8 +271,8 @@ def main() -> None:
 
                 ctypes.windll.user32.MessageBoxW(
                     0,
-                    f"Campus Guard 启动异常:\n{err}\n\n详细调用栈:\n{tb[:800]}",
-                    "Campus Guard 错误拦截",
+                    f"安澜 启动异常:\n{err}\n\n详细调用栈:\n{tb[:800]}",
+                    "安澜 错误拦截",
                     0x10,
                 )
             except Exception:

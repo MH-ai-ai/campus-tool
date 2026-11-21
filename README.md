@@ -1,11 +1,11 @@
 # Campus Guard
 
 <p align="center">
-  <a href="https://github.com/MH-ai-ai/campus-tool/releases/latest"><img src="https://img.shields.io/badge/Release-v2.2.0-1E293B?style=flat-square&logo=github" alt="Latest Release" /></a>
+  <a href="https://github.com/MH-ai-ai/campus-tool/releases/latest"><img src="https://img.shields.io/badge/Release-v2.3.0-2B5797?style=flat-square&logo=github" alt="Latest Release" /></a>
   <img src="https://img.shields.io/badge/Platform-Windows%2010%20%2F%2011%20(x64)-0078D4?style=flat-square&logo=windows" alt="Platform" />
   <img src="https://img.shields.io/badge/Runtime-Edge%20WebView2%20%7C%20Python%203.12%2B-475569?style=flat-square" alt="Runtime" />
   <img src="https://img.shields.io/badge/UI-React%2019%20%7C%20Tailwind%20CSS-38BDF8?style=flat-square&logo=react" alt="Frontend" />
-  <img src="https://img.shields.io/badge/Tests-53%20Passed-10B981?style=flat-square" alt="Tests" />
+  <img src="https://img.shields.io/badge/Tests-78%20Passed-1F7A53?style=flat-square" alt="Tests" />
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-64748B?style=flat-square" alt="License" /></a>
 </p>
 
@@ -13,17 +13,17 @@
 
 ## 概述与设计理念
 
-**Campus Guard** 是面向 Windows 操作系统的高校校园网络自动化认证与状态自愈常驻守护系统。针对高校校园网络中广泛存在的认证过期掉线、宿舍定时断电、无线接入点漫游漂移以及 Captive Portal 强制重定向拦截等典型场景设计。
+**安澜（原名 Campus Guard）** 是面向 Windows 操作系统的高校校园网络自动化认证与状态自愈常驻守护系统。针对高校校园网络中广泛存在的认证过期掉线、宿舍定时断电、无线接入点漫游漂移以及 Captive Portal 强制重定向拦截等典型场景设计。
 
 项目以**延安大学（Yan'an University）**全校区校园网网络环境为核心原型进行深度量身定制，并完整覆盖国内主流高校认证体系（城市热点 Dr.COM、深澜 Srun 4000/Portal、锐捷 Ruijie SAM/ePortal 及通用 Web Portal）。
 
 ### 核心系统特征
 
-* **原生视窗渲染架构**：采用 Windows 原生 Edge Chromium WebView2 引擎，搭载 React 19 与 Twilight Crystal Glass（微光水晶）设计范式，支持 GPU 硬件栅格化加速，根除传统脚本 GUI 的顿挫与撕裂；
+* **原生视窗渲染架构**：采用 Windows 原生 Edge Chromium WebView2 引擎，搭载 React 19 与 iOS 浅色典雅微透磨砂玻璃设计范式，支持 GPU 硬件栅格化加速，根除传统脚本 GUI 的顿挫与撕裂；
 * **零 DNS 延迟嗅探引擎**：在未认证且外部 DNS 阻断的网络环境下，通过网关与公网原始 IP 并发探针拦截 Captive Portal 302 重定向，将网关嗅探耗时从数分钟降至毫秒级（5~50ms）；
 * **全自主协议密码学实现**：纯 Python 原生算法实现深澜 Srun 4000 的 xEncode / XXTEA 对称加密算法与 64 字符密码表 Base64 编码，零外部 Node.js 运行时依赖；
-* **毫秒自愈与后台轻量常驻**：基于内核套接字无损探活，网络波动时毫秒级自动重连；稳定运行时自动进入浅休眠模式，配合底层物理内存工作集修剪；
-* **双向遥测与国内免梯通报**：原生支持飞书自适应状态卡片、钉钉加签 Markdown 通报；支持 Telegram 手机端双向远程指令控制（无公网 IP 限制）；
+* **断网自动重连与零定位闪烁**：基于内存级无线网卡状态签名与 Windows NLA 网络档案查询，稳态挂机零次触发系统定位图标闪烁；一旦检测到断网或网关假死，自动强力刷新无线链路并完成校园网重新认证；
+* **双向遥测与远程加速**：原生支持飞书自适应状态卡片、钉钉加签 Markdown 通报；支持 Telegram 手机端 `/boost` 一键嗅探加速、`/status`、`/battery` 等双向远程控制；
 * **本地加密与电源安全守护**：敏感凭据采用本地对称密钥（Fernet）加密存储；笔记本低电量多梯次预警，电量低于阈值时触发可撤销安全关机保护。
 
 ---
@@ -34,7 +34,7 @@
 flowchart TD
     subgraph UI ["视窗呈现层 (Presentation)"]
         WV2["Edge WebView2 Runtime (GPU 硬件加速)"]
-        REACT["React 19 + Tailwind CSS (Twilight Crystal UI)"]
+        REACT["React 19 + Tailwind CSS (iOS 浅色微透磨砂玻璃)"]
         WV2 --- REACT
     end
 
@@ -80,9 +80,9 @@ flowchart TD
 
 ### 方式一：下载绿色便携版（推荐）
 
-1. 从 [**GitHub Releases**](https://github.com/MH-ai-ai/campus-tool/releases/latest) 下载最新版 `CampusGuard-v2.2.0-Windows-x64.zip`；
+1. 从 [**GitHub Releases**](https://github.com/MH-ai-ai/campus-tool/releases/latest) 下载最新版 `AnLan-v2.3.0-Windows-x64.zip`；
 2. 解压到本地任意目录（系统需为 64 位 Windows 10 或 Windows 11，内置 Edge 即可，无需安装 Python 或 Node.js）；
-3. 双击 `CampusGuard.exe` 启动系统，控制中心将自动常驻任务栏托盘；
+3. 双击 `AnLan.exe` 启动系统，控制中心将自动常驻任务栏托盘；
 4. 连入校园 Wi-Fi，在首页输入学号与密码，点击「一键极速联网」，系统将全自动识别网关参数、完成认证并开启后台自愈守护。
 
 ### 方式二：从源码运行与二次开发
@@ -110,7 +110,7 @@ py -3.12 -m venv .venv
 
 #### 3. 运行与测试
 ```powershell
-# 运行完整自动化测试套件 (53 项单元测试)
+# 运行完整自动化测试套件 (78 项单元测试)
 .\.venv\Scripts\python.exe -m unittest discover tests -v
 
 # 启动控制中心客户端

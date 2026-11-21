@@ -55,14 +55,20 @@ class TestApiBridge(unittest.TestCase):
             self.assertFalse(res["success"])
             self.assertIn("尚未配置", res["message"])
 
+    @patch("campus_guard.bridge.reconnect_wifi", return_value=True)
+    @patch("campus_guard.bridge.get_local_ip", return_value="10.211.110.229")
+    @patch("campus_guard.bridge.is_wifi_link_up", return_value=True)
     @patch("campus_guard.bridge.campus_login", return_value=(True, "认证成功"))
-    def test_quick_connect(self, mock_login) -> None:
+    def test_quick_connect(self, mock_login, mock_wifi_up, mock_ip, mock_reconn) -> None:
         res = self.bridge.quick_connect("20240901001", "password123")
         self.assertTrue(res["success"])
         self.assertIn("认证成功", res["message"])
 
+    @patch("campus_guard.bridge.reconnect_wifi", return_value=True)
+    @patch("campus_guard.bridge.get_local_ip", return_value="10.211.110.229")
+    @patch("campus_guard.bridge.is_wifi_link_up", return_value=True)
     @patch("campus_guard.bridge.campus_login", return_value=(True, "一键认证OK"))
-    def test_quick_connect_with_real_network_monitor(self, mock_login) -> None:
+    def test_quick_connect_with_real_network_monitor(self, mock_login, mock_wifi_up, mock_ip, mock_reconn) -> None:
         from campus_guard.battery import BatteryTracker
         from campus_guard.network import NetworkMonitor
 
@@ -79,14 +85,46 @@ class TestApiBridge(unittest.TestCase):
         self.assertEqual(res["message"], "捕获成功")
         self.assertEqual(res["detected"]["campus_auth_url"], "http://10.211.0.1/login")
 
+    @patch("campus_guard.bridge.reconnect_wifi", return_value=True)
+    @patch("campus_guard.bridge.get_local_ip", return_value="10.211.110.229")
+    @patch("campus_guard.bridge.is_wifi_link_up", return_value=True)
     @patch("campus_guard.bridge.campus_login", side_effect=[(False, "无法连接网关"), (True, "重试自愈成功")])
     @patch("campus_guard.bridge.auto_detect_portal_config", return_value=(True, "嗅探成功", {"campus_auth_url": "http://10.200.84.3:801/eportal/portal/login"}))
-    def test_quick_connect_auto_heal_retry(self, mock_sniff, mock_login) -> None:
+    def test_quick_connect_auto_heal_retry(self, mock_sniff, mock_login, mock_wifi_up, mock_ip, mock_reconn) -> None:
         res = self.bridge.quick_connect("20240901001", "password123")
         self.assertTrue(res["success"])
         self.assertIn("重试自愈成功", res["message"])
         self.assertEqual(mock_login.call_count, 2)
         mock_sniff.assert_called()
+        mock_reconn.assert_called_with(force=True)
+
+    def test_bridge_reconnect_wifi_handles_bool_return(self) -> None:
+        """验证 ApiBridge.reconnect_wifi 正确处理 bool 返回值，不会因元组解包抛出 TypeError。"""
+        with patch("campus_guard.bridge.reconnect_wifi", return_value=True) as mock_reconn:
+            res = self.bridge.reconnect_wifi()
+            self.assertTrue(res["success"])
+            self.assertIn("已重新连接", res["message"])
+            mock_reconn.assert_called_once_with(force=True)
+
+        with patch("campus_guard.bridge.reconnect_wifi", return_value=False):
+            res_fail = self.bridge.reconnect_wifi()
+            self.assertFalse(res_fail["success"])
+            self.assertIn("失败", res_fail["message"])
+
+    @patch("campus_guard.bridge.campus_login", return_value=(True, "认证成功"))
+    @patch("campus_guard.bridge.reconnect_wifi", return_value=True)
+    @patch("campus_guard.bridge.get_local_ip", return_value="未知")
+    @patch("campus_guard.bridge.is_wifi_link_up", return_value=False)
+    def test_quick_connect_reconnects_wifi_when_disconnected(self, mock_wifi_up, mock_ip, mock_reconn, mock_login) -> None:
+        """验证 Wi-Fi 断开时调用 quick_connect 会先强力拉起 Wi-Fi，再执行校园网登录。"""
+        call_order = []
+        mock_reconn.side_effect = lambda **kw: (call_order.append("reconnect"), True)[1]
+        mock_login.side_effect = lambda: (call_order.append("login"), (True, "认证成功"))[1]
+
+        res = self.bridge.quick_connect("20240901001", "password123")
+        self.assertTrue(res["success"])
+        self.assertEqual(call_order, ["reconnect", "login"])
+        mock_reconn.assert_called_once_with(force=True)
 
     def test_export_logs_returns_dict(self) -> None:
         res = self.bridge.export_logs()
