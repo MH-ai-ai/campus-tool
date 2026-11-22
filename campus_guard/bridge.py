@@ -21,6 +21,11 @@ from .config import (
 from .logging_setup import get_logger
 from .network import NetworkMonitor
 from .paths import APP_DIR, LOG_PATH
+from .proxy_manager import (
+    detect_clash_client,
+    get_proxy_runtime_status,
+    launch_proxy_and_enable,
+)
 from .system import (
     get_disk_free_gb,
     get_local_ip,
@@ -135,6 +140,7 @@ class ApiBridge:
                 "user_id": str(cfg.get("telegram_user_id", "")),
                 "is_running": bool(self._tg_bot and getattr(self._tg_bot, "app", None)),
             },
+            "proxy": get_proxy_runtime_status(cfg),
         }
 
     def get_config(self) -> dict[str, Any]:
@@ -153,7 +159,20 @@ class ApiBridge:
 
             encrypted = encrypt_sensitive_fields(raw)
             save_config_raw(encrypted)
-            update_runtime_config(decrypt_config(raw))
+            decrypted = decrypt_config(raw)
+            update_runtime_config(decrypted)
+
+            # 实时同步 Windows 开机自启注册表与静默托盘参数
+            try:
+                from .runtime import remove_autostart, setup_autostart
+
+                if bool(decrypted.get("autostart", True)):
+                    setup_autostart()
+                else:
+                    remove_autostart()
+            except Exception as auto_err:
+                log.warning("同步开机自启动设置异常: %s", auto_err)
+
             log.info("用户通过 Web 控制中心成功保存配置")
             return {"success": True, "message": "配置已安全加密并保存生效"}
         except Exception as err:
@@ -190,6 +209,45 @@ class ApiBridge:
             return {"success": ok, "message": msg}
         except Exception as err:
             return {"success": False, "message": f"注销请求异常: {err}"}
+
+    def detect_proxy_client(self) -> dict[str, Any]:
+        """自动探测本机安装的 Clash 等代理客户端路径与默认端口。"""
+        try:
+            info = detect_clash_client()
+            if info.get("found"):
+                return {
+                    "success": True,
+                    "message": f"已检测到 {info.get('name', '代理客户端')} ({info.get('proxy_server', '127.0.0.1:7897')})",
+                    "data": info,
+                }
+            return {
+                "success": False,
+                "message": "未自动检测到 Clash 客户端，请手动填写 .exe 可执行文件完整路径",
+                "data": info,
+            }
+        except Exception as err:
+            return {"success": False, "message": f"探测代理客户端异常: {err}", "data": {}}
+
+    def launch_proxy_now(self, overrides: dict[str, Any] | None = None) -> dict[str, Any]:
+        """立即执行一次代理客户端拉起并开启系统代理（支持前端尚未保存的临时参数覆盖）。"""
+        try:
+            cfg = dict(get_config_dict())
+            if isinstance(overrides, dict):
+                for key in (
+                    "proxy_exe_path",
+                    "proxy_server",
+                    "auto_enable_system_proxy",
+                    "proxy_bypass",
+                    "proxy_wait_timeout_seconds",
+                ):
+                    if key in overrides and overrides[key] is not None:
+                        cfg[key] = overrides[key]
+            ok, msg = launch_proxy_and_enable(cfg, force=True)
+            if self._network and hasattr(self._network, "record_event"):
+                self._network.record_event(f"代理联动: {msg}")
+            return {"success": ok, "message": msg}
+        except Exception as err:
+            return {"success": False, "message": f"代理启动异常: {err}"}
 
     def auto_sniff(self) -> dict[str, Any]:
         """触发未加密 HTTP Captive Portal 探针智能识别高校参数。"""

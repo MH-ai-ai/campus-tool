@@ -7,6 +7,7 @@ import subprocess
 import sys
 import threading
 import time
+from pathlib import Path
 
 from .battery import BatteryMonitor, BatteryTracker
 from .config import check_config_reload, encrypt_config_file, get_config_dict, initialize_runtime_config
@@ -87,17 +88,67 @@ def monitor_loop(
     log.warning("监控循环已退出")
 
 
-def build_autostart_command() -> str:
-    if getattr(sys, "frozen", False):
-        return f'"{sys.executable}"'
+def unblock_motw_files(base_dir: Path | None = None) -> int:
+    """在 Windows 下自动解除应用目录内二进制文件的 Zone.Identifier (MOTW) 锁定标记。
+    防止从浏览器/GitHub 下载解压后因缺少解除锁定而触发 .NET CLR CAS 加载 Python.Runtime.dll 失败。
+    """
+    if sys.platform != "win32":
+        return 0
 
-    script_path = str(APP_DIR / "campus_guard.pyw")
-    import ntpath
-    p_module = ntpath if ("\\" in sys.executable or os.name == "nt") else os.path
-    pythonw = p_module.join(p_module.dirname(sys.executable), "pythonw.exe")
-    if not os.path.exists(pythonw):
-        pythonw = sys.executable
-    return f'"{pythonw}" "{script_path}"'
+    root = Path(base_dir) if base_dir is not None else Path(APP_DIR)
+    if not root.exists():
+        return 0
+
+    target_suffixes = {".dll", ".exe", ".pyd"}
+    unblocked_count = 0
+
+    scan_roots: list[Path] = [root]
+    internal_dir = root / "_internal"
+    if internal_dir.is_dir():
+        for dirpath, _dirnames, filenames in os.walk(internal_dir):
+            dp = Path(dirpath)
+            for fname in filenames:
+                if Path(fname).suffix.lower() in target_suffixes:
+                    ads_path = f"{dp / fname}:Zone.Identifier"
+                    try:
+                        os.remove(ads_path)
+                        unblocked_count += 1
+                    except OSError:
+                        pass
+
+    for top_dir in scan_roots:
+        try:
+            for item in top_dir.iterdir():
+                if item.is_file() and item.suffix.lower() in target_suffixes:
+                    ads_path = f"{item}:Zone.Identifier"
+                    try:
+                        os.remove(ads_path)
+                        unblocked_count += 1
+                    except OSError:
+                        pass
+        except OSError:
+            pass
+
+    if unblocked_count > 0:
+        log.info("已自动解除 %d 个二进制文件的 Windows 下载安全锁定标记 (Zone.Identifier)", unblocked_count)
+    return unblocked_count
+
+
+def build_autostart_command(minimized: bool = False) -> str:
+    if getattr(sys, "frozen", False):
+        cmd = f'"{sys.executable}"'
+    else:
+        script_path = str(APP_DIR / "campus_guard.pyw")
+        import ntpath
+        p_module = ntpath if ("\\" in sys.executable or os.name == "nt") else os.path
+        pythonw = p_module.join(p_module.dirname(sys.executable), "pythonw.exe")
+        if not os.path.exists(pythonw):
+            pythonw = sys.executable
+        cmd = f'"{pythonw}" "{script_path}"'
+
+    if minimized:
+        return f"{cmd} --minimized"
+    return cmd
 
 
 def _remove_legacy_autostart() -> None:
@@ -135,7 +186,9 @@ def _remove_legacy_autostart() -> None:
 def setup_autostart() -> None:
     if platform.system() != "Windows":
         return
-    cmd = build_autostart_command()
+    cfg = get_config_dict()
+    minimized = bool(cfg.get("start_minimized_on_boot", True))
+    cmd = build_autostart_command(minimized=minimized)
     # 1. 优先使用 Windows 官方推荐 HKCU Run 注册表（100% 免管理员提权，开机登录桌面可靠启动托盘）
     try:
         import winreg
@@ -167,7 +220,6 @@ def setup_autostart() -> None:
                 "/f",
             ],
             capture_output=True,
-            text=True,
             creationflags=0x08000000,
         )
     except Exception:
@@ -220,6 +272,9 @@ def _run_main() -> None:
     log.info("Python: %s", sys.version)
     log.info("应用路径: %s", APP_DIR)
 
+    # 启动早期先解除 Windows 下载锁定流（Zone.Identifier），确保后续 pythonnet/WebView2 加载顺畅
+    unblock_motw_files()
+
     initialize_runtime_config()
     encrypt_config_file()
     initialize_runtime_config()
@@ -248,10 +303,14 @@ def _run_main() -> None:
     bot_thread.start()
     log.info("Telegram Bot 线程已启动")
 
+    start_minimized = "--minimized" in sys.argv[1:]
+    if start_minimized:
+        log.info("检测到 --minimized 参数，以系统托盘静默模式启动")
+
     from .ui import launch_gui
 
     log.info("启动现代控制中心 Webview 窗口与托盘守护")
-    launch_gui(battery, network, tg_bot)
+    launch_gui(battery, network, tg_bot, start_minimized=start_minimized)
 
 
 def main() -> None:

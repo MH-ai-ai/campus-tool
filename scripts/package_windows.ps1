@@ -1,6 +1,7 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
-    [switch]$SkipTests
+    [switch]$SkipTests,
+    [switch]$SkipFrontendBuild
 )
 
 $ErrorActionPreference = "Stop"
@@ -23,10 +24,14 @@ if (-not (Test-Path -LiteralPath $Spec)) {
 $FrontendDir = Join-Path $RepoRoot "frontend"
 $WebDistIndex = Join-Path $RepoRoot "campus_guard\web_dist\index.html"
 if (Test-Path -LiteralPath $FrontendDir) {
-    if (-not (Test-Path -LiteralPath $WebDistIndex)) {
+    if (-not $SkipFrontendBuild -or -not (Test-Path -LiteralPath $WebDistIndex)) {
         Write-Host "Building frontend assets..."
         Push-Location $FrontendDir
         & npm run build
+        if ($LASTEXITCODE -ne 0) {
+            Pop-Location
+            throw "Frontend build failed"
+        }
         Pop-Location
     }
 }
@@ -50,6 +55,17 @@ if ($LASTEXITCODE -ne 0) {
 
 if (-not (Test-Path -LiteralPath $ExePath)) {
     throw "Expected executable was not created: $ExePath"
+}
+
+$ExeConfigSource = Join-Path $RepoRoot "assets\AnLan.exe.config"
+$ExeConfigDest = Join-Path $DistDir "AnLan.exe.config"
+if (-not (Test-Path -LiteralPath $ExeConfigSource)) {
+    throw "Expected .NET runtime config was not found: $ExeConfigSource"
+}
+Copy-Item -LiteralPath $ExeConfigSource -Destination $ExeConfigDest -Force
+
+if (-not (Test-Path -LiteralPath $ExeConfigDest)) {
+    throw "Expected .NET runtime config was not copied: $ExeConfigDest"
 }
 
 Copy-Item -LiteralPath (Join-Path $RepoRoot "config.example.json") -Destination (Join-Path $DistDir "config.example.json") -Force

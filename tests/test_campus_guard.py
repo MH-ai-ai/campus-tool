@@ -558,7 +558,7 @@ class CampusGuardTests(unittest.TestCase):
             gateway_ok=True,
             internet_direct_ok=False,
             internet_proxy_ok=False,
-            local_ip="10.211.110.229",
+            local_ip="10.211.0.100",
             wifi_info="YADX-STU (90%)",
             clash_tun=False,
             reason="直连外网不通",
@@ -612,7 +612,7 @@ class CampusGuardTests(unittest.TestCase):
         # 模拟深澜/Dr.COM 常见的 location.replace 页面
         js_replace_html = """
         <html><head><script type="text/javascript">
-            location.replace("http://10.200.84.3:801/eportal/portal/login?wlanuserip=10.211.110.229&wlanacip=10.255.250.74");
+            location.replace("http://10.200.84.3:801/eportal/portal/login?wlanuserip=10.211.0.100&wlanacip=10.255.250.74");
         </script></head><body></body></html>
         """
         mock_resp = Mock()
@@ -624,12 +624,12 @@ class CampusGuardTests(unittest.TestCase):
         with (
             patch("requests.Session.get", return_value=mock_resp),
             patch("campus_guard.auth.get_wifi_info", return_value="YADX-STU (88%)"),
-            patch("campus_guard.auth.get_local_ip", return_value="10.211.110.229"),
+            patch("campus_guard.auth.get_local_ip", return_value="10.211.0.100"),
             patch("campus_guard.auth.get_default_gateway", return_value="10.211.0.1"),
         ):
             ok, msg, extracted = auto_detect_portal_config()
             self.assertTrue(ok)
-            self.assertEqual(extracted.get("wlan_user_ip"), "10.211.110.229")
+            self.assertEqual(extracted.get("wlan_user_ip"), "10.211.0.100")
             self.assertEqual(extracted.get("wlan_ac_ip"), "10.255.250.74")
             self.assertEqual(extracted.get("auth_protocol"), "drcom")
 
@@ -646,7 +646,7 @@ class CampusGuardTests(unittest.TestCase):
         with (
             patch("requests.Session.get", return_value=mock_resp),
             patch("campus_guard.auth.get_wifi_info", return_value="YADX-STU (92%)"),
-            patch("campus_guard.auth.get_local_ip", return_value="10.211.110.229"),
+            patch("campus_guard.auth.get_local_ip", return_value="10.211.0.100"),
             patch("campus_guard.auth.get_default_gateway", return_value="10.211.0.1"),
             patch("campus_guard.system.tcp_check", return_value=True),
         ):
@@ -684,7 +684,7 @@ class CampusGuardTests(unittest.TestCase):
             gateway_ok=False,
             internet_direct_ok=False,
             internet_proxy_ok=False,
-            local_ip="10.211.110.229",
+            local_ip="10.211.0.100",
             wifi_info="YADX-STU (85%)",
             clash_tun=False,
             reason="校园网网关不可达",
@@ -725,7 +725,7 @@ class CampusGuardTests(unittest.TestCase):
             patch("campus_guard.system.check_campus_gateway", return_value=True),
             patch("campus_guard.system.check_internet", return_value=True),
             patch("campus_guard.system.get_wifi_info", return_value="YADX-STU (90%)"),
-            patch("campus_guard.system.get_local_ip", return_value="10.211.110.229"),
+            patch("campus_guard.system.get_local_ip", return_value="10.211.0.100"),
         ):
             asyncio.run(bot._cmd_boost(mock_update, Mock()))
             self.assertTrue(mock_update.message.reply_text.called)
@@ -739,7 +739,7 @@ class CampusGuardTests(unittest.TestCase):
 
         with (
             patch("campus_guard.system.get_wifi_info", return_value="YADX-STU (85%)"),
-            patch("campus_guard.system.get_local_ip", return_value="10.211.110.229"),
+            patch("campus_guard.system.get_local_ip", return_value="10.211.0.100"),
             patch("campus_guard.system.get_saved_wifi_profiles", return_value=["YADX-STU", "Home"]),
             patch("campus_guard.system.is_wifi_link_up", return_value=False),
             patch("time.sleep"),
@@ -791,7 +791,7 @@ class CampusGuardTests(unittest.TestCase):
             gateway_ok=True,
             internet_direct_ok=True,
             internet_proxy_ok=False,
-            local_ip="10.211.110.229",
+            local_ip="10.211.0.100",
             wifi_info="YADX-STU (90%)",
             clash_tun=False,
             reason="网络在线 (校园网)",
@@ -836,7 +836,7 @@ class CampusGuardTests(unittest.TestCase):
             gateway_ok=False,
             internet_direct_ok=False,
             internet_proxy_ok=False,
-            local_ip="10.211.110.229",
+            local_ip="10.211.0.100",
             wifi_info="YADX-STU (88%)",
             clash_tun=False,
             reason="校园网网关不可达",
@@ -849,7 +849,7 @@ class CampusGuardTests(unittest.TestCase):
             gateway_ok=True,
             internet_direct_ok=True,
             internet_proxy_ok=False,
-            local_ip="10.211.110.229",
+            local_ip="10.211.0.100",
             wifi_info="YADX-STU (90%)",
             clash_tun=False,
             reason="网络在线 (校园网)",
@@ -902,8 +902,8 @@ class CampusGuardTests(unittest.TestCase):
             with patch(
                 "campus_guard.system.get_primary_interface_info",
                 side_effect=[
-                    ("未知网卡", "未知", "c85ea9797308"),
-                    ("WLAN", "10.211.110.229", "c85ea9797304"),
+                    ("未知网卡", "未知", "aa11bb22cc44"),
+                    ("WLAN", "10.211.0.100", "aa11bb22cc33"),
                 ],
             ):
                 mac_offline = sys_mod.get_local_mac()
@@ -911,8 +911,8 @@ class CampusGuardTests(unittest.TestCase):
                 self.assertEqual(len(mac_offline), 12)
 
                 mac_online = sys_mod.get_local_mac()
-                self.assertEqual(mac_online, "c85ea9797304")
-                self.assertEqual(sys_mod._cached_mac, "c85ea9797304")
+                self.assertEqual(mac_online, "aa11bb22cc33")
+                self.assertEqual(sys_mod._cached_mac, "aa11bb22cc33")
         finally:
             sys_mod._cached_mac = old_cache
 
@@ -926,7 +926,7 @@ class CampusGuardTests(unittest.TestCase):
         mock_proc.stderr = b""
 
         # 前 16 次检查（第一个 SSID）无有效 IP，第 17 次（第二个 SSID）获取到有效 IP
-        ip_seq = ["未知"] * 16 + ["10.211.110.229"]
+        ip_seq = ["未知"] * 16 + ["10.211.0.100"]
         with (
             patch("campus_guard.system.get_config_dict", return_value={"campus_wifi_ssid": "YADX-TEA", "campus_wifi_ssids": ["YADX-STU"]}),
             patch("campus_guard.system.get_saved_wifi_profiles", return_value=["YADX-TEA", "YADX-STU"]),
@@ -964,9 +964,9 @@ class CampusGuardTests(unittest.TestCase):
 
             mock_stats = {"WLAN": SimpleNamespace(isup=True)}
             sig_seq = [
-                (True, "WLAN", "10.211.130.38"),
-                (True, "WLAN", "10.211.130.38"),  # 签名未变
-                (True, "WLAN", "10.211.130.99"),  # IP 发生改变，自动刷新
+                (True, "WLAN", "10.211.0.101"),
+                (True, "WLAN", "10.211.0.101"),  # 签名未变
+                (True, "WLAN", "10.211.0.102"),  # IP 发生改变，自动刷新
             ]
             proc1 = SimpleNamespace(returncode=0, stdout=b"YADX-STU 6\r\n", stderr=b"")
             proc2 = SimpleNamespace(returncode=0, stdout=b"Home_5G\r\n", stderr=b"")
@@ -1027,6 +1027,39 @@ class CampusGuardTests(unittest.TestCase):
             # 确认调用过清理旧计划任务
             schtasks_cmds = [c[0][0] for c in mock_subproc.call_args_list]
             self.assertTrue(any("/delete" in cmd and "CampusGuard" in cmd for cmd in schtasks_cmds))
+
+    def test_build_autostart_command_minimized_flag(self):
+        with (
+            patch.object(runtime.sys, "executable", r"C:\Apps\AnLan\AnLan.exe"),
+            patch.object(runtime.sys, "frozen", True, create=True),
+        ):
+            self.assertEqual(runtime.build_autostart_command(minimized=False), r'"C:\Apps\AnLan\AnLan.exe"')
+            self.assertEqual(runtime.build_autostart_command(minimized=True), r'"C:\Apps\AnLan\AnLan.exe" --minimized')
+
+    def test_setup_autostart_appends_minimized_when_enabled(self):
+        import sys
+        import types
+        from campus_guard import runtime
+
+        mock_key = MagicMock()
+        mock_winreg = types.SimpleNamespace(
+            HKEY_CURRENT_USER="HKCU",
+            KEY_SET_VALUE=2,
+            REG_SZ=1,
+            OpenKey=MagicMock(return_value=mock_key),
+            SetValueEx=MagicMock(),
+            DeleteValue=MagicMock(),
+            CloseKey=MagicMock(),
+        )
+        with (
+            patch("campus_guard.runtime.platform.system", return_value="Windows"),
+            patch("campus_guard.runtime.get_config_dict", return_value={"autostart": True, "start_minimized_on_boot": True}),
+            patch.dict(sys.modules, {"winreg": mock_winreg}),
+            patch("campus_guard.runtime.subprocess.run"),
+        ):
+            runtime.setup_autostart()
+            cmd_written = mock_winreg.SetValueEx.call_args[0][4]
+            self.assertTrue(cmd_written.endswith("--minimized"))
 
 
 if __name__ == "__main__":

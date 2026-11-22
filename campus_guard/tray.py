@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 import threading
 import time
 from typing import Any
@@ -26,6 +27,8 @@ def create_tray_icon(color: str, size: int = 64):
     from .paths import APP_DIR
 
     icon_path = APP_DIR / "assets" / "app_icon.png"
+    if not icon_path.exists():
+        icon_path = APP_DIR / "_internal" / "assets" / "app_icon.png"
     if not icon_path.exists():
         icon_path = Path(__file__).resolve().parent.parent / "assets" / "app_icon.png"
 
@@ -95,6 +98,7 @@ class PystrayTrayManager:
                 MenuItem("打开控制中心", self._on_open, default=True),
                 MenuItem("重新连接 Wi-Fi", self._on_reconnect_wifi),
                 MenuItem("立即认证校园网", self._on_auth_campus),
+                MenuItem("启动代理并开系统代理", self._on_launch_proxy),
                 Menu.SEPARATOR,
                 MenuItem("退出 安澜", self._on_exit),
             )
@@ -139,6 +143,10 @@ class PystrayTrayManager:
     def _on_auth_campus(self, icon, item) -> None:
         if self.bridge:
             threading.Thread(target=self.bridge.auth_campus, daemon=True).start()
+
+    def _on_launch_proxy(self, icon, item) -> None:
+        if self.bridge:
+            threading.Thread(target=self.bridge.launch_proxy_now, daemon=True).start()
 
     def _on_exit(self, icon, item) -> None:
         self._running = False

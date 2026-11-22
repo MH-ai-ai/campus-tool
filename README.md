@@ -1,11 +1,11 @@
 # Campus Guard
 
 <p align="center">
-  <a href="https://github.com/MH-ai-ai/campus-tool/releases/latest"><img src="https://img.shields.io/badge/Release-v2.3.0-2B5797?style=flat-square&logo=github" alt="Latest Release" /></a>
+  <a href="https://github.com/MH-ai-ai/campus-tool/releases/latest"><img src="https://img.shields.io/badge/Release-v2.3.1-2B5797?style=flat-square&logo=github" alt="Latest Release" /></a>
   <img src="https://img.shields.io/badge/Platform-Windows%2010%20%2F%2011%20(x64)-0078D4?style=flat-square&logo=windows" alt="Platform" />
   <img src="https://img.shields.io/badge/Runtime-Edge%20WebView2%20%7C%20Python%203.12%2B-475569?style=flat-square" alt="Runtime" />
   <img src="https://img.shields.io/badge/UI-React%2019%20%7C%20Tailwind%20CSS-38BDF8?style=flat-square&logo=react" alt="Frontend" />
-  <img src="https://img.shields.io/badge/Tests-78%20Passed-1F7A53?style=flat-square" alt="Tests" />
+  <img src="https://img.shields.io/badge/Tests-92%20Passed-1F7A53?style=flat-square" alt="Tests" />
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-64748B?style=flat-square" alt="License" /></a>
 </p>
 
@@ -23,6 +23,7 @@
 * **零 DNS 延迟嗅探引擎**：在未认证且外部 DNS 阻断的网络环境下，通过网关与公网原始 IP 并发探针拦截 Captive Portal 302 重定向，将网关嗅探耗时从数分钟降至毫秒级（5~50ms）；
 * **全自主协议密码学实现**：纯 Python 原生算法实现深澜 Srun 4000 的 xEncode / XXTEA 对称加密算法与 64 字符密码表 Base64 编码，零外部 Node.js 运行时依赖；
 * **断网自动重连与零定位闪烁**：基于内存级无线网卡状态签名与 Windows NLA 网络档案查询，稳态挂机零次触发系统定位图标闪烁；一旦检测到断网或网关假死，自动强力刷新无线链路并完成校园网重新认证；
+* **开机静默托盘与 Clash 代理联动**：支持开机自启 `--minimized` 静默驻留托盘；确认校园网认证连通外网后，自动拉起 Clash 客户端并开启 Windows 系统代理（自动配置校园内网绕过规则），避免开机代理抢占阻断校园网登录；
 * **双向遥测与远程加速**：原生支持飞书自适应状态卡片、钉钉加签 Markdown 通报；支持 Telegram 手机端 `/boost` 一键嗅探加速、`/status`、`/battery` 等双向远程控制；
 * **本地加密与电源安全守护**：敏感凭据采用本地对称密钥（Fernet）加密存储；笔记本低电量多梯次预警，电量低于阈值时触发可撤销安全关机保护。
 

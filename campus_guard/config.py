@@ -104,6 +104,13 @@ SETTINGS_SCHEMA: list[tuple[str, str, str, str, dict]] = [
     ("reconnect_max_retries", "重连最大重试次数", "🌐 网络与认证", "spin", {"min": 1, "max": 30}),
     ("reconnect_verify_delay_seconds", "重连验证延迟 (秒)", "🌐 网络与认证", "spin", {"min": 1, "max": 30}),
     ("reconnect_fast_retry_seconds", "快速重试间隔 (秒)", "🌐 网络与认证", "spin", {"min": 1, "max": 30}),
+    # 代理联动 (连网后自动启动)
+    ("auto_start_proxy", "校园网连通后自动启动代理客户端", "🛡 连网后代理联动", "check", {}),
+    ("proxy_exe_path", "代理客户端可执行文件路径", "🛡 连网后代理联动", "text", {}),
+    ("proxy_server", "本地代理端口地址", "🛡 连网后代理联动", "text", {}),
+    ("auto_enable_system_proxy", "代理就绪后自动开启系统代理", "🛡 连网后代理联动", "check", {}),
+    ("proxy_bypass", "系统代理绕过地址 (可留空使用默认校园网段)", "🛡 连网后代理联动", "text", {}),
+    ("proxy_wait_timeout_seconds", "等待代理端口就绪超时 (秒)", "🛡 连网后代理联动", "spin", {"min": 2, "max": 60}),
     # 电源与自动关机
     ("battery_warning_thresholds", "电量提醒梯度 (逗号分隔)", "🔋 电源与电量保护", "csv_int", {}),
     ("auto_shutdown_threshold", "自动关机电量阈值 (%)", "🔋 电源与电量保护", "spin", {"min": 5, "max": 50}),
@@ -111,6 +118,7 @@ SETTINGS_SCHEMA: list[tuple[str, str, str, str, dict]] = [
     # 系统与运行
     ("check_interval_seconds", "主监控周期 (秒)", "⚙ 运行与守护", "spin", {"min": 1, "max": 60}),
     ("autostart", "开机自动在后台启动", "⚙ 运行与守护", "check", {}),
+    ("start_minimized_on_boot", "开机自启时静默隐藏至系统托盘", "⚙ 运行与守护", "check", {}),
 ]
 
 

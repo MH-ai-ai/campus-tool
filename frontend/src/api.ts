@@ -18,6 +18,14 @@ export interface TelegramState {
   is_running: boolean;
 }
 
+export interface ProxyState {
+  enabled: boolean;
+  process_running: boolean;
+  system_proxy_enabled: boolean;
+  proxy_server: string;
+  last_message: string;
+}
+
 export interface StateData {
   online: boolean | null;
   is_campus: boolean;
@@ -35,6 +43,7 @@ export interface StateData {
   auth_protocol: string;
   campus_account: string;
   telegram?: TelegramState;
+  proxy?: ProxyState;
 }
 
 export interface UniversityItem {
@@ -126,6 +135,13 @@ export const api = {
       network_check_interval_seconds: 2,
       check_interval_seconds: 5,
       autostart: true,
+      start_minimized_on_boot: true,
+      auto_start_proxy: false,
+      proxy_exe_path: "",
+      proxy_server: "127.0.0.1:7897",
+      auto_enable_system_proxy: true,
+      proxy_bypass: "",
+      proxy_wait_timeout_seconds: 15,
       battery_warning_thresholds: [50, 30, 20],
       auto_shutdown_threshold: 20,
       auto_shutdown_delay: 60,
@@ -319,9 +335,47 @@ export const api = {
 
   async testTelegramBot(): Promise<ApiResponse> {
     if (window.pywebview?.api?.test_telegram_bot) {
-      return await window.pywebview.api.test_telegram_bot();
+      return await withTimeout(window.pywebview.api.test_telegram_bot(), 8000, "发送 Telegram 测试消息超时");
     }
     return { success: true, message: "模拟向手机 Telegram 派发测试握手成功" };
+  },
+
+  async detectProxyClient(): Promise<
+    ApiResponse<{
+      found: boolean;
+      name: string;
+      exe_path: string;
+      proxy_server: string;
+      running: boolean;
+      system_proxy_enabled: boolean;
+    }>
+  > {
+    if (window.pywebview?.api?.detect_proxy_client) {
+      return await withTimeout(window.pywebview.api.detect_proxy_client(), 6000, "探测本机代理客户端超时");
+    }
+    return {
+      success: true,
+      message: "模拟检测到 clash-verge.exe (127.0.0.1:7897)",
+      data: {
+        found: true,
+        name: "clash-verge.exe",
+        exe_path: "C:\\Program Files\\Clash Verge\\clash-verge.exe",
+        proxy_server: "127.0.0.1:7897",
+        running: true,
+        system_proxy_enabled: true,
+      },
+    };
+  },
+
+  async launchProxyNow(overrides?: Record<string, any>): Promise<ApiResponse> {
+    if (window.pywebview?.api?.launch_proxy_now) {
+      return await withTimeout(
+        window.pywebview.api.launch_proxy_now(overrides ?? {}),
+        22000,
+        "启动代理与开启系统代理超时"
+      );
+    }
+    return { success: true, message: "模拟已启动 Clash Verge 并开启系统代理 (127.0.0.1:7897)" };
   },
 
   minimize(): void {

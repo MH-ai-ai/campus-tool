@@ -9,10 +9,13 @@ import {
   Bell,
   Battery,
   Shield,
+  ShieldCheck,
   Eye,
   EyeOff,
   Loader2,
   Cpu,
+  Radar,
+  Play,
 } from 'lucide-react';
 import { api, UniversityItem } from '../api';
 import { useToast } from './ToastContext';
@@ -23,6 +26,8 @@ export const SettingsView: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [sniffing, setSniffing] = useState(false);
+  const [detectingProxy, setDetectingProxy] = useState(false);
+  const [testingProxy, setTestingProxy] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [schools, setSchools] = useState<UniversityItem[]>([]);
   const [showSchoolDropdown, setShowSchoolDropdown] = useState(false);
@@ -121,6 +126,50 @@ export const SettingsView: React.FC = () => {
 
   const updateField = (key: string, val: any) => {
     setConfig((prev) => ({ ...prev, [key]: val }));
+  };
+
+  const handleDetectProxy = async (silentOnMiss = false) => {
+    setDetectingProxy(true);
+    try {
+      const res = await api.detectProxyClient();
+      if (res.success && res.data?.found) {
+        setConfig((prev) => ({
+          ...prev,
+          proxy_exe_path: res.data?.exe_path || prev.proxy_exe_path,
+          proxy_server: res.data?.proxy_server || prev.proxy_server || '127.0.0.1:7897',
+        }));
+        toast.success(res.message);
+      } else if (!silentOnMiss) {
+        toast.error(res.message);
+      }
+    } catch (err: any) {
+      if (!silentOnMiss) {
+        toast.error(`探测代理客户端失败: ${err?.message || err}`);
+      }
+    } finally {
+      setDetectingProxy(false);
+    }
+  };
+
+  const handleTestProxyLaunch = async () => {
+    setTestingProxy(true);
+    try {
+      const res = await api.launchProxyNow({
+        proxy_exe_path: config.proxy_exe_path ?? '',
+        proxy_server: config.proxy_server ?? '127.0.0.1:7897',
+        auto_enable_system_proxy: config.auto_enable_system_proxy ?? true,
+        proxy_bypass: config.proxy_bypass ?? '',
+      });
+      if (res.success) {
+        toast.success(res.message);
+      } else {
+        toast.error(res.message);
+      }
+    } catch (err: any) {
+      toast.error(`执行代理联动测试失败: ${err?.message || err}`);
+    } finally {
+      setTestingProxy(false);
+    }
   };
 
   if (loading) {
@@ -368,14 +417,114 @@ export const SettingsView: React.FC = () => {
           </div>
         </section>
 
-        {/* 分组 4: 后台守护策略 */}
+        {/* 分组 4: 连网后自动启动代理（Clash 联动） */}
+        <section className="ios-glass-card rounded-2xl p-5 space-y-4 relative z-10">
+          <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-[#142033]/[0.07]">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-[#2b5797]" />
+              <h3 className="text-xs font-semibold text-ink-primary tracking-wide">
+                连网后自动启动代理（Clash 联动）
+              </h3>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => handleDetectProxy(false)}
+                disabled={detectingProxy}
+                className="ios-btn-secondary h-7 px-2.5 rounded-lg text-[11px] font-medium text-[#2b5797] whitespace-nowrap inline-flex items-center gap-1 disabled:opacity-50"
+              >
+                {detectingProxy ? (
+                  <Loader2 className="w-3 h-3 animate-spin shrink-0" />
+                ) : (
+                  <Radar className="w-3 h-3 shrink-0" />
+                )}
+                <span>一键探测本机 Clash</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleTestProxyLaunch}
+                disabled={testingProxy}
+                className="ios-btn-secondary h-7 px-2.5 rounded-lg text-[11px] font-medium text-[#1f7a53] whitespace-nowrap inline-flex items-center gap-1 disabled:opacity-50"
+              >
+                {testingProxy ? (
+                  <Loader2 className="w-3 h-3 animate-spin shrink-0" />
+                ) : (
+                  <Play className="w-3 h-3 shrink-0" />
+                )}
+                <span>立即测试启动</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+            <label className="flex items-center gap-2.5 cursor-pointer py-1.5 select-none">
+              <input
+                type="checkbox"
+                checked={config.auto_start_proxy ?? false}
+                onChange={(e) => {
+                  const checked = e.target.checked;
+                  updateField('auto_start_proxy', checked);
+                  if (checked && !String(config.proxy_exe_path || '').trim()) {
+                    handleDetectProxy(true);
+                  }
+                }}
+                className="w-4 h-4 rounded accent-[#2b5797] border-[#142033]/25"
+              />
+              <span className="text-ink-primary font-medium">校园网连通后自动启动代理客户端</span>
+            </label>
+
+            <label className="flex items-center gap-2.5 cursor-pointer py-1.5 select-none">
+              <input
+                type="checkbox"
+                checked={config.auto_enable_system_proxy ?? true}
+                onChange={(e) => updateField('auto_enable_system_proxy', e.target.checked)}
+                className="w-4 h-4 rounded accent-[#2b5797] border-[#142033]/25"
+              />
+              <span className="text-ink-primary font-medium">
+                代理端口就绪后自动开启 Windows 系统代理（自动绕过校园内网）
+              </span>
+            </label>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+            <div className="space-y-1.5">
+              <label className="text-ink-secondary font-medium">代理客户端可执行文件路径</label>
+              <input
+                type="text"
+                value={config.proxy_exe_path || ''}
+                onChange={(e) => updateField('proxy_exe_path', e.target.value)}
+                placeholder="留空则自动探测本机 Clash Verge / FlClash 等"
+                className="ios-input w-full px-3.5 py-2 rounded-xl text-xs font-mono"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-ink-secondary font-medium">本地代理端口地址</label>
+              <input
+                type="text"
+                value={config.proxy_server ?? '127.0.0.1:7897'}
+                onChange={(e) => updateField('proxy_server', e.target.value)}
+                placeholder="127.0.0.1:7897"
+                className="ios-input w-full px-3.5 py-2 rounded-xl text-xs font-mono"
+              />
+            </div>
+          </div>
+
+          <p className="text-[11px] text-ink-tertiary leading-relaxed">
+            建议关闭 Clash 自身的开机自启，改由安澜在连上校园网后再启动，彻底避免开机代理抢占导致校园网无法认证。
+          </p>
+        </section>
+
+        {/* 分组 5: 后台守护策略 */}
         <section className="ios-glass-card rounded-2xl p-5 space-y-4 relative z-10">
           <div className="flex items-center gap-2 pb-2.5 border-b border-[#142033]/[0.07]">
             <Battery className="w-4 h-4 text-[#9a5b13]" />
             <h3 className="text-xs font-semibold text-ink-primary tracking-wide">后台守护策略</h3>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
             <div className="space-y-1.5">
               <label className="text-ink-secondary font-medium">掉线探针周期（秒）</label>
               <input
@@ -399,18 +548,28 @@ export const SettingsView: React.FC = () => {
                 className="ios-input w-full px-3.5 py-2 rounded-xl text-xs font-mono"
               />
             </div>
+          </div>
 
-            <div className="flex flex-col justify-end">
-              <label className="flex items-center gap-2.5 cursor-pointer py-2 select-none">
-                <input
-                  type="checkbox"
-                  checked={config.autostart ?? true}
-                  onChange={(e) => updateField('autostart', e.target.checked)}
-                  className="w-4 h-4 rounded accent-[#2b5797] border-[#142033]/25"
-                />
-                <span className="text-ink-primary font-medium">开机静默启动并在后台常驻</span>
-              </label>
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs pt-1">
+            <label className="flex items-center gap-2.5 cursor-pointer py-1.5 select-none">
+              <input
+                type="checkbox"
+                checked={config.autostart ?? true}
+                onChange={(e) => updateField('autostart', e.target.checked)}
+                className="w-4 h-4 rounded accent-[#2b5797] border-[#142033]/25"
+              />
+              <span className="text-ink-primary font-medium">开机自动启动</span>
+            </label>
+
+            <label className="flex items-center gap-2.5 cursor-pointer py-1.5 select-none">
+              <input
+                type="checkbox"
+                checked={config.start_minimized_on_boot ?? true}
+                onChange={(e) => updateField('start_minimized_on_boot', e.target.checked)}
+                className="w-4 h-4 rounded accent-[#2b5797] border-[#142033]/25"
+              />
+              <span className="text-ink-primary font-medium">开机自启时静默藏入系统托盘</span>
+            </label>
           </div>
         </section>
       </div>

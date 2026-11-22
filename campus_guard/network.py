@@ -10,6 +10,7 @@ from .bot_health import trigger_bot_health_check
 from .config import get_config_dict
 from .logging_setup import get_logger
 from .models import ConnectivitySnapshot, ConnectivityState, NetworkMode
+from .proxy_manager import launch_proxy_and_enable
 from .system import (
     check_campus_gateway,
     check_internet,
@@ -91,6 +92,7 @@ class NetworkMonitor:
         self._is_probing = False
         self._reconnecting = False
         self._last_reconnect_attempt: float = 0.0
+        self._proxy_triggered_this_session: bool = False
 
     def record_event(self, text: str) -> None:
         """记录外部（如一键联网、手动认证等）触发的网络事件。"""
@@ -146,6 +148,7 @@ class NetworkMonitor:
 
             notify_msg: str | None = None
             should_reconnect = False
+            should_launch_proxy = False
 
             with self._lock:
                 self.last_snapshot = snapshot
@@ -168,14 +171,23 @@ class NetworkMonitor:
                         self.offline_since = time.time()
                         notify_msg = self._format_down_message(snapshot)
                         should_reconnect = True
+                    else:
+                        should_launch_proxy = True
                 # 状态边缘触发：首次由在线变为断开
                 elif self.is_online and not online:
                     self.offline_since = time.time()
+                    self._proxy_triggered_this_session = False
                     self.last_event = f"网络断开: {snapshot.reason}"
                     log.warning("检测到网络断开（%s），尝试重连...", snapshot.reason)
                     notify_msg = self._format_down_message(snapshot)
                     should_reconnect = True
                     self.is_online = online
+                # 状态由离线恢复为在线
+                elif not self.is_online and online:
+                    self.is_online = True
+                    self.retry_count = 0
+                    self.last_event = f"网络恢复在线: {snapshot.reason}"
+                    should_launch_proxy = True
                 # 状态持续离线守护：若未连通且不在重连中，按照冷却周期自动再次触发自愈重连
                 elif not online and not self._reconnecting:
                     now = time.time()
@@ -187,11 +199,13 @@ class NetworkMonitor:
                 else:
                     self.is_online = online
 
-            # 退出锁后再执行通知与重连调度，杜绝锁内阻塞或自死锁
+            # 退出锁后再执行通知、重连与代理联动调度，杜绝锁内阻塞或自死锁
             if notify_msg:
                 self.notify(notify_msg)
             if should_reconnect:
                 self._trigger_reconnect()
+            if should_launch_proxy:
+                self._maybe_launch_proxy_after_online(snapshot)
         except Exception as err:
             log.error("后台网络探测异常: %s", err)
         finally:
@@ -299,7 +313,14 @@ class NetworkMonitor:
         # 1. 尝试重连 WiFi：当 WiFi 断开，或网关持续不可达且已连续失败（网卡假死/ARP脱节）时强制重连
         need_force_wifi = (not snapshot.wifi_ok) or (not snapshot.gateway_ok and self.retry_count > 0)
         if not snapshot.wifi_ok or need_force_wifi:
-            target_ssids = self._get_campus_ssids() if is_campus else (self._get_home_ssids() or self._get_campus_ssids())
+            if is_campus:
+                target_ssids = self._get_campus_ssids()
+            else:
+                merged_ssids: list[str] = []
+                for s in self._get_home_ssids() + self._get_campus_ssids():
+                    if s and s not in merged_ssids:
+                        merged_ssids.append(s)
+                target_ssids = merged_ssids
             if not target_ssids:
                 snap_ssid = snapshot.wifi_info.split("(", 1)[0].strip() if snapshot.wifi_info else ""
                 if snap_ssid and snap_ssid not in ("未连接", "未知"):
@@ -324,13 +345,16 @@ class NetworkMonitor:
             return
         new_snap = self.probe_connectivity()
         if new_snap.online:
-            self.is_online = True
-            self.retry_count = 0
-            self.last_snapshot = new_snap
-            self.last_event = f"网络连接恢复 ({new_snap.reason})"
+            with self._lock:
+                self.is_online = True
+                self.retry_count = 0
+                self.last_snapshot = new_snap
+                self.last_event = f"网络连接恢复 ({new_snap.reason})"
+                self._proxy_triggered_this_session = False
             self.notify(self._format_restore_message(new_snap, 1))
             self.aggressive_mode = False
             trigger_bot_health_check()
+            self._maybe_launch_proxy_after_online(new_snap)
             return
 
         cfg = get_config_dict()
@@ -365,14 +389,17 @@ class NetworkMonitor:
                     return
                 new_snap = self.probe_connectivity()
                 if new_snap.online:
-                    self.is_online = True
-                    self.retry_count = 0
+                    with self._lock:
+                        self.is_online = True
+                        self.retry_count = 0
+                        self.last_snapshot = new_snap
+                        self.last_event = "网络重连成功"
+                        self._proxy_triggered_this_session = False
                     self.tracker.record_reconnect()
-                    self.last_snapshot = new_snap
-                    self.last_event = "网络重连成功"
                     self.notify(self._format_restore_message(new_snap, attempt))
                     self.aggressive_mode = False
                     trigger_bot_health_check()
+                    self._maybe_launch_proxy_after_online(new_snap)
                     return
                 log.warning(
                     "重连尝试 %d: 认证已发送但验证失败 (网关=%s, 直连外网=%s)",
@@ -434,6 +461,36 @@ class NetworkMonitor:
 
     def _wait(self, seconds: int | float) -> bool:
         return self._stop_event.wait(seconds)
+
+    def _maybe_launch_proxy_after_online(self, snapshot: ConnectivitySnapshot) -> None:
+        """在确认网络在线且开启了代理联动配置时，异步拉起代理客户端并启用系统代理（每会话一次）。"""
+        if not snapshot.online:
+            return
+        cfg = get_config_dict()
+        if not bool(cfg.get("auto_start_proxy", False)):
+            return
+
+        with self._lock:
+            if self._proxy_triggered_this_session:
+                return
+            self._proxy_triggered_this_session = True
+
+        def _worker() -> None:
+            try:
+                ok, msg = launch_proxy_and_enable(get_config_dict())
+                if ok:
+                    self.record_event(f"代理联动: {msg}")
+                    log.info("网络连通后代理联动完成: %s", msg)
+                else:
+                    log.warning("网络连通后代理联动未完成: %s", msg)
+                    with self._lock:
+                        self._proxy_triggered_this_session = False
+            except Exception as err:
+                log.warning("代理联动后台执行异常: %s", err)
+                with self._lock:
+                    self._proxy_triggered_this_session = False
+
+        threading.Thread(target=_worker, daemon=True).start()
 
     def _format_down_message(self, snapshot: ConnectivitySnapshot) -> str:
         prefix = "⚠️ 校园网断开" if snapshot.is_campus_network else "⚠️ 网络连接断开"

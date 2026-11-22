@@ -4,6 +4,25 @@
 
 ---
 
+## [2.3.1] - 2026-11-22
+
+### 修复 (Fixed)
+- **彻底修复下载便携包无法运行的问题**：
+  - 修复 Windows 解压 GitHub 下载压缩包后因文件附带 `Zone.Identifier` (MOTW) 锁定标记导致的 `Failed to resolve Python.Runtime.Loader.Initialize` 启动报错；
+  - 新增 `unblock_motw_files()` 启动前置自动解除锁定机制，并随包附带开启 `loadFromRemoteSources` 的 `AnLan.exe.config`；
+  - 在 `AnLan.spec` 关闭 UPX 压缩，提升托管二进制与安全软件兼容性。
+- **重连候选 SSID 兜底完善** (`campus_guard/network.py`)：合并家庭信任 SSID 与校园 SSID 候选，避免配置家庭 Wi-Fi 后开机在校园网场景下无法回退连接校园网。
+
+### 新增 (Added)
+- **开机自启静默最小化到系统托盘** (`--minimized`、`start_minimized_on_boot`)：开机自启自动隐藏主窗口并常驻托盘，保存配置时实时同步 Windows 自启注册表与计划任务。
+- **校园网连通后自动启动 Clash 并开启系统代理** (`campus_guard/proxy_manager.py`)：
+  - 支持自动探测本机 Clash Verge 等客户端路径与混合端口，或手动指定路径；
+  - 确认校园网外网畅通后自动拉起 Clash、轮询等待端口监听就绪，并开启 Windows 系统代理（自动合入校园网内网段绕过规则）且广播 WinINet 立即生效；
+  - 前端设置页新增「连网后自动启动代理（Clash 联动）」配置卡片（含一键探测与立即测试启动），托盘右键菜单同步新增「启动代理并开系统代理」快捷入口。
+- **测试与脱敏**：新增 `tests/test_proxy_manager.py` 等单元测试，全量测试增至 92 项并完成仓库测试占位数据与本机路径脱敏。
+
+---
+
 ## [2.3.0] - 2026-11-21
 
 ### 品牌与图标焕新 (Rebrand & Visuals)

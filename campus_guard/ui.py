@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import sys
 import threading
+import time
 from pathlib import Path
 from typing import Any
 
@@ -76,10 +77,14 @@ def launch_gui(
     battery: BatteryMonitor,
     network: NetworkMonitor,
     tg_bot: TelegramBot | None = None,
+    start_minimized: bool = False,
 ) -> None:
     """启动现代 Webview 桌面控制中心（由 Edge WebView2 驱动）。
-    具备 macOS Sequoia 双栏暗黑沉浸质感、系统托盘常驻与无缝显隐。
+    具备浅色微透磨砂玻璃质感、系统托盘常驻与无缝显隐；支持 start_minimized 静默启动到托盘。
     """
+    from .runtime import unblock_motw_files
+
+    unblock_motw_files()
     import webview
 
     bridge = ApiBridge(battery, network, tg_bot)
@@ -115,6 +120,7 @@ def launch_gui(
         height=640,
         min_size=(840, 560),
         background_color="#eef2f7",
+        hidden=start_minimized,
         frameless=False,
         easy_drag=True,
     )
@@ -145,6 +151,8 @@ def launch_gui(
 
     # 查找「安澜」专属图标文件
     icon_file = APP_DIR / "assets" / "app_icon.ico"
+    if not icon_file.exists():
+        icon_file = APP_DIR / "_internal" / "assets" / "app_icon.ico"
     if not icon_file.exists():
         icon_file = Path(__file__).resolve().parent.parent / "assets" / "app_icon.ico"
 

@@ -34,6 +34,13 @@ class Config:
     low_battery_threshold: int = 30
     battery_warning_thresholds: tuple[int, ...] = (50, 30, 20)
     autostart: bool = True
+    start_minimized_on_boot: bool = True
+    auto_start_proxy: bool = False
+    proxy_exe_path: str = ""
+    proxy_server: str = "127.0.0.1:7897"
+    auto_enable_system_proxy: bool = True
+    proxy_bypass: str = ""
+    proxy_wait_timeout_seconds: int = 15
     campus_gateway: str = "10.211.0.1"
     campus_wifi_ssid: str = "YADX-STU"
     campus_wifi_ssids: tuple[str, ...] = ("YADX-STU", "YADX-TEA")
@@ -100,6 +107,13 @@ class Config:
             low_battery_threshold=int(data.get("low_battery_threshold", 30)),
             battery_warning_thresholds=threshold_tuple,
             autostart=bool(data.get("autostart", True)),
+            start_minimized_on_boot=bool(data.get("start_minimized_on_boot", True)),
+            auto_start_proxy=bool(data.get("auto_start_proxy", False)),
+            proxy_exe_path=str(data.get("proxy_exe_path", "")),
+            proxy_server=str(data.get("proxy_server", "127.0.0.1:7897") or "127.0.0.1:7897"),
+            auto_enable_system_proxy=bool(data.get("auto_enable_system_proxy", True)),
+            proxy_bypass=str(data.get("proxy_bypass", "")),
+            proxy_wait_timeout_seconds=int(data.get("proxy_wait_timeout_seconds", 15)),
             campus_gateway=gateway,
             campus_wifi_ssid=str(data.get("campus_wifi_ssid", "YADX-STU")),
             campus_wifi_ssids=ssid_tuple,
@@ -137,6 +151,13 @@ class Config:
             "low_battery_threshold": self.low_battery_threshold,
             "battery_warning_thresholds": list(self.battery_warning_thresholds),
             "autostart": self.autostart,
+            "start_minimized_on_boot": self.start_minimized_on_boot,
+            "auto_start_proxy": self.auto_start_proxy,
+            "proxy_exe_path": self.proxy_exe_path,
+            "proxy_server": self.proxy_server,
+            "auto_enable_system_proxy": self.auto_enable_system_proxy,
+            "proxy_bypass": self.proxy_bypass,
+            "proxy_wait_timeout_seconds": self.proxy_wait_timeout_seconds,
             "campus_gateway": self.campus_gateway,
             "campus_wifi_ssid": self.campus_wifi_ssid,
             "campus_wifi_ssids": list(self.campus_wifi_ssids),

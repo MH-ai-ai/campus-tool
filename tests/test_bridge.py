@@ -56,7 +56,7 @@ class TestApiBridge(unittest.TestCase):
             self.assertIn("尚未配置", res["message"])
 
     @patch("campus_guard.bridge.reconnect_wifi", return_value=True)
-    @patch("campus_guard.bridge.get_local_ip", return_value="10.211.110.229")
+    @patch("campus_guard.bridge.get_local_ip", return_value="10.211.0.100")
     @patch("campus_guard.bridge.is_wifi_link_up", return_value=True)
     @patch("campus_guard.bridge.campus_login", return_value=(True, "认证成功"))
     def test_quick_connect(self, mock_login, mock_wifi_up, mock_ip, mock_reconn) -> None:
@@ -65,7 +65,7 @@ class TestApiBridge(unittest.TestCase):
         self.assertIn("认证成功", res["message"])
 
     @patch("campus_guard.bridge.reconnect_wifi", return_value=True)
-    @patch("campus_guard.bridge.get_local_ip", return_value="10.211.110.229")
+    @patch("campus_guard.bridge.get_local_ip", return_value="10.211.0.100")
     @patch("campus_guard.bridge.is_wifi_link_up", return_value=True)
     @patch("campus_guard.bridge.campus_login", return_value=(True, "一键认证OK"))
     def test_quick_connect_with_real_network_monitor(self, mock_login, mock_wifi_up, mock_ip, mock_reconn) -> None:
@@ -86,7 +86,7 @@ class TestApiBridge(unittest.TestCase):
         self.assertEqual(res["detected"]["campus_auth_url"], "http://10.211.0.1/login")
 
     @patch("campus_guard.bridge.reconnect_wifi", return_value=True)
-    @patch("campus_guard.bridge.get_local_ip", return_value="10.211.110.229")
+    @patch("campus_guard.bridge.get_local_ip", return_value="10.211.0.100")
     @patch("campus_guard.bridge.is_wifi_link_up", return_value=True)
     @patch("campus_guard.bridge.campus_login", side_effect=[(False, "无法连接网关"), (True, "重试自愈成功")])
     @patch("campus_guard.bridge.auto_detect_portal_config", return_value=(True, "嗅探成功", {"campus_auth_url": "http://10.200.84.3:801/eportal/portal/login"}))
@@ -173,6 +173,41 @@ class TestApiBridge(unittest.TestCase):
         win = MagicMock()
         self.bridge.set_window(win)
         self.assertEqual(self.bridge._window, win)
+
+    @patch(
+        "campus_guard.bridge.detect_clash_client",
+        return_value={"found": True, "name": "clash-verge.exe", "exe_path": r"D:\Clash Verge\clash-verge.exe", "proxy_server": "127.0.0.1:7897"},
+    )
+    def test_detect_proxy_client(self, mock_detect) -> None:
+        res = self.bridge.detect_proxy_client()
+        self.assertTrue(res["success"])
+        self.assertEqual(res["data"]["name"], "clash-verge.exe")
+        mock_detect.assert_called_once()
+
+    @patch("campus_guard.bridge.launch_proxy_and_enable", return_value=(True, "已启动代理并开启系统代理"))
+    def test_launch_proxy_now_applies_overrides(self, mock_launch) -> None:
+        res = self.bridge.launch_proxy_now({"proxy_exe_path": r"D:\Clash\clash-verge.exe", "proxy_server": "127.0.0.1:7898"})
+        self.assertTrue(res["success"])
+        passed_cfg = mock_launch.call_args[0][0]
+        self.assertEqual(passed_cfg["proxy_exe_path"], r"D:\Clash\clash-verge.exe")
+        self.assertEqual(passed_cfg["proxy_server"], "127.0.0.1:7898")
+        self.assertTrue(mock_launch.call_args.kwargs.get("force"))
+
+    @patch("campus_guard.runtime.remove_autostart")
+    @patch("campus_guard.runtime.setup_autostart")
+    @patch("campus_guard.bridge.update_runtime_config")
+    @patch("campus_guard.bridge.load_config_raw", return_value={"autostart": True})
+    def test_save_config_syncs_autostart(self, mock_load, mock_update, mock_setup, mock_remove) -> None:
+        res_on = self.bridge.save_config({"autostart": True, "start_minimized_on_boot": True})
+        self.assertTrue(res_on["success"])
+        mock_setup.assert_called_once()
+        mock_remove.assert_not_called()
+
+        mock_setup.reset_mock()
+        res_off = self.bridge.save_config({"autostart": False})
+        self.assertTrue(res_off["success"])
+        mock_remove.assert_called_once()
+        mock_setup.assert_not_called()
 
 
 if __name__ == "__main__":
