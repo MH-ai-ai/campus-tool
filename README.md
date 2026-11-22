@@ -1,11 +1,11 @@
 # Campus Guard
 
 <p align="center">
-  <a href="https://github.com/MH-ai-ai/campus-tool/releases/latest"><img src="https://img.shields.io/badge/Release-v2.3.1-2B5797?style=flat-square&logo=github" alt="Latest Release" /></a>
+  <a href="https://github.com/MH-ai-ai/campus-tool/releases/latest"><img src="https://img.shields.io/badge/Release-v2.3.2-2B5797?style=flat-square&logo=github" alt="Latest Release" /></a>
   <img src="https://img.shields.io/badge/Platform-Windows%2010%20%2F%2011%20(x64)-0078D4?style=flat-square&logo=windows" alt="Platform" />
   <img src="https://img.shields.io/badge/Runtime-Edge%20WebView2%20%7C%20Python%203.12%2B-475569?style=flat-square" alt="Runtime" />
   <img src="https://img.shields.io/badge/UI-React%2019%20%7C%20Tailwind%20CSS-38BDF8?style=flat-square&logo=react" alt="Frontend" />
-  <img src="https://img.shields.io/badge/Tests-92%20Passed-1F7A53?style=flat-square" alt="Tests" />
+  <img src="https://img.shields.io/badge/Tests-103%20Passed-1F7A53?style=flat-square" alt="Tests" />
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-64748B?style=flat-square" alt="License" /></a>
 </p>
 
@@ -81,7 +81,7 @@ flowchart TD
 
 ### 方式一：下载绿色便携版（推荐）
 
-1. 从 [**GitHub Releases**](https://github.com/MH-ai-ai/campus-tool/releases/latest) 下载最新版 `AnLan-v2.3.0-Windows-x64.zip`；
+1. 从 [**GitHub Releases**](https://github.com/MH-ai-ai/campus-tool/releases/latest) 下载最新版 `AnLan-v2.3.2-Windows-x64.zip`；
 2. 解压到本地任意目录（系统需为 64 位 Windows 10 或 Windows 11，内置 Edge 即可，无需安装 Python 或 Node.js）；
 3. 双击 `AnLan.exe` 启动系统，控制中心将自动常驻任务栏托盘；
 4. 连入校园 Wi-Fi，在首页输入学号与密码，点击「一键极速联网」，系统将全自动识别网关参数、完成认证并开启后台自愈守护。

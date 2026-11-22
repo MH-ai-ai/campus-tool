@@ -4,6 +4,7 @@ import os
 import platform
 import subprocess
 import sys
+import threading
 import time
 from typing import Any
 
@@ -35,7 +36,9 @@ from .system import (
     is_wifi_link_up,
     reconnect_wifi,
 )
+from .telegram_bot import _parse_user_id
 from .universities import get_university_manager
+from .version import APP_VERSION
 
 log = get_logger()
 
@@ -54,12 +57,18 @@ class ApiBridge:
         self._network = network_monitor
         self._tg_bot = tg_bot
         self._window = window
+        self._tray_mgr: Any = None
+        self._force_closing: bool = False
         self._start_time = time.time()
         self._uni_manager = get_university_manager()
 
     def set_window(self, window: Any) -> None:
         """设置关联的 webview.Window 实例（通过方法赋值避免被 pywebview 属性反射遍历）。"""
         self._window = window
+
+    def set_tray_manager(self, tray_mgr: Any) -> None:
+        """设置关联的系统托盘管理器实例，以便完全退出时清理托盘图标。"""
+        self._tray_mgr = tray_mgr
 
     def get_state(self) -> dict[str, Any]:
         """获取当前系统、网络、电源与守护状态的完整快照。"""
@@ -136,11 +145,18 @@ class ApiBridge:
             "auth_protocol": proto,
             "campus_account": str(cfg.get("campus_account", "")),
             "telegram": {
-                "configured": bool(str(cfg.get("telegram_bot_token", "")).strip() and int(cfg.get("telegram_user_id", 0))),
-                "user_id": str(cfg.get("telegram_user_id", "")),
-                "is_running": bool(self._tg_bot and getattr(self._tg_bot, "app", None)),
+                "configured": bool(str(cfg.get("telegram_bot_token", "")).strip() and _parse_user_id(cfg.get("telegram_user_id", 0))),
+                "user_id": str(_parse_user_id(cfg.get("telegram_user_id", 0)) or ""),
+                "is_running": bool(
+                    self._tg_bot
+                    and (
+                        getattr(self._tg_bot, "is_ready", False)
+                        or (getattr(self._tg_bot, "app", None) and getattr(self._tg_bot, "loop", None))
+                    )
+                ),
             },
             "proxy": get_proxy_runtime_status(cfg),
+            "version": APP_VERSION,
         }
 
     def get_config(self) -> dict[str, Any]:
@@ -157,6 +173,9 @@ class ApiBridge:
             for k, v in new_config.items():
                 raw[k] = v
 
+            if "telegram_user_id" in raw:
+                raw["telegram_user_id"] = _parse_user_id(raw.get("telegram_user_id", 0))
+
             encrypted = encrypt_sensitive_fields(raw)
             save_config_raw(encrypted)
             decrypted = decrypt_config(raw)
@@ -172,6 +191,13 @@ class ApiBridge:
                     remove_autostart()
             except Exception as auto_err:
                 log.warning("同步开机自启动设置异常: %s", auto_err)
+
+            # 实时热挂载 / 热重载 Telegram Bot
+            if self._tg_bot and hasattr(self._tg_bot, "ensure_started_in_background"):
+                try:
+                    self._tg_bot.ensure_started_in_background()
+                except Exception as bot_err:
+                    log.warning("热启动 Telegram Bot 异常: %s", bot_err)
 
             log.info("用户通过 Web 控制中心成功保存配置")
             return {"success": True, "message": "配置已安全加密并保存生效"}
@@ -495,11 +521,38 @@ class ApiBridge:
             except Exception:
                 pass
 
+    def handle_close_choice(self, action: str, remember: bool = False) -> dict[str, Any]:
+        """处理用户在关闭确认弹窗中的选择（最小化至托盘或直接退出程序）。"""
+        normalized = str(action or "").strip().lower()
+        if normalized not in ("tray", "exit"):
+            return {"success": False, "message": "无效的关闭操作"}
+
+        if remember:
+            try:
+                raw = load_config_raw()
+                raw["close_action"] = normalized
+                encrypted = encrypt_sensitive_fields(raw)
+                save_config_raw(encrypted)
+                update_runtime_config(decrypt_config(raw))
+                log.info("已记住窗口关闭行为偏好: %s", normalized)
+            except Exception as err:
+                log.warning("保存关闭偏好失败: %s", err)
+
+        if normalized == "tray":
+            log.info("用户选择关闭窗口时最小化到系统托盘")
+            self.minimize_to_tray()
+            return {"success": True, "action": "tray", "message": "已最小化至系统托盘"}
+
+        log.info("用户选择直接退出 安澜 程序")
+        self._force_closing = True
+        threading.Timer(0.15, self.close_app).start()
+        return {"success": True, "action": "exit", "message": "正在退出安澜"}
+
     def test_telegram_bot(self) -> dict[str, Any]:
-        """向绑定的手机 Telegram 发送握手测试消息。"""
+        """向绑定的手机 Telegram 发送握手测试消息（仅 Bot 真就绪时走内部通道，否则直连 HTTP API）。"""
         cfg = get_config_dict()
         token = str(cfg.get("telegram_bot_token", "")).strip()
-        user_id = cfg.get("telegram_user_id")
+        user_id = _parse_user_id(cfg.get("telegram_user_id", 0))
         if not token or not user_id:
             return {"success": False, "message": "尚未配置 Telegram Bot Token 或 用户 ID"}
 
@@ -510,12 +563,18 @@ class ApiBridge:
             f"🕒 握手时间: {time.strftime('%Y-%m-%d %H:%M:%S')}\n"
             f"💡 发送 /status 即可调出手机端快速控制面板"
         )
-        if self._tg_bot:
+        bot_ready = bool(
+            self._tg_bot
+            and getattr(self._tg_bot, "app", None) is not None
+            and getattr(self._tg_bot, "loop", None) is not None
+            and getattr(self._tg_bot, "is_ready", True)
+        )
+        if bot_ready:
             try:
                 self._tg_bot.send_notification(test_msg)
                 return {"success": True, "message": "已成功向手机 Telegram 派发测试握手消息"}
             except Exception as err:
-                return {"success": False, "message": f"发送测试失败: {err}"}
+                log.warning("通过就绪 Bot 派发测试消息失败，回退 HTTP 直发: %s", err)
 
         try:
             import requests
@@ -524,20 +583,44 @@ class ApiBridge:
             resp = requests.post(
                 url,
                 json={"chat_id": user_id, "text": test_msg},
-                timeout=6,
+                timeout=8,
             )
-            if resp.status_code == 200:
-                return {"success": True, "message": "已成功向手机 Telegram 派发测试握手消息"}
-            return {"success": False, "message": f"Telegram API 返回: {resp.text}"}
+            if resp.status_code == 200 and resp.json().get("ok", True):
+                if self._tg_bot and hasattr(self._tg_bot, "ensure_started_in_background"):
+                    self._tg_bot.ensure_started_in_background()
+                return {"success": True, "message": "已通过 Telegram API 成功向手机发送测试消息"}
+            return {"success": False, "message": f"Telegram API 返回错误: {resp.text}"}
         except Exception as err:
-            return {"success": False, "message": f"网络通信异常: {err}"}
+            return {"success": False, "message": f"网络通信异常（请确认代理或 Telegram 连通性）: {err}"}
 
     def close_app(self) -> None:
-        """退出应用。"""
+        """安全退出应用：停止监控服务、清理系统托盘图标并销毁主窗口。"""
+        self._force_closing = True
+        if self._battery and hasattr(self._battery, "stop"):
+            try:
+                self._battery.stop()
+            except Exception:
+                pass
+        if self._network and hasattr(self._network, "stop"):
+            try:
+                self._network.stop()
+            except Exception:
+                pass
+        if self._tg_bot and hasattr(self._tg_bot, "stop_sync"):
+            try:
+                self._tg_bot.stop_sync(timeout=2.0)
+            except Exception:
+                pass
+        if self._tray_mgr and hasattr(self._tray_mgr, "stop"):
+            try:
+                self._tray_mgr.stop()
+            except Exception:
+                pass
         if self._window:
             try:
                 self._window.destroy()
             except Exception:
                 pass
-        sys.exit(0)
+        if not self._window or threading.current_thread() is threading.main_thread():
+            sys.exit(0)
 

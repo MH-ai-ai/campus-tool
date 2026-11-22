@@ -9,13 +9,14 @@ from typing import Any
 
 from .battery import BatteryMonitor
 from .bridge import ApiBridge
-from .config import SETTINGS_SCHEMA as _SETTINGS_SCHEMA
+from .config import SETTINGS_SCHEMA as _SETTINGS_SCHEMA, get_config_dict
 from .logging_setup import get_logger
 from .models import GuardState
 from .network import NetworkMonitor
 from .paths import APP_DIR, WEB_DIST_PATH
 from .telegram_bot import TelegramBot
 from .tray import PystrayTrayManager, create_tray_icon, get_tray_color, pil_image_to_qicon
+from .version import APP_VERSION
 
 log = get_logger()
 
@@ -129,23 +130,55 @@ def launch_gui(
 
     # 启动 pystray 系统托盘常驻
     tray_mgr = PystrayTrayManager(bridge, window)
+    bridge.set_tray_manager(tray_mgr)
     tray_mgr.start()
 
-    # 监听关闭事件：关闭窗口时隐藏至后台系统托盘，而非直接终止进程（防抖避免 Windows 快速连发 WM_CLOSE）
+    # 监听关闭事件：根据 close_action 配置决定直接退出、隐藏托盘，或弹出前端确认弹窗让用户选择
     _last_close_time = 0.0
+
+    def _notify_frontend_close_prompt() -> None:
+        try:
+            window.evaluate_js("window.dispatchEvent(new CustomEvent('anlan:close-requested'))")
+        except Exception as err:
+            log.debug("派发前端关闭确认弹窗失败，回退最小化至托盘: %s", err)
+            try:
+                window.hide()
+            except Exception:
+                pass
 
     def on_closing():
         nonlocal _last_close_time
+        if getattr(bridge, "_force_closing", False):
+            return True
+
         now = time.time()
-        if now - _last_close_time < 1.0:
+        if now - _last_close_time < 0.35:
             return False
         _last_close_time = now
-        log.info("捕获窗口关闭事件，转入系统托盘后台静默守护")
-        try:
-            window.hide()
-        except Exception:
-            pass
-        return False  # 返回 False 阻止窗口被销毁
+
+        close_action = str(get_config_dict().get("close_action", "ask")).strip().lower()
+        if close_action == "tray":
+            log.info("根据配置将窗口隐藏至系统托盘")
+            try:
+                window.hide()
+            except Exception:
+                pass
+            return False
+
+        if close_action == "exit":
+            log.info("根据配置直接退出 安澜")
+            bridge._force_closing = True
+            try:
+                battery.stop()
+                network.stop()
+                tray_mgr.stop()
+            except Exception:
+                pass
+            return True
+
+        log.info("捕获窗口关闭事件，弹出关闭方式选择弹窗")
+        threading.Thread(target=_notify_frontend_close_prompt, daemon=True).start()
+        return False  # 拦截原生销毁，交由用户弹窗选择
 
     window.events.closing += on_closing
 
@@ -161,7 +194,7 @@ def launch_gui(
             import ctypes
 
             # 注册独立 Windows AppUserModelID，彻底剥离 Python 任务栏标识
-            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("MH.AnLan.Desktop.2.2")
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(f"MH.AnLan.Desktop.{APP_VERSION}")
         except Exception as e:
             log.debug("注册 AppUserModelID 异常: %s", e)
 
@@ -197,6 +230,13 @@ def launch_gui(
             except Exception:
                 pass
         raise
+    finally:
+        try:
+            battery.stop()
+            network.stop()
+            tray_mgr.stop()
+        except Exception:
+            pass
 
 
 __all__ = [

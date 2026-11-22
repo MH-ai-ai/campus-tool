@@ -30,6 +30,48 @@ def decode_subprocess_output(raw: bytes) -> str:
     return raw.decode("utf-8", errors="replace")
 
 
+_VIRTUAL_OR_HOTSPOT_MARKERS = (
+    "vethernet",
+    "virtual",
+    "vmware",
+    "vbox",
+    "wsl",
+    "loopback",
+    "tap",
+    "tun",
+    "vgate",
+    "tailscale",
+    "wintun",
+    "sing-box",
+    "wireguard",
+    "clash",
+    "zerotier",
+    "openvpn",
+    "本地连接*",
+    "local area connection*",
+    "wi-fi direct",
+    "bluetooth",
+    "蓝牙",
+    "hotspot",
+    "teredo",
+    "isatap",
+    "hamachi",
+    "radmin",
+    "npcap",
+)
+
+
+def _is_virtual_or_hotspot_interface(name: str, ip: str = "") -> bool:
+    """判断是否为虚拟网卡、Windows 移动热点适配器或非物理出口 IP（如 192.168.137.*）。"""
+    lower_name = str(name or "").strip().lower()
+    if "*" in lower_name or any(marker in lower_name for marker in _VIRTUAL_OR_HOTSPOT_MARKERS):
+        return True
+    cleaned_ip = str(ip or "").strip()
+    if cleaned_ip and cleaned_ip.startswith("192.168.137."):
+        return True
+    return False
+
+
 def get_primary_interface_info() -> tuple[str, str, str]:
     """动态探测当前处于活跃状态的物理网卡（以太网或 Wi-Fi）。
     返回元组: (网卡名称, IPv4 地址, MAC 地址)
@@ -43,7 +85,7 @@ def get_primary_interface_info() -> tuple[str, str, str]:
             if not stat.isup:
                 continue
             lower_name = name.lower()
-            if any(virt in lower_name for virt in ("vethernet", "virtual", "vmware", "vbox", "wsl", "loopback", "tap", "tun", "vgate", "tailscale", "wintun", "sing-box", "wireguard", "clash", "zerotier", "openvpn")):
+            if _is_virtual_or_hotspot_interface(name):
                 continue
 
             ipv4 = ""
@@ -51,13 +93,19 @@ def get_primary_interface_info() -> tuple[str, str, str]:
             for addr in addrs.get(name, []):
                 if addr.family == socket.AF_INET:
                     ip = addr.address
-                    if ip and not ip.startswith("127.") and not ip.startswith("169.254.") and not is_clash_tun_ip(ip):
+                    if (
+                        ip
+                        and not ip.startswith("127.")
+                        and not ip.startswith("169.254.")
+                        and not ip.startswith("192.168.137.")
+                        and not is_clash_tun_ip(ip)
+                    ):
                         ipv4 = ip
                 elif hasattr(psutil, "AF_LINK") and addr.family == psutil.AF_LINK:
                     mac = addr.address.replace("-", "").replace(":", "").lower()
 
             if ipv4:
-                # 优先级打分：WLAN/Wi-Fi 与以太网优先
+                # 优先级打分：WLAN/Wi-Fi 与真实有线以太网优先
                 score = 0
                 if any(k in lower_name for k in ("wlan", "wi-fi", "wifi", "wireless")):
                     score = 20
@@ -74,12 +122,14 @@ def get_primary_interface_info() -> tuple[str, str, str]:
     except Exception as err:
         log.debug("动态网卡扫描异常: %s", err)
 
-    # 回退探测
+    # 回退探测（同样排除 Windows 移动热点静态网关 IP 192.168.137.*）
     fallback_ip = "未知"
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
             s.connect(("8.8.8.8", 80))
-            fallback_ip = s.getsockname()[0]
+            sock_ip = s.getsockname()[0]
+            if sock_ip and not sock_ip.startswith("192.168.137.") and not sock_ip.startswith("169.254."):
+                fallback_ip = sock_ip
     except Exception:
         pass
 
@@ -90,7 +140,7 @@ def get_primary_interface_info() -> tuple[str, str, str]:
 
 def get_local_ip() -> str:
     name, ip, _mac = get_primary_interface_info()
-    if ip and ip != "未知":
+    if ip and ip != "未知" and not ip.startswith("192.168.137."):
         if is_clash_tun_ip(ip):
             return f"{ip} (Clash TUN)"
         return ip
@@ -112,7 +162,12 @@ def get_local_ip() -> str:
             stripped = line.strip()
             if "IP" in stripped and ":" in stripped:
                 found_ip = stripped.split(":", 1)[1].strip()
-                if found_ip and found_ip != "127.0.0.1" and not is_clash_tun_ip(found_ip):
+                if (
+                    found_ip
+                    and found_ip != "127.0.0.1"
+                    and not found_ip.startswith("192.168.137.")
+                    and not is_clash_tun_ip(found_ip)
+                ):
                     return found_ip
     except Exception:
         pass
@@ -322,20 +377,57 @@ def check_campus_gateway() -> bool:
     return False
 
 
+def _probe_captive_204(url: str, mode: str, timeout: float = 1.5) -> bool:
+    """严格校验标准外网无劫持连通性探针（不经过本地代理且禁止重定向，杜绝未认证校园网假在线）。"""
+    try:
+        session = requests.Session()
+        session.trust_env = False
+        resp = session.get(url, allow_redirects=False, timeout=timeout)
+        if mode == "204":
+            return resp.status_code == 204
+        if mode == "msft":
+            return resp.status_code == 200 and resp.text.strip() == "Microsoft Connect Test"
+        if mode == "apple":
+            body_lower = resp.text.lower()
+            portal_markers = ("eportal", "drcom", "login", "portal")
+            return (
+                resp.status_code == 200
+                and "Success" in resp.text
+                and not any(m in body_lower for m in portal_markers)
+            )
+    except Exception:
+        return False
+    return False
+
+
 def check_internet() -> bool:
-    # 并发测试国内主流 DNS 与公网 DNS 53 端口，1 秒内快速判定
-    dns_targets = [("223.5.5.5", 53), ("114.114.114.114", 53), ("8.8.8.8", 53)]
+    """并发直连校验真实外网连通性：采用 Captive Portal 204/特征正文与严格 HTTPS 校验证书，
+    彻底避免高校未认证前放行 DNS 53 端口造成的假在线误判。
+    """
     import concurrent.futures
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=len(dns_targets)) as executor:
-        futures = [executor.submit(tcp_check, host, port, 0.8) for host, port in dns_targets]
+    probes = (
+        ("http://connect.rom.miui.com/generate_204", "204"),
+        ("http://www.msftconnecttest.com/connecttest.txt", "msft"),
+        ("http://captive.apple.com/hotspot-detect.html", "apple"),
+    )
+    with concurrent.futures.ThreadPoolExecutor(max_workers=len(probes)) as executor:
+        futures = [executor.submit(_probe_captive_204, url, mode, 1.5) for url, mode in probes]
         try:
-            for fut in concurrent.futures.as_completed(futures, timeout=1.2):
+            for fut in concurrent.futures.as_completed(futures, timeout=2.0):
                 if fut.result():
                     return True
         except Exception:
             pass
-    return http_check("http://www.baidu.com", timeout=1.5, trust_env=False)
+
+    # 严格 HTTPS 兜底探针：未认证校园网劫持 HTTPS 必定证书校验失败或连接被拒
+    try:
+        session = requests.Session()
+        session.trust_env = False
+        resp = session.head("https://www.baidu.com", allow_redirects=False, verify=True, timeout=1.5)
+        return resp.status_code < 400
+    except Exception:
+        return False
 
 
 def check_proxy_internet() -> bool:
@@ -369,7 +461,7 @@ def _get_wlan_signature() -> tuple[bool, str, str]:
         stats = psutil.net_if_stats()
         for name, stat in stats.items():
             lowered = name.lower()
-            if any(virt in lowered for virt in ("vethernet", "virtual", "vmware", "vbox", "wsl", "loopback", "tap", "tun", "vgate", "tailscale", "wintun", "sing-box", "wireguard", "clash", "zerotier", "openvpn")):
+            if _is_virtual_or_hotspot_interface(name):
                 continue
             if any(marker in lowered for marker in ("wlan", "wi-fi", "wifi", "wireless")):
                 if stat.isup:
@@ -381,7 +473,13 @@ def _get_wlan_signature() -> tuple[bool, str, str]:
             for addr in addrs.get(wlan_name, []):
                 if addr.family == socket.AF_INET:
                     ip = addr.address
-                    if ip and not ip.startswith("127.") and not ip.startswith("169.254.") and not is_clash_tun_ip(ip):
+                    if (
+                        ip
+                        and not ip.startswith("127.")
+                        and not ip.startswith("169.254.")
+                        and not ip.startswith("192.168.137.")
+                        and not is_clash_tun_ip(ip)
+                    ):
                         wlan_ipv4 = ip
                         break
     except Exception:
@@ -652,13 +750,18 @@ def reconnect_wifi(ssid: str = "", force: bool = False) -> bool:
             )
             output = decode_subprocess_output(result.stdout + result.stderr)
             if result.returncode == 0:
-                # 清除旧缓存并循环等待最多 8 秒直到网卡完成握手并获取有效 IP
+                # 清除旧缓存并循环等待最多 12 秒直到物理网卡完成握手并获取真实有效 DHCP IP
                 _wlan_cache = (0.0, "未知", -1)
                 _wlan_sig_cache = None
-                for _ in range(16):
+                for _ in range(24):
                     time.sleep(0.5)
                     ip = get_local_ip()
-                    if ip and ip != "未知" and not ip.startswith("169.254."):
+                    if (
+                        ip
+                        and ip != "未知"
+                        and not ip.startswith("169.254.")
+                        and not ip.startswith("192.168.137.")
+                    ):
                         log.info("Wi-Fi 连接成功并已获得 IP: %s (IP=%s)", actual_profile, ip)
                         return True
                 log.warning("Wi-Fi 连接超时未获取到有效 IP，尝试下一个候选配置: %s", actual_profile)

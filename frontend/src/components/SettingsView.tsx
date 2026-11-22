@@ -548,6 +548,19 @@ export const SettingsView: React.FC = () => {
                 className="ios-input w-full px-3.5 py-2 rounded-xl text-xs font-mono"
               />
             </div>
+
+            <div className="space-y-1.5 md:col-span-2">
+              <label className="text-ink-secondary font-medium">点击窗口关闭按钮 (×) 时</label>
+              <select
+                value={config.close_action || 'ask'}
+                onChange={(e) => updateField('close_action', e.target.value)}
+                className="ios-input w-full px-3.5 py-2 rounded-xl text-xs"
+              >
+                <option value="ask">每次弹窗询问（退出程序 / 最小化到托盘）</option>
+                <option value="tray">直接最小化到系统托盘后台运行</option>
+                <option value="exit">直接退出全部守护进程</option>
+              </select>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs pt-1">

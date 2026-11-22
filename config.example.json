@@ -5,6 +5,7 @@
   "telegram_bot_token": "",
   "autostart": true,
   "start_minimized_on_boot": true,
+  "close_action": "ask",
   "auto_start_proxy": false,
   "proxy_exe_path": "",
   "proxy_server": "127.0.0.1:7897",

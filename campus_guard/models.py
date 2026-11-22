@@ -35,6 +35,7 @@ class Config:
     battery_warning_thresholds: tuple[int, ...] = (50, 30, 20)
     autostart: bool = True
     start_minimized_on_boot: bool = True
+    close_action: str = "ask"
     auto_start_proxy: bool = False
     proxy_exe_path: str = ""
     proxy_server: str = "127.0.0.1:7897"
@@ -93,6 +94,9 @@ class Config:
         raw_ac_ip = str(data.get("wlan_ac_ip", "")).strip()
         ac_ip = raw_ac_ip or "10.255.250.74"
 
+        raw_close_action = str(data.get("close_action", "ask")).strip().lower()
+        close_action = raw_close_action if raw_close_action in ("ask", "tray", "exit") else "ask"
+
         return cls(
             telegram_bot_token=str(data.get("telegram_bot_token", "")),
             telegram_user_id=int(data.get("telegram_user_id", 0)),
@@ -108,6 +112,7 @@ class Config:
             battery_warning_thresholds=threshold_tuple,
             autostart=bool(data.get("autostart", True)),
             start_minimized_on_boot=bool(data.get("start_minimized_on_boot", True)),
+            close_action=close_action,
             auto_start_proxy=bool(data.get("auto_start_proxy", False)),
             proxy_exe_path=str(data.get("proxy_exe_path", "")),
             proxy_server=str(data.get("proxy_server", "127.0.0.1:7897") or "127.0.0.1:7897"),
@@ -152,6 +157,7 @@ class Config:
             "battery_warning_thresholds": list(self.battery_warning_thresholds),
             "autostart": self.autostart,
             "start_minimized_on_boot": self.start_minimized_on_boot,
+            "close_action": self.close_action,
             "auto_start_proxy": self.auto_start_proxy,
             "proxy_exe_path": self.proxy_exe_path,
             "proxy_server": self.proxy_server,

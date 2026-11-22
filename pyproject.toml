@@ -1,6 +1,6 @@
 [project]
 name = "campus-guard"
-version = "0.1.0"
+version = "2.3.2"
 description = "Campus network keepalive and battery monitor for Windows."
 requires-python = ">=3.12,<3.14"
 dependencies = [

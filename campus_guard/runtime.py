@@ -16,6 +16,7 @@ from .network import NetworkMonitor
 from .paths import APP_DIR
 from .system import get_disk_free_gb
 from .telegram_bot import TelegramBot
+from .version import APP_VERSION
 
 
 log = get_logger()
@@ -132,6 +133,29 @@ def unblock_motw_files(base_dir: Path | None = None) -> int:
     if unblocked_count > 0:
         log.info("已自动解除 %d 个二进制文件的 Windows 下载安全锁定标记 (Zone.Identifier)", unblocked_count)
     return unblocked_count
+
+
+def ensure_frozen_ssl_compat() -> None:
+    """兼容冻结环境下的 ssl.SSLContext 初始化：
+    当底层 ssl.py 尝试从 __file__ 相对路径读取附加 PEM 文件失败（如 zipimport 环境）时，
+    安全回退至原生 _SSLContext.__new__，保证 httpx/requests 等 TLS 请求正常建立。
+    """
+    import ssl
+
+    if getattr(ssl.SSLContext.__new__, "__name__", "") == "_safe_ssl_context_new":
+        return
+
+    orig_new = ssl.SSLContext.__new__
+
+    def _safe_ssl_context_new(cls, protocol=None, *args, **kwargs):
+        try:
+            return orig_new(cls, protocol, *args, **kwargs)
+        except FileNotFoundError:
+            if protocol is None:
+                protocol = ssl.PROTOCOL_TLS
+            return ssl._SSLContext.__new__(cls, protocol)
+
+    ssl.SSLContext.__new__ = _safe_ssl_context_new
 
 
 def build_autostart_command(minimized: bool = False) -> str:
@@ -263,17 +287,18 @@ def _run_main() -> None:
         try:
             import ctypes
 
-            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("MH.AnLan.Desktop.2.2")
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(f"MH.AnLan.Desktop.{APP_VERSION}")
         except Exception:
             pass
 
     log.info("=" * 40)
-    log.info("安澜 启动")
+    log.info("安澜 v%s 启动", APP_VERSION)
     log.info("Python: %s", sys.version)
     log.info("应用路径: %s", APP_DIR)
 
     # 启动早期先解除 Windows 下载锁定流（Zone.Identifier），确保后续 pythonnet/WebView2 加载顺畅
     unblock_motw_files()
+    ensure_frozen_ssl_compat()
 
     initialize_runtime_config()
     encrypt_config_file()
@@ -296,12 +321,8 @@ def _run_main() -> None:
     monitor_thread.start()
     log.info("监控线程已启动")
 
-    def run_bot() -> None:
-        asyncio.run(tg_bot.start())
-
-    bot_thread = threading.Thread(target=run_bot, daemon=True)
-    bot_thread.start()
-    log.info("Telegram Bot 线程已启动")
+    tg_bot.ensure_started_in_background()
+    log.info("Telegram Bot 调度检查已完成")
 
     start_minimized = "--minimized" in sys.argv[1:]
     if start_minimized:

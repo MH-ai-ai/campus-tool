@@ -119,6 +119,7 @@ SETTINGS_SCHEMA: list[tuple[str, str, str, str, dict]] = [
     ("check_interval_seconds", "主监控周期 (秒)", "⚙ 运行与守护", "spin", {"min": 1, "max": 60}),
     ("autostart", "开机自动在后台启动", "⚙ 运行与守护", "check", {}),
     ("start_minimized_on_boot", "开机自启时静默隐藏至系统托盘", "⚙ 运行与守护", "check", {}),
+    ("close_action", "点击窗口关闭按钮行为 (ask/tray/exit)", "⚙ 运行与守护", "text", {}),
 ]
 
 

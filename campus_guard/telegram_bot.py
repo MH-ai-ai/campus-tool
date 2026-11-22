@@ -7,6 +7,7 @@ import os
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -60,6 +61,21 @@ def bot_command_specs() -> tuple[tuple[str, str], ...]:
 
 
 
+def _parse_user_id(value: object) -> int:
+    """安全解析 Telegram 用户 ID，兼容数字字符串、空串与非法值。"""
+    if isinstance(value, bool):
+        return 0
+    if isinstance(value, int):
+        return value
+    cleaned = str(value or "").strip()
+    if not cleaned:
+        return 0
+    try:
+        return int(cleaned)
+    except ValueError:
+        return 0
+
+
 class TelegramBot:
     def __init__(
         self,
@@ -80,6 +96,17 @@ class TelegramBot:
         self._consecutive_probe_failures = 0
         self._last_restart_attempt = 0.0
         self._restart_cooldown_seconds = 120.0
+        self._bot_lock = threading.Lock()
+        self._bot_thread: threading.Thread | None = None
+        self._stop_requested: bool = False
+        self._ready: bool = False
+        self._active_token: str = ""
+        self._active_user_id: int = 0
+
+    @property
+    def is_ready(self) -> bool:
+        """指示 Bot 是否已完成初始化并处于有效运行状态。"""
+        return bool(self._ready and self.app is not None and self.loop is not None)
 
     def _config(self) -> dict:
         return get_config_dict()
@@ -174,61 +201,162 @@ class TelegramBot:
 
     async def start(self) -> None:
         cfg = self._config()
-        if not str(cfg.get("telegram_bot_token", "")).strip():
+        token = str(cfg.get("telegram_bot_token", "")).strip()
+        user_id = _parse_user_id(cfg.get("telegram_user_id", 0))
+        if not token:
             log.warning("Telegram Bot token 未配置，跳过 Bot 启动")
             return
-        if not int(cfg.get("telegram_user_id", 0)):
+        if not user_id:
             log.warning("telegram_user_id 未配置，跳过 Bot 启动")
             return
 
         from telegram import BotCommand
 
+        self._stop_requested = False
+        self._ready = False
         self.app = self._build_app()
         self._register_handlers()
-        self.loop = asyncio.get_event_loop()
+        self.loop = asyncio.get_running_loop()
         register_bot_health_check(self.loop, self._health_check)
 
         log.info("Telegram Bot 启动中...")
-        for attempt in range(30):
+        try:
+            for attempt in range(30):
+                if self._stop_requested:
+                    return
+                try:
+                    await self.app.initialize()
+                    await self.app.start()
+                    await self.app.updater.start_polling(drop_pending_updates=True)
+                    break
+                except Exception as err:
+                    if self._stop_requested:
+                        return
+                    if attempt < 29:
+                        log.warning("Bot 初始化失败（第%d次），10秒后重试: %s", attempt + 1, err)
+                        await self._cleanup_app_instance(self.app)
+                        self.app = self._build_app()
+                        self._register_handlers(self.app)
+                        await asyncio.sleep(10)
+                        continue
+                    log.error("Bot 初始化失败30次，放弃: %s", err)
+                    return
+
             try:
-                await self.app.initialize()
-                await self.app.start()
-                await self.app.updater.start_polling(drop_pending_updates=True)
-                break
-            except Exception as err:
-                if attempt < 29:
-                    log.warning("Bot 初始化失败（第%d次），10秒后重试: %s", attempt + 1, err)
-                    try:
-                        await self.app.stop()
-                        await self.app.shutdown()
-                    except Exception:
-                        pass
-                    self.app = self._build_app()
-                    self._register_handlers(self.app)
-                    await asyncio.sleep(10)
-                    continue
-                log.error("Bot 初始化失败30次，放弃: %s", err)
-                return
+                await self.app.bot.set_my_commands([
+                    BotCommand(command, description)
+                    for command, description in bot_command_specs()
+                ])
+            except Exception as cmd_err:
+                log.warning("注册 Telegram Bot 命令菜单失败: %s", cmd_err)
 
-        await self.app.bot.set_my_commands([
-            BotCommand(command, description)
-            for command, description in bot_command_specs()
-        ])
-        log.info("Telegram Bot 已启动，命令菜单已注册")
+            self._ready = True
+            log.info("Telegram Bot 已启动，命令菜单已注册")
 
-        await self._flush_message_queue()
+            await self._flush_message_queue()
 
-        self._schedule_daily_report()
-        self._schedule_weekly_report()
+            self._schedule_daily_report()
+            self._schedule_weekly_report()
 
-        while True:
-            await asyncio.sleep(60)
+            while not self._stop_requested:
+                for _ in range(60):
+                    if self._stop_requested:
+                        break
+                    await asyncio.sleep(1)
+                if self._stop_requested:
+                    break
+                try:
+                    await self._health_check()
+                except Exception:
+                    import traceback
+
+                    log.error("Bot 健康检查异常:\n%s", traceback.format_exc())
+        finally:
+            self._ready = False
+            await self._cleanup_app_instance(self.app)
+            self.app = None
+            self.loop = None
+
+    async def _cleanup_app_instance(self, app) -> None:
+        if app is None:
+            return
+        try:
+            updater = getattr(app, "updater", None)
+            if updater is not None and getattr(updater, "running", False):
+                await updater.stop()
+        except Exception:
+            pass
+        try:
+            if getattr(app, "running", False):
+                await app.stop()
+        except Exception:
+            pass
+        try:
+            await app.shutdown()
+        except Exception:
+            pass
+
+    async def _shutdown_app(self) -> None:
+        self._stop_requested = True
+        self._ready = False
+        await self._cleanup_app_instance(self.app)
+
+    def stop_sync(self, timeout: float = 5.0) -> None:
+        """从同步线程请求停止运行中的 Telegram Bot 并等待线程退出。"""
+        self._stop_requested = True
+        self._ready = False
+        loop = self.loop
+        if loop is not None and not loop.is_closed():
             try:
-                await self._health_check()
+                fut = asyncio.run_coroutine_threadsafe(self._shutdown_app(), loop)
+                fut.result(timeout=min(timeout, 3.0))
             except Exception:
-                import traceback
+                pass
+        thread = self._bot_thread
+        if thread is not None and thread.is_alive() and thread is not threading.current_thread():
+            thread.join(timeout=timeout)
 
-                log.error("Bot 健康检查异常:\n%s", traceback.format_exc())
+    def ensure_started_in_background(self) -> bool:
+        """检查配置凭据并在后台热启动或热重载 Telegram Bot 守护线程。"""
+        with self._bot_lock:
+            cfg = self._config()
+            token = str(cfg.get("telegram_bot_token", "")).strip()
+            user_id = _parse_user_id(cfg.get("telegram_user_id", 0))
+
+            if not token or not user_id:
+                if self._bot_thread is not None and self._bot_thread.is_alive():
+                    self.stop_sync(timeout=3.0)
+                self._active_token = ""
+                self._active_user_id = 0
+                if not token:
+                    log.warning("Telegram Bot token 未配置，跳过 Bot 启动")
+                else:
+                    log.warning("telegram_user_id 未配置，跳过 Bot 启动")
+                return False
+
+            thread_alive = self._bot_thread is not None and self._bot_thread.is_alive()
+            if thread_alive and token == self._active_token and user_id == self._active_user_id:
+                return True
+
+            if thread_alive:
+                log.info("检测到 Telegram 凭据已变更，正在热重载 Bot...")
+                self.stop_sync(timeout=4.0)
+
+            self._stop_requested = False
+            self._ready = False
+            self._active_token = token
+            self._active_user_id = user_id
+
+            def _runner() -> None:
+                try:
+                    asyncio.run(self.start())
+                except Exception as err:
+                    log.error("Telegram Bot 后台线程异常退出: %s", err, exc_info=True)
+
+            self._bot_thread = threading.Thread(target=_runner, daemon=True)
+            self._bot_thread.start()
+            log.info("Telegram Bot 后台热挂载线程已启动")
+            return True
 
     def _schedule_daily_report(self) -> None:
         async def _send_daily() -> None:
@@ -261,7 +389,7 @@ class TelegramBot:
             asyncio.run_coroutine_threadsafe(_send_weekly(), self.loop)
 
     def send_notification(self, text: str) -> None:
-        if self.loop and self.app:
+        if self.loop and self.app and self._ready:
             asyncio.run_coroutine_threadsafe(self._send_or_queue(text), self.loop)
         else:
             self._queue_message(text)
@@ -291,8 +419,11 @@ class TelegramBot:
 
     async def _send_message(self, text: str) -> bool:
         try:
+            chat_id = _parse_user_id(self._config().get("telegram_user_id", 0))
+            if not chat_id:
+                return False
             await self.app.bot.send_message(
-                chat_id=self._config()["telegram_user_id"],
+                chat_id=chat_id,
                 text=text,
                 parse_mode=None,
             )
@@ -302,7 +433,7 @@ class TelegramBot:
             return False
 
     def _is_authorized(self, update) -> bool:
-        return is_authorized(update, int(self._config()["telegram_user_id"]))
+        return is_authorized(update, _parse_user_id(self._config().get("telegram_user_id", 0)))
 
     def _touch_update(self, handler):
         async def wrapper(update, context):

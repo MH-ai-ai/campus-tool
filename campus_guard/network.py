@@ -345,6 +345,11 @@ class NetworkMonitor:
             return
         new_snap = self.probe_connectivity()
         if new_snap.online:
+            log.info(
+                "Wi-Fi 重连后检测到网络已恢复在线 (%s, IP=%s)，跳过重复登录认证",
+                new_snap.reason,
+                new_snap.local_ip,
+            )
             with self._lock:
                 self.is_online = True
                 self.retry_count = 0
@@ -375,6 +380,11 @@ class NetworkMonitor:
 
         if not new_snap.is_campus_network:
             log.info("当前瞬时网关探活未通，但设备具备校园网配置且非家庭网络，尝试自愈认证重试...")
+
+        # 若刚切回 Wi-Fi 后 IP 尚未分配到位或误为热点地址，短暂等待再行认证
+        if not new_snap.local_ip or new_snap.local_ip in ("未知", "0.0.0.0") or new_snap.local_ip.startswith("192.168.137."):
+            if not self._wait(2):
+                new_snap = self.probe_connectivity()
 
         # 3. 校园网 Dr.COM 登录重试（含动态嗅探与网关漂移自愈校准）
         max_retries = max(2, int(cfg.get("reconnect_max_retries", 3)))

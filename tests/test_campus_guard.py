@@ -714,7 +714,7 @@ class CampusGuardTests(unittest.TestCase):
 
         bot = TelegramBot(None, None, Mock())
         mock_update = Mock()
-        mock_update.effective_user.id = 8512030855
+        mock_update.effective_user.id = 123456789
         mock_update.message.reply_text = Mock(return_value=asyncio.Future())
         mock_update.message.reply_text.return_value.set_result(None)
 
@@ -925,8 +925,8 @@ class CampusGuardTests(unittest.TestCase):
         mock_proc.stdout = b"Connection request was completed successfully."
         mock_proc.stderr = b""
 
-        # 前 16 次检查（第一个 SSID）无有效 IP，第 17 次（第二个 SSID）获取到有效 IP
-        ip_seq = ["未知"] * 16 + ["10.211.0.100"]
+        # 前 24 次检查（第一个 SSID 超时 12s）无有效 IP，第 25 次（第二个 SSID）获取到有效 IP
+        ip_seq = ["未知"] * 24 + ["10.211.0.100"]
         with (
             patch("campus_guard.system.get_config_dict", return_value={"campus_wifi_ssid": "YADX-TEA", "campus_wifi_ssids": ["YADX-STU"]}),
             patch("campus_guard.system.get_saved_wifi_profiles", return_value=["YADX-TEA", "YADX-STU"]),
@@ -1060,6 +1060,131 @@ class CampusGuardTests(unittest.TestCase):
             runtime.setup_autostart()
             cmd_written = mock_winreg.SetValueEx.call_args[0][4]
             self.assertTrue(cmd_written.endswith("--minimized"))
+
+    def test_version_consistency_across_manifests(self):
+        """验证 APP_VERSION 与 pyproject.toml、frontend/package.json 保持完全同步。"""
+        import json
+        import re
+        from pathlib import Path
+        from campus_guard.version import APP_VERSION
+
+        root = Path(__file__).resolve().parents[1]
+        pyproject_text = (root / "pyproject.toml").read_text(encoding="utf-8")
+        m = re.search(r'(?m)^version\s*=\s*"([^"]+)"', pyproject_text)
+        self.assertIsNotNone(m)
+        self.assertEqual(m.group(1), APP_VERSION)
+
+        pkg_json = json.loads((root / "frontend" / "package.json").read_text(encoding="utf-8"))
+        self.assertEqual(pkg_json.get("version"), APP_VERSION)
+
+    def test_telegram_bot_parse_user_id_and_ensure_started_skips_empty(self):
+        from campus_guard.telegram_bot import TelegramBot, _parse_user_id
+
+        self.assertEqual(_parse_user_id(""), 0)
+        self.assertEqual(_parse_user_id(" 987654 "), 987654)
+        self.assertEqual(_parse_user_id("invalid"), 0)
+        self.assertEqual(_parse_user_id(True), 0)
+
+        bot = TelegramBot(None, None, BatteryTracker())
+        self.assertFalse(bot.is_ready)
+        with patch.object(bot, "_config", return_value={"telegram_bot_token": "", "telegram_user_id": 0}):
+            self.assertFalse(bot.ensure_started_in_background())
+
+    def test_ensure_frozen_ssl_compat_recovers_from_missing_ca_file(self):
+        """验证 ensure_frozen_ssl_compat 在缺少相对路径 CA 文件时能安全回退并创建 SSLContext。"""
+        import ssl
+        from campus_guard import runtime
+
+        orig_new = ssl.SSLContext.__new__
+
+        def failing_new(cls, protocol=None, *args, **kwargs):
+            raise FileNotFoundError("missing relative ca file")
+
+        try:
+            ssl.SSLContext.__new__ = failing_new
+            runtime.ensure_frozen_ssl_compat()
+            ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+            self.assertIsInstance(ctx, ssl.SSLContext)
+        finally:
+            ssl.SSLContext.__new__ = orig_new
+
+    def test_primary_interface_ignores_windows_hotspot_virtual_adapter(self):
+        """验证 get_primary_interface_info 与 get_local_ip 会忽略 Windows 移动热点虚拟网卡 (192.168.137.1)。"""
+        import socket
+        import types
+        from campus_guard import system as sys_mod
+
+        hotspot_stats = types.SimpleNamespace(isup=True)
+        wlan_down_stats = types.SimpleNamespace(isup=False)
+        wlan_up_stats = types.SimpleNamespace(isup=True)
+        addr_hotspot = [types.SimpleNamespace(family=socket.AF_INET, address="192.168.137.1")]
+        addr_wlan = [types.SimpleNamespace(family=socket.AF_INET, address="10.211.0.100")]
+
+        # 场景1: WLAN 断开且移动热点 '本地连接* 2' 在线 -> 不应返回热点 IP
+        with (
+            patch("campus_guard.system.psutil.net_if_stats", return_value={"本地连接* 2": hotspot_stats, "WLAN": wlan_down_stats}),
+            patch("campus_guard.system.psutil.net_if_addrs", return_value={"本地连接* 2": addr_hotspot, "WLAN": []}),
+            patch("campus_guard.system.is_wifi_link_up", return_value=False),
+            patch("campus_guard.system.socket.socket", side_effect=OSError("offline")),
+        ):
+            name, ip, _mac = sys_mod.get_primary_interface_info()
+            self.assertNotEqual(name, "本地连接* 2")
+            self.assertNotEqual(ip, "192.168.137.1")
+            self.assertEqual(sys_mod.get_local_ip(), "未知")
+
+        # 场景2: WLAN 恢复拿到校园 IP 后，即使热点仍在也优先并返回 WLAN
+        with (
+            patch("campus_guard.system.psutil.net_if_stats", return_value={"本地连接* 2": hotspot_stats, "WLAN": wlan_up_stats}),
+            patch("campus_guard.system.psutil.net_if_addrs", return_value={"本地连接* 2": addr_hotspot, "WLAN": addr_wlan}),
+        ):
+            name, ip, _mac = sys_mod.get_primary_interface_info()
+            self.assertEqual(name, "WLAN")
+            self.assertEqual(ip, "10.211.0.100")
+
+    def test_check_internet_rejects_captive_portal_redirect_and_fake_200(self):
+        """验证未认证校园网劫持 302 跳转或返回伪 200 登录页时，check_internet 严格返回 False。"""
+        from campus_guard import system as sys_mod
+
+        class FakeSession:
+            def __init__(self):
+                self.trust_env = True
+
+            def get(self, url, allow_redirects=False, timeout=1.5):
+                resp = MagicMock()
+                if "generate_204" in url:
+                    resp.status_code = 302
+                    resp.text = ""
+                else:
+                    resp.status_code = 200
+                    resp.text = "<html><title>Dr.COM Portal Login</title></html>"
+                return resp
+
+            def head(self, url, allow_redirects=False, verify=True, timeout=1.5):
+                raise OSError("TLS handshake failed on captive portal")
+
+        with patch("campus_guard.system.requests.Session", side_effect=FakeSession):
+            self.assertFalse(sys_mod.check_internet())
+
+    def test_check_internet_accepts_strict_204_probe(self):
+        """验证标准 204 探针无重定向直接返回 204 时，check_internet 判定外网畅通。"""
+        from campus_guard import system as sys_mod
+
+        class OnlineSession:
+            def __init__(self):
+                self.trust_env = True
+
+            def get(self, url, allow_redirects=False, timeout=1.5):
+                resp = MagicMock()
+                if "generate_204" in url:
+                    resp.status_code = 204
+                    resp.text = ""
+                else:
+                    resp.status_code = 200
+                    resp.text = "Microsoft Connect Test"
+                return resp
+
+        with patch("campus_guard.system.requests.Session", side_effect=OnlineSession):
+            self.assertTrue(sys_mod.check_internet())
 
 
 if __name__ == "__main__":

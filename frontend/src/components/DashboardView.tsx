@@ -116,12 +116,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ state, onRefresh }
     try {
       const cfg = await api.getConfig();
       cfg.telegram_bot_token = botToken.trim();
-      cfg.telegram_user_id = botUserId.trim();
+      cfg.telegram_user_id = parseInt(botUserId.trim(), 10) || 0;
       const res = await api.saveConfig(cfg);
       if (res.success) {
-        toast.success('Telegram 凭据已加密保存，远程服务已挂载');
+        toast.success('Telegram 凭据已加密保存，正在后台自动挂载 Bot...');
         setShowTgConfig(false);
         onRefresh();
+        setTimeout(() => onRefresh(), 2000);
       } else {
         toast.error(res.message);
       }

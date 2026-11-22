@@ -128,6 +128,15 @@ class PystrayTrayManager:
             except Exception:
                 pass
 
+    def stop(self) -> None:
+        """优雅停止托盘图标循环，确保完全退出时不残留任务栏托盘图标。"""
+        self._running = False
+        if self.icon:
+            try:
+                self.icon.stop()
+            except Exception:
+                pass
+
     def _on_open(self, icon, item) -> None:
         if self.window:
             try:

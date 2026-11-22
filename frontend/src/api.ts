@@ -44,6 +44,7 @@ export interface StateData {
   campus_account: string;
   telegram?: TelegramState;
   proxy?: ProxyState;
+  version?: string;
 }
 
 export interface UniversityItem {
@@ -96,6 +97,7 @@ const MOCK_STATE: StateData = {
   university_name: "延安大学 (默认 · Dr.COM)",
   auth_protocol: "DRCOM",
   campus_account: "20240901001",
+  version: "2.3.2",
 };
 
 function withTimeout<T>(promise: Promise<T>, ms: number, errorMsg: string): Promise<T> {
@@ -136,6 +138,7 @@ export const api = {
       check_interval_seconds: 5,
       autostart: true,
       start_minimized_on_boot: true,
+      close_action: "ask",
       auto_start_proxy: false,
       proxy_exe_path: "",
       proxy_server: "127.0.0.1:7897",
@@ -376,6 +379,20 @@ export const api = {
       );
     }
     return { success: true, message: "模拟已启动 Clash Verge 并开启系统代理 (127.0.0.1:7897)" };
+  },
+
+  async handleCloseChoice(action: "tray" | "exit", remember: boolean): Promise<ApiResponse> {
+    if (window.pywebview?.api?.handle_close_choice) {
+      return await withTimeout(
+        window.pywebview.api.handle_close_choice(action, remember),
+        5000,
+        "处理关闭窗口操作超时"
+      );
+    }
+    return {
+      success: true,
+      message: action === "tray" ? "模拟已最小化至系统托盘" : "模拟正在退出程序",
+    };
   },
 
   minimize(): void {

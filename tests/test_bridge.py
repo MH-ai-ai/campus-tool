@@ -209,6 +209,72 @@ class TestApiBridge(unittest.TestCase):
         mock_remove.assert_called_once()
         mock_setup.assert_not_called()
 
+    def test_get_state_includes_app_version(self) -> None:
+        from campus_guard.version import APP_VERSION
+
+        state = self.bridge.get_state()
+        self.assertEqual(state.get("version"), APP_VERSION)
+
+    @patch("campus_guard.bridge.update_runtime_config")
+    @patch("campus_guard.bridge.load_config_raw", return_value={"close_action": "ask"})
+    def test_handle_close_choice_tray_and_remember(self, mock_load, mock_update) -> None:
+        mock_win = MagicMock()
+        self.bridge.set_window(mock_win)
+
+        res = self.bridge.handle_close_choice("tray", remember=True)
+        self.assertTrue(res["success"])
+        self.assertEqual(res["action"], "tray")
+        mock_win.hide.assert_called_once()
+        self._mock_save.assert_called_once()
+        saved_dict = self._mock_save.call_args[0][0]
+        self.assertEqual(saved_dict.get("close_action"), "tray")
+
+    @patch("campus_guard.bridge.threading.Timer")
+    def test_handle_close_choice_exit_sets_force_closing(self, mock_timer) -> None:
+        res = self.bridge.handle_close_choice("exit", remember=False)
+        self.assertTrue(res["success"])
+        self.assertEqual(res["action"], "exit")
+        self.assertTrue(self.bridge._force_closing)
+        mock_timer.assert_called_once()
+        mock_timer.return_value.start.assert_called_once()
+
+    @patch("campus_guard.runtime.setup_autostart")
+    @patch("campus_guard.bridge.update_runtime_config")
+    @patch("campus_guard.bridge.load_config_raw", return_value={"autostart": True})
+    def test_save_config_hot_starts_telegram_bot(self, mock_load, mock_update, mock_setup) -> None:
+        mock_bot = MagicMock()
+        bridge = ApiBridge(tg_bot=mock_bot)
+
+        res = bridge.save_config({"telegram_bot_token": "123:abc", "telegram_user_id": "987654321"})
+        self.assertTrue(res["success"])
+        mock_bot.ensure_started_in_background.assert_called_once()
+        saved_dict = self._mock_save.call_args[0][0]
+        self.assertEqual(saved_dict.get("telegram_user_id"), 987654321)
+
+    @patch("requests.post")
+    def test_test_telegram_bot_uses_http_fallback_when_bot_not_ready(self, mock_post) -> None:
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {"ok": True}
+        mock_post.return_value = mock_resp
+
+        mock_bot = MagicMock()
+        mock_bot.is_ready = False
+        mock_bot.app = None
+        mock_bot.loop = None
+        bridge = ApiBridge(tg_bot=mock_bot)
+
+        with patch(
+            "campus_guard.bridge.get_config_dict",
+            return_value={"telegram_bot_token": "123:abc", "telegram_user_id": 987654321},
+        ):
+            res = bridge.test_telegram_bot()
+
+        self.assertTrue(res["success"])
+        mock_bot.send_notification.assert_not_called()
+        mock_post.assert_called_once()
+        mock_bot.ensure_started_in_background.assert_called_once()
+
 
 if __name__ == "__main__":
     unittest.main()

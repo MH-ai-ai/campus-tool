@@ -99,8 +99,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab, state
         </div>
 
         <div className="px-2 flex items-center justify-between text-[10px] text-ink-tertiary">
-          <span>校园守护 · 桌面端</span>
-          <span className="font-mono">v2.2</span>
+          <span>安澜 · 桌面端</span>
+          <span className="font-mono">{state?.version ? `v${state.version}` : 'v2.3.2'}</span>
         </div>
       </div>
     </aside>
