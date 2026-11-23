@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Compatibility launcher for Campus Guard."""
+"""安澜 (AutoCampusNet) 主启动入口。"""
 
 from campus_guard.runtime import main
 

@@ -36,4 +36,4 @@
 | :--- | :--- | :--- | :--- |
 | `AnLan-v2.3.2-Windows-x64.zip` | Windows 10 / 11 (x64) | 绿色便携免安装 | 解压后双击 `AnLan.exe` 即可运行 |
 
-> 完整变更记录请参阅 [CHANGELOG.md](https://github.com/MH-ai-ai/campus-tool/blob/main/CHANGELOG.md)。
+> 完整变更记录请参阅 [CHANGELOG.md](https://github.com/Lunar-mh/AutoCampusNet/blob/main/CHANGELOG.md)。

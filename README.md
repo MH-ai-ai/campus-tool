@@ -1,12 +1,12 @@
 <div align="center">
   <img src="assets/app_icon.png" width="88" alt="安澜 Logo" />
-  <h1>安澜 · AnLan</h1>
+  <h1>安澜 · AutoCampusNet</h1>
   <p><strong>愿校园网从此风平浪静</strong></p>
   <p>专为中国高校打造的 Windows 校园网全自动认证、断网自愈、Clash 代理联动与宿舍断电守护桌面工具</p>
 
   <p>
-    <a href="https://github.com/MH-ai-ai/campus-tool/releases/latest"><img src="https://img.shields.io/badge/Release-v2.3.2-2B5797?style=flat-square&logo=github" alt="Latest Release" /></a>
-    <a href="https://github.com/MH-ai-ai/campus-tool/stargazers"><img src="https://img.shields.io/github/stars/MH-ai-ai/campus-tool?style=flat-square&color=CF8A27&logo=github" alt="GitHub Stars" /></a>
+    <a href="https://github.com/Lunar-mh/AutoCampusNet/releases/latest"><img src="https://img.shields.io/badge/Release-v2.3.2-2B5797?style=flat-square&logo=github" alt="Latest Release" /></a>
+    <a href="https://github.com/Lunar-mh/AutoCampusNet/stargazers"><img src="https://img.shields.io/github/stars/Lunar-mh/AutoCampusNet?style=flat-square&color=CF8A27&logo=github" alt="GitHub Stars" /></a>
     <img src="https://img.shields.io/badge/Platform-Windows%2010%20%2F%2011%20(x64)-0078D4?style=flat-square&logo=windows" alt="Platform" />
     <img src="https://img.shields.io/badge/Runtime-WebView2%20%7C%20Python%203.12%2B-475569?style=flat-square" alt="Runtime" />
     <img src="https://img.shields.io/badge/UI-React%2019%20%7C%20Tailwind%20CSS-38BDF8?style=flat-square&logo=react" alt="Frontend" />
@@ -86,7 +86,7 @@
 
 ### 方式一：下载绿色便携版（推荐，开箱即用）
 
-1. 前往 [**GitHub Releases**](https://github.com/MH-ai-ai/campus-tool/releases/latest) 下载最新版 `AnLan-v2.3.2-Windows-x64.zip`；
+1. 前往 [**GitHub Releases**](https://github.com/Lunar-mh/AutoCampusNet/releases/latest) 下载最新版 `AnLan-v2.3.2-Windows-x64.zip`；
 2. 解压到本地任意文件夹（支持 64 位 Windows 10 / 11，系统自带 Edge WebView2 即可，**无需安装 Python 或 Node.js**）；
 3. 双击 `AnLan.exe` 启动，在首页输入校园网账号密码并点击 **「一键极速联网」**；
 4. *(可选)* 前往左侧 **「核心配置」 → 「连网后自动启动代理（Clash 联动）」**，点击 **「一键探测本机 Clash」** 并勾选开启即可（建议同步关闭 Clash 自身的开机自启）。
@@ -95,8 +95,8 @@
 
 ```powershell
 # 1. 克隆仓库
-git clone https://github.com/MH-ai-ai/campus-tool.git
-cd campus-tool
+git clone https://github.com/Lunar-mh/AutoCampusNet.git
+cd AutoCampusNet
 
 # 2. 构建前端静态资源 (需 Node.js 20+)
 cd frontend
@@ -238,14 +238,14 @@ flowchart TD
 | :--- | :--- | :--- |
 | **QQ** | `3202484369` | 日常使用咨询、高校适配沟通 |
 | **邮箱** | [lunar.mh722@gmail.com](mailto:lunar.mh722@gmail.com) | 合作交流、安全漏洞私密反馈 |
-| **GitHub Issues** | [提交 Bug / 建议](https://github.com/MH-ai-ai/campus-tool/issues) | 建议附上界面导出的**脱敏诊断包**，排查更快 |
+| **GitHub Issues** | [提交 Bug / 建议](https://github.com/Lunar-mh/AutoCampusNet/issues) | 建议附上界面导出的**脱敏诊断包**，排查更快 |
 
 ---
 
 ## 版本记录与开源许可
 
 * 完整版本演进与修复明细请参阅 [CHANGELOG.md](CHANGELOG.md)
-* 最新发行版说明请参阅 [RELEASE_NOTES.md](RELEASE_NOTES.md) 或 [GitHub Releases](https://github.com/MH-ai-ai/campus-tool/releases)（附 `SHA256SUMS.txt` 校验文件）
+* 最新发行版说明请参阅 [RELEASE_NOTES.md](RELEASE_NOTES.md) 或 [GitHub Releases](https://github.com/Lunar-mh/AutoCampusNet/releases)（附 `SHA256SUMS.txt` 校验文件）
 * 参与贡献请阅读 [CONTRIBUTING.md](CONTRIBUTING.md)，安全政策请参阅 [SECURITY.md](SECURITY.md)
 * 本项目基于 [MIT License](LICENSE) 开源发布，特别感谢延安大学（Yan'an University）校园网真实环境对本项目的长期验证支持。
 

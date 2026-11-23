@@ -14,7 +14,7 @@ from .paths import UNIVERSITIES_CACHE_PATH
 log = get_logger()
 
 # 远程高校规则库热更新地址 (GitHub / Gitee 镜像)
-_REMOTE_RULE_URL = "https://raw.githubusercontent.com/MH-ai-ai/campus-tool/main/data/universities.json"
+_REMOTE_RULE_URL = "https://raw.githubusercontent.com/Lunar-mh/AutoCampusNet/main/data/universities.json"
 
 
 @dataclass
