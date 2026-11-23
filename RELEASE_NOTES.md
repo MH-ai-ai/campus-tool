@@ -12,6 +12,7 @@
 
 ### 2. Telegram Bot 凭据热挂载与冻结包 SSL 兼容修复
 - **实时热挂载**：在界面填入或修改 Bot Token / 用户 ID 并保存后，后台自动热启动或重载 Bot，无需重启软件；同步修复测试握手按钮未就绪时假返回成功的问题；
+- **初始化期竞态修复**：修复 Bot 刚启动重试时被网络恢复事件提前触发健康检查导致的 `This Updater was not initialized via Updater.initialize!` 竞态告警；
 - **冻结包 HTTPS/SSL 兼容**：新增 PyInstaller 运行时钩子与启动双保险，修复打包环境下 `ssl.SSLContext` 初始化抛出 `FileNotFoundError` 导致 Bot 无法连接及 HTTPS 探测失败的隐蔽问题。
 
 ### 3. 点击关闭按钮 (×) 确认弹窗与托盘清理
@@ -19,6 +20,9 @@
 
 ### 4. 版本号单一真源同步
 - 引入 `campus_guard/version.py` (`APP_VERSION = "2.3.2"`) 并由后端状态接口实时驱动前端展示，配合自动化一致性单测防止版本号再次脱节。
+
+### 5. 国内免代理消息通知（飞书 / 钉钉）界面与一键测试
+- 在核心配置页补全飞书 Webhook、钉钉 Webhook 与加签密钥配置卡片，并新增 `test_domestic_notify` 一键测试推送接口，校园网直连即可实时接收断网自愈与电量告警通知。
 
 ---
 

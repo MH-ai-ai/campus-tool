@@ -9,15 +9,17 @@
 ### 新增 (Added)
 - **版本号单一真源同步** (`campus_guard/version.py`)：新增 `APP_VERSION = "2.3.2"` 唯一版本真源，前端侧边栏版本号由后端状态接口实时下发并同步至 `pyproject.toml`、`frontend/package.json` 及 Windows `AppUserModelID`，同时新增自动化防呆一致性单元测试。
 - **点击窗口关闭按钮 (×) 选择弹窗** (`campus_guard/ui.py`、`bridge.py`、`frontend/src/App.tsx`)：拦截关闭事件并在界面弹出 iOS 浅色磨砂确认对话框，支持选择「最小化到托盘」「直接退出程序」及勾选「记住我的选择」，核心配置页同步新增 `close_action` 下拉开关，退出时优雅停止监控并清理系统托盘图标。
+- **国内免代理消息通知配置与一键测试** (`campus_guard/bridge.py`、`frontend/src/components/SettingsView.tsx`)：在核心配置页补全飞书 Webhook、钉钉 Webhook 与加签密钥输入卡片，并新增 `test_domestic_notify` 测试推送接口。
 
 ### 修复 (Fixed)
-- **Telegram Bot 热挂载与冻结版 HTTPS/SSL 修复** (`campus_guard/telegram_bot.py`、`scripts/rthook_ssl_compat.py`)：
+- **Telegram Bot 热挂载、初始化竞态与冻结版 HTTPS/SSL 修复** (`campus_guard/telegram_bot.py`、`scripts/rthook_ssl_compat.py`)：
   - 保存 Telegram 凭据后立即在后台热启动或热重载 Bot，无需重启软件；修复 Bot 未就绪时测试握手误把消息写入本地队列并返回假成功的问题；
+  - 为 `_health_check()` 增加 `_ready` 守卫并将 `register_bot_health_check()` 延后至就绪后注册，修复 Bot 初始化重试期被网络恢复事件提前触发健康检查导致的 `This Updater was not initialized via Updater.initialize!` 竞态告警；
   - 新增 PyInstaller 运行时 SSL 兼容钩子 `rthook_ssl_compat.py` 与 `ensure_frozen_ssl_compat()` 双保险，解决冻结环境下 `ssl.SSLContext` 相对路径 CA 文件缺失引发的 Bot 与 HTTPS 请求失败。
 - **断网自愈精度强化** (`campus_guard/system.py`、`network.py`)：
   - 过滤 Windows 移动热点虚拟网卡（`本地连接*`、`192.168.137.*` 等），防止重连 Wi-Fi 时提前误判已拿到 IP 而退出等待；
   - 将 `check_internet()` 升级为严格 Captive Portal 204 / 特征正文 / HTTPS 证书并发校验，彻底消除高校未认证前放行 DNS 53 端口导致的假在线漏认证问题。
-- **测试脱敏**：完成 103 项全量单元测试覆盖与测试占位数据脱敏。
+- **测试脱敏**：完成 105 项全量单元测试覆盖与测试占位数据脱敏。
 
 ---
 
