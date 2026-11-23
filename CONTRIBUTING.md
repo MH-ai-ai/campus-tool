@@ -6,10 +6,10 @@
 
 ## 1. 提交高校校园网适配器预设
 
-如果你所在高校尚未收录在内置预设库中，欢迎通过 Pull Request 补充 `campus_guard/universities.json`：
+如果你所在高校尚未收录在内置预设库中，欢迎通过 Pull Request 补充 `data/universities.json`：
 
 1. 在本地使用「安澜」的 **Portal 自动嗅探** 或浏览器抓包确认学校的认证协议（如 `drcom`、`srun`、`ruijie`、`generic` 等）、网关 IP 与认证页 URL；
-2. 在 `campus_guard/universities.json` 中新增一条脱敏后的预设条目（**切勿包含任何个人学号或密码**）：
+2. 在 `data/universities.json` 中新增一条脱敏后的预设条目（**切勿包含任何个人学号或密码**）：
    ```json
    {
      "id": "university_code",

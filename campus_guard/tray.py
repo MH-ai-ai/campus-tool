@@ -62,23 +62,6 @@ def create_tray_icon(color: str, size: int = 64):
     return img
 
 
-def pil_image_to_qicon(pil_img):
-    try:
-        from PyQt6.QtGui import QIcon, QImage, QPixmap
-
-        raw = pil_img.tobytes("raw", "RGBA")
-        qimg = QImage(
-            raw,
-            pil_img.width,
-            pil_img.height,
-            pil_img.width * 4,
-            QImage.Format.Format_RGBA8888,
-        )
-        return QIcon(QPixmap.fromImage(qimg))
-    except ImportError:
-        return None
-
-
 class PystrayTrayManager:
     """基于 pystray 的现代化轻量系统托盘管理器，支持与 Webview 窗口协同。"""
 

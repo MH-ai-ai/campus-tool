@@ -25,7 +25,7 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=["scripts/rthook_ssl_compat.py"],
-    excludes=[],
+    excludes=["PyQt6", "PyQt5", "PySide6", "tkinter"],
     noarchive=False,
     optimize=0,
 )

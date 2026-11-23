@@ -15,63 +15,10 @@ from .models import GuardState
 from .network import NetworkMonitor
 from .paths import APP_DIR, WEB_DIST_PATH
 from .telegram_bot import TelegramBot
-from .tray import PystrayTrayManager, create_tray_icon, get_tray_color, pil_image_to_qicon
+from .tray import PystrayTrayManager, create_tray_icon, get_tray_color
 from .version import APP_VERSION
 
 log = get_logger()
-
-# 导出兼容旧代码引用的变量与组件
-_COLORS = {
-    "window_bg": "#111216",
-    "sidebar_bg": "#16171d",
-    "card_bg": "#1c1e26",
-    "card_hover": "#232630",
-    "text_primary": "#f3f4f6",
-    "text_secondary": "#9ca3af",
-    "accent": "#0a84ff",
-    "success": "#32d74b",
-    "warning": "#ff9f0a",
-    "danger": "#ff453a",
-}
-_STYLESHEET = ""
-
-# 尝试导入历史 PyQt6 模块以保持旧代码无缝兼容；在无 GUI 或无 PyQt6 环境下优雅回退
-try:
-    from .ui_modules.dashboard_page import _DashboardPage
-    from .ui_modules.log_page import _LogPage
-    from .ui_modules.settings_page import _SettingsPage
-    from .ui_modules.styles import _STYLESHEET as _OLD_STYLESHEET
-    from .ui_modules.widgets import _SideBar, _Worker
-    _STYLESHEET = _OLD_STYLESHEET
-
-    from PyQt6.QtWidgets import QMainWindow
-
-    class MainWindow(QMainWindow):
-        """兼容保留的 PyQt6 历史主窗口基类。"""
-        def __init__(self, battery: BatteryMonitor, network: NetworkMonitor, tg_bot: TelegramBot) -> None:
-            super().__init__()
-            self.battery = battery
-            self.network = network
-            self.tg_bot = tg_bot
-except ImportError:
-    class MainWindow:  # type: ignore
-        def __init__(self, *args, **kwargs) -> None:
-            pass
-
-    class _DashboardPage:  # type: ignore
-        pass
-
-    class _LogPage:  # type: ignore
-        pass
-
-    class _SettingsPage:  # type: ignore
-        pass
-
-    class _SideBar:  # type: ignore
-        pass
-
-    class _Worker:  # type: ignore
-        pass
 
 
 def launch_gui(
@@ -240,14 +187,6 @@ def launch_gui(
 
 
 __all__ = [
-    "MainWindow",
     "_SETTINGS_SCHEMA",
-    "_DashboardPage",
-    "_LogPage",
-    "_SettingsPage",
-    "_SideBar",
-    "_Worker",
-    "_COLORS",
-    "_STYLESHEET",
     "launch_gui",
 ]
