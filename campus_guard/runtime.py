@@ -304,6 +304,19 @@ def _run_main() -> None:
     encrypt_config_file()
     initialize_runtime_config()
 
+    args = set(sys.argv[1:])
+    if "--diagnose" in args:
+        from .diagnostics import collect_diagnostics, format_diagnostics_text
+
+        print(format_diagnostics_text(collect_diagnostics()))
+        return
+    if "--export-diagnostics" in args:
+        from .diagnostics import export_diagnostic_bundle
+
+        bundle_path = export_diagnostic_bundle()
+        print(f"脱敏诊断包已生成: {bundle_path}")
+        return
+
     from .notifier import UnifiedNotifier
 
     tracker = BatteryTracker()

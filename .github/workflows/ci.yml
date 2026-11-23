@@ -94,6 +94,12 @@ jobs:
         run: |
           Compress-Archive -Path "dist\AnLan\*" -DestinationPath "AnLan-Windows-x64.zip"
           Copy-Item "AnLan-Windows-x64.zip" -Destination "AnLan-${{ github.ref_name }}-Windows-x64.zip" -Force
+          $h1 = (Get-FileHash "AnLan-${{ github.ref_name }}-Windows-x64.zip" -Algorithm SHA256).Hash.ToLower()
+          $h2 = (Get-FileHash "AnLan-Windows-x64.zip" -Algorithm SHA256).Hash.ToLower()
+          @(
+            "$h1  AnLan-${{ github.ref_name }}-Windows-x64.zip",
+            "$h2  AnLan-Windows-x64.zip"
+          ) | Set-Content -Path "SHA256SUMS.txt" -Encoding UTF8
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
@@ -111,5 +117,6 @@ jobs:
           files: |
             AnLan-${{ github.ref_name }}-Windows-x64.zip
             AnLan-Windows-x64.zip
+            SHA256SUMS.txt
           draft: false
           prerelease: false

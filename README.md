@@ -10,8 +10,8 @@
     <img src="https://img.shields.io/badge/Platform-Windows%2010%20%2F%2011%20(x64)-0078D4?style=flat-square&logo=windows" alt="Platform" />
     <img src="https://img.shields.io/badge/Runtime-WebView2%20%7C%20Python%203.12%2B-475569?style=flat-square" alt="Runtime" />
     <img src="https://img.shields.io/badge/UI-React%2019%20%7C%20Tailwind%20CSS-38BDF8?style=flat-square&logo=react" alt="Frontend" />
-    <img src="https://img.shields.io/badge/Tests-105%20Passed-1F7A53?style=flat-square" alt="Tests" />
-    <img src="https://img.shields.io/badge/License-MIT-64748B?style=flat-square" alt="License" />
+    <img src="https://img.shields.io/badge/Tests-109%20Passed-1F7A53?style=flat-square" alt="Tests" />
+    <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-64748B?style=flat-square" alt="License" /></a>
   </p>
 
   <p>
@@ -19,8 +19,8 @@
     <a href="#安澜-vs-传统校园网脚本">直观对比</a> ·
     <a href="#安澜能为你做什么">核心能力</a> ·
     <a href="#30-秒极速上手">极速上手</a> ·
-    <a href="#高校认证体系支持">支持协议</a> ·
-    <a href="#系统拓扑与工程架构">系统架构</a>
+    <a href="#常见故障排查与诊断">故障排查</a> ·
+    <a href="#联系作者与交流反馈">联系作者</a>
   </p>
 </div>
 
@@ -109,7 +109,7 @@ py -3.12 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install --upgrade pip
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
 
-# 4. 运行全量自动化测试 (105 项单元测试)
+# 4. 运行全量自动化测试 (109 项单元测试)
 .\.venv\Scripts\python.exe -m unittest discover -s tests -p "test_*.py" -v
 
 # 5. 启动桌面控制中心
@@ -210,11 +210,44 @@ flowchart TD
 
 ---
 
+## 常见故障排查与诊断
+
+遇到校园网自愈、代理冲突或环境异常时，支持**界面一键导出脱敏诊断包**或命令行只读诊断：
+
+* **图形界面**：打开「运行日志」页面，点击右上角 **「诊断包」** 按钮，即可在程序目录生成已自动脱敏的 `anlan_diagnostic_YYYYMMDD_HHMMSS.zip`（包含当前 Wi-Fi、本机 IP、网关/外网连通性、Clash 状态、脱敏配置摘要与脱敏日志，绝不包含密码与密钥）。
+* **命令行只读诊断**：
+  ```powershell
+  .\AnLan.exe --diagnose             # 打印当前网络与配置诊断摘要
+  .\AnLan.exe --export-diagnostics   # 生成脱敏诊断压缩包 (.zip)
+  ```
+
+| 常见现象 | 可能原因 | 解决方法 |
+| :--- | :--- | :--- |
+| 下载解压后双击闪退 / CLR 报错 | Windows 给网络压缩包附加了 `Zone.Identifier` (MOTW) 锁定标记 | 随包已附带 `AnLan.exe.config` 且程序启动前置自动解锁；若仍受安全策略拦截，右键属性勾选「解除锁定」即可 |
+| 开启 Windows 移动热点后掉线不自动重连 | 热点虚拟网卡 (`本地连接*` / `192.168.137.*`) 干扰了物理网卡 IP 判定 | `v2.3.2+` 已自动过滤虚拟共享网卡并升级为严格 Captive Portal 204 / HTTPS 校验 |
+| 校园网已连上但 Telegram Bot 无法上线 | 校园网直连 `api.telegram.org` 受阻，或未开启 Clash 联动 | 在「核心配置 → Clash 代理联动」开启「连网后自动启动代理」，或改用飞书 / 钉钉国内免代理通知 |
+| Dr.COM 提示认证失败 (`result: 0` / `512`) | 学号/运营商后缀、密码或网关地址不匹配 | 在「核心配置」点击「自动嗅探校园网」，或核对学号运营商后缀与登录密码 |
+
+---
+
+## 联系作者与交流反馈
+
+如果你在使用过程中遇到适配问题、有新功能建议，或想一起补充更多高校认证预设，欢迎通过以下方式联系我：
+
+| 交流渠道 | 联系方式 / 地址 | 说明 |
+| :--- | :--- | :--- |
+| **QQ** | `3202484369` | 日常使用咨询、高校适配沟通 |
+| **邮箱** | [lunar.mh722@gmail.com](mailto:lunar.mh722@gmail.com) | 合作交流、安全漏洞私密反馈 |
+| **GitHub Issues** | [提交 Bug / 建议](https://github.com/MH-ai-ai/campus-tool/issues) | 建议附上界面导出的**脱敏诊断包**，排查更快 |
+
+---
+
 ## 版本记录与开源许可
 
 * 完整版本演进与修复明细请参阅 [CHANGELOG.md](CHANGELOG.md)
-* 最新发行版说明请参阅 [RELEASE_NOTES.md](RELEASE_NOTES.md) 或 [GitHub Releases](https://github.com/MH-ai-ai/campus-tool/releases)
-* 本项目基于 **MIT License** 开源发布，特别感谢延安大学（Yan'an University）校园网真实环境对本项目的长期验证支持。
+* 最新发行版说明请参阅 [RELEASE_NOTES.md](RELEASE_NOTES.md) 或 [GitHub Releases](https://github.com/MH-ai-ai/campus-tool/releases)（附 `SHA256SUMS.txt` 校验文件）
+* 参与贡献请阅读 [CONTRIBUTING.md](CONTRIBUTING.md)，安全政策请参阅 [SECURITY.md](SECURITY.md)
+* 本项目基于 [MIT License](LICENSE) 开源发布，特别感谢延安大学（Yan'an University）校园网真实环境对本项目的长期验证支持。
 
 <div align="center">
   <p>如果「安澜」帮你省下了无数次手动重连和抢救文档的时间，欢迎点一个免费的 <strong>Star ⭐</strong> 支持一下！</p>

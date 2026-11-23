@@ -298,6 +298,17 @@ class TestApiBridge(unittest.TestCase):
             mock_feishu.assert_called_once()
             mock_ding.assert_called_once()
 
+    def test_export_diagnostic_bundle(self):
+        from pathlib import Path
+
+        fake_path = Path("anlan_diagnostic_test.zip")
+        with patch("campus_guard.diagnostics.export_diagnostic_bundle", return_value=fake_path):
+            res = self.bridge.export_diagnostic_bundle()
+
+        self.assertTrue(res["success"])
+        self.assertIn("anlan_diagnostic_test.zip", res["message"])
+        self.assertEqual(res["path"], str(fake_path))
+
 
 if __name__ == "__main__":
     unittest.main()

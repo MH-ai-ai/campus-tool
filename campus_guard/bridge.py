@@ -451,6 +451,21 @@ class ApiBridge:
         except Exception as err:
             return {"success": False, "message": f"读取日志失败: {err}", "content": "", "path": str(LOG_PATH)}
 
+    def export_diagnostic_bundle(self) -> dict[str, Any]:
+        """生成脱敏网络诊断压缩包 (.zip) 并返回本地文件路径。"""
+        try:
+            from .diagnostics import export_diagnostic_bundle
+
+            bundle_path = export_diagnostic_bundle()
+            return {
+                "success": True,
+                "message": f"脱敏诊断包已生成: {bundle_path.name}",
+                "path": str(bundle_path),
+            }
+        except Exception as err:
+            log.error("生成脱敏诊断包失败: %s", err)
+            return {"success": False, "message": f"生成诊断包失败: {err}"}
+
     def open_log_folder(self) -> dict[str, Any]:
         """在系统资源管理器中打开并高亮定位日志文件。"""
         try:

@@ -323,6 +323,21 @@ export const api = {
     return { success: true, message: "已在资源管理器中打开日志目录" };
   },
 
+  async exportDiagnosticBundle(): Promise<ApiResponse & { path?: string }> {
+    if (window.pywebview?.api?.export_diagnostic_bundle) {
+      return await withTimeout(
+        window.pywebview.api.export_diagnostic_bundle(),
+        15000,
+        "生成脱敏诊断包超时"
+      );
+    }
+    return {
+      success: true,
+      message: "模拟脱敏诊断包已生成: anlan_diagnostic_mock.zip",
+      path: "C:\\Users\\User\\AppData\\Roaming\\AnLan\\anlan_diagnostic_mock.zip",
+    };
+  },
+
   async lockScreen(): Promise<ApiResponse> {
     if (window.pywebview?.api?.lock_screen) {
       return await window.pywebview.api.lock_screen();

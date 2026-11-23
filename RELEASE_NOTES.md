@@ -24,6 +24,10 @@
 ### 5. 国内免代理消息通知（飞书 / 钉钉）界面与一键测试
 - 在核心配置页补全飞书 Webhook、钉钉 Webhook 与加签密钥配置卡片，并新增 `test_domestic_notify` 一键测试推送接口，校园网直连即可实时接收断网自愈与电量告警通知。
 
+### 6. 一键网络诊断、脱敏诊断包与开源规范完善
+- 新增「运行日志 → 诊断包」按钮及 `--diagnose` / `--export-diagnostics` 命令行参数，一键导出含 Wi-Fi、网关、外网、Clash 状态与脱敏配置/日志的 `anlan_diagnostic_*.zip`；
+- 补齐 `LICENSE` (MIT)、`CONTRIBUTING.md`、`SECURITY.md`，Release 资产同步附带 `SHA256SUMS.txt` 校验文件。
+
 ---
 
 ## 资产下载与使用方式

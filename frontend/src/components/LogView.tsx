@@ -13,6 +13,7 @@ import {
   Check,
   Loader2,
   X,
+  FileArchive,
 } from 'lucide-react';
 import { api } from '../api';
 import { useToast } from './ToastContext';
@@ -27,6 +28,7 @@ export const LogView: React.FC = () => {
   const [levelFilter, setLevelFilter] = useState<'ALL' | 'INFO' | 'WARNING' | 'ERROR'>('ALL');
   const [autoScroll, setAutoScroll] = useState(true);
   const [exportState, setExportState] = useState<ExportState>('idle');
+  const [diagExporting, setDiagExporting] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
 
   const endRef = useRef<HTMLDivElement>(null);
@@ -128,6 +130,23 @@ export const LogView: React.FC = () => {
     } catch (err: any) {
       console.error(err);
       toast.error(`打开失败: ${err?.message || err}`);
+    }
+  };
+
+  const handleExportDiagnosticBundle = async () => {
+    if (diagExporting) return;
+    setDiagExporting(true);
+    try {
+      const res = await api.exportDiagnosticBundle();
+      if (res.success) {
+        toast.success(res.path ? `脱敏诊断包已生成: ${res.path}` : res.message || '脱敏诊断包已生成');
+      } else {
+        toast.error(res.message || '生成诊断包失败');
+      }
+    } catch (err: any) {
+      toast.error(`生成诊断包失败: ${err?.message || err}`);
+    } finally {
+      setDiagExporting(false);
     }
   };
 
@@ -249,6 +268,21 @@ export const LogView: React.FC = () => {
                   <span>导出日志</span>
                 </>
               )}
+            </button>
+
+            <button
+              type="button"
+              onClick={handleExportDiagnosticBundle}
+              disabled={diagExporting}
+              title="一键生成脱敏诊断压缩包 (.zip)"
+              className="h-8 px-2.5 rounded-lg ios-btn-secondary text-xs font-medium text-[#2b5797] whitespace-nowrap shrink-0 inline-flex items-center gap-1.5 disabled:opacity-60"
+            >
+              {diagExporting ? (
+                <Loader2 className="w-3.5 h-3.5 shrink-0 animate-spin" />
+              ) : (
+                <FileArchive className="w-3.5 h-3.5 shrink-0" />
+              )}
+              <span>{diagExporting ? '打包中' : '诊断包'}</span>
             </button>
 
             <button
