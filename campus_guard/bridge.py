@@ -593,6 +593,50 @@ class ApiBridge:
         except Exception as err:
             return {"success": False, "message": f"网络通信异常（请确认代理或 Telegram 连通性）: {err}"}
 
+    def test_domestic_notify(self, overrides: dict[str, Any] | None = None) -> dict[str, Any]:
+        """测试飞书 / 钉钉国内免代理通知通道（支持传入未保存的表单参数覆盖）。"""
+        try:
+            from .notifier import UnifiedNotifier
+
+            cfg = dict(get_config_dict())
+            if isinstance(overrides, dict):
+                for key in ("feishu_webhook_url", "dingtalk_webhook_url", "dingtalk_secret"):
+                    if key in overrides and overrides[key] is not None:
+                        cfg[key] = str(overrides[key]).strip()
+
+            feishu_url = str(cfg.get("feishu_webhook_url", "") or "").strip()
+            dingtalk_url = str(cfg.get("dingtalk_webhook_url", "") or "").strip()
+            dingtalk_secret = str(cfg.get("dingtalk_secret", "") or "").strip()
+
+            if not feishu_url and not dingtalk_url:
+                return {"success": False, "message": "请先填写飞书或钉钉机器人 Webhook 地址"}
+
+            test_text = (
+                "🔔 安澜 国内通知通道握手测试成功\n"
+                f"🕒 测试时间: {time.strftime('%Y-%m-%d %H:%M:%S')}\n"
+                "✅ 后续断网恢复与宿舍断电预警将通过此通道实时送达"
+            )
+            results: list[str] = []
+            any_ok = False
+
+            if feishu_url:
+                ok_feishu = UnifiedNotifier._send_feishu_card(
+                    feishu_url, test_text, title="安澜 · 通知测试", level="success"
+                )
+                any_ok = any_ok or ok_feishu
+                results.append("飞书发送成功" if ok_feishu else "飞书发送失败")
+
+            if dingtalk_url:
+                ok_dingtalk = UnifiedNotifier._send_dingtalk(
+                    dingtalk_url, dingtalk_secret, test_text, title="安澜 · 通知测试"
+                )
+                any_ok = any_ok or ok_dingtalk
+                results.append("钉钉发送成功" if ok_dingtalk else "钉钉发送失败")
+
+            return {"success": any_ok, "message": "；".join(results)}
+        except Exception as err:
+            return {"success": False, "message": f"国内通知通道测试异常: {err}"}
+
     def close_app(self) -> None:
         """安全退出应用：停止监控服务、清理系统托盘图标并销毁主窗口。"""
         self._force_closing = True

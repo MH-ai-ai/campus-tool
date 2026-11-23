@@ -150,6 +150,7 @@ export const api = {
       auto_shutdown_delay: 60,
       feishu_webhook_url: "",
       dingtalk_webhook_url: "",
+      dingtalk_secret: "",
     };
   },
 
@@ -341,6 +342,17 @@ export const api = {
       return await withTimeout(window.pywebview.api.test_telegram_bot(), 8000, "发送 Telegram 测试消息超时");
     }
     return { success: true, message: "模拟向手机 Telegram 派发测试握手成功" };
+  },
+
+  async testDomesticNotify(overrides?: Record<string, any>): Promise<ApiResponse> {
+    if (window.pywebview?.api?.test_domestic_notify) {
+      return await withTimeout(
+        window.pywebview.api.test_domestic_notify(overrides ?? {}),
+        10000,
+        "测试国内通知推送超时"
+      );
+    }
+    return { success: true, message: "模拟飞书/钉钉通知推送测试成功" };
   },
 
   async detectProxyClient(): Promise<

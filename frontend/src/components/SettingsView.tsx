@@ -28,7 +28,9 @@ export const SettingsView: React.FC = () => {
   const [sniffing, setSniffing] = useState(false);
   const [detectingProxy, setDetectingProxy] = useState(false);
   const [testingProxy, setTestingProxy] = useState(false);
+  const [testingNotify, setTestingNotify] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showDingtalkSecret, setShowDingtalkSecret] = useState(false);
   const [schools, setSchools] = useState<UniversityItem[]>([]);
   const [showSchoolDropdown, setShowSchoolDropdown] = useState(false);
   const schoolDropdownRef = useRef<HTMLDivElement>(null);
@@ -169,6 +171,26 @@ export const SettingsView: React.FC = () => {
       toast.error(`执行代理联动测试失败: ${err?.message || err}`);
     } finally {
       setTestingProxy(false);
+    }
+  };
+
+  const handleTestDomesticNotify = async () => {
+    setTestingNotify(true);
+    try {
+      const res = await api.testDomesticNotify({
+        feishu_webhook_url: config.feishu_webhook_url ?? '',
+        dingtalk_webhook_url: config.dingtalk_webhook_url ?? '',
+        dingtalk_secret: config.dingtalk_secret ?? '',
+      });
+      if (res.success) {
+        toast.success(res.message);
+      } else {
+        toast.error(res.message);
+      }
+    } catch (err: any) {
+      toast.error(`测试国内推送失败: ${err?.message || err}`);
+    } finally {
+      setTestingNotify(false);
     }
   };
 
@@ -517,7 +539,82 @@ export const SettingsView: React.FC = () => {
           </p>
         </section>
 
-        {/* 分组 5: 后台守护策略 */}
+        {/* 分组 5: 国内消息通知（飞书 / 钉钉 · 免代理） */}
+        <section className="ios-glass-card rounded-2xl p-5 space-y-4 relative z-10">
+          <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-[#142033]/[0.07]">
+            <div className="flex items-center gap-2">
+              <Bell className="w-4 h-4 text-[#2b5797]" />
+              <h3 className="text-xs font-semibold text-ink-primary tracking-wide">
+                国内消息通知（飞书 / 钉钉 · 免代理）
+              </h3>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleTestDomesticNotify}
+              disabled={testingNotify}
+              className="ios-btn-secondary h-7 px-2.5 rounded-lg text-[11px] font-medium text-[#2b5797] whitespace-nowrap inline-flex items-center gap-1 disabled:opacity-50"
+            >
+              {testingNotify ? (
+                <Loader2 className="w-3 h-3 animate-spin shrink-0" />
+              ) : (
+                <Bell className="w-3 h-3 shrink-0" />
+              )}
+              <span>测试推送</span>
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+            <div className="space-y-1.5 md:col-span-2">
+              <label className="text-ink-secondary font-medium">飞书机器人 Webhook 地址</label>
+              <input
+                type="text"
+                value={config.feishu_webhook_url || ''}
+                onChange={(e) => updateField('feishu_webhook_url', e.target.value)}
+                placeholder="https://open.feishu.cn/open-apis/bot/v2/hook/..."
+                className="ios-input w-full px-3.5 py-2 rounded-xl text-xs font-mono"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-ink-secondary font-medium">钉钉机器人 Webhook 地址</label>
+              <input
+                type="text"
+                value={config.dingtalk_webhook_url || ''}
+                onChange={(e) => updateField('dingtalk_webhook_url', e.target.value)}
+                placeholder="https://oapi.dingtalk.com/robot/send?access_token=..."
+                className="ios-input w-full px-3.5 py-2 rounded-xl text-xs font-mono"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-ink-secondary font-medium">钉钉加签密钥（可选，SEC...）</label>
+              <div className="relative">
+                <input
+                  type={showDingtalkSecret ? 'text' : 'password'}
+                  value={config.dingtalk_secret || ''}
+                  onChange={(e) => updateField('dingtalk_secret', e.target.value)}
+                  placeholder="SEC..."
+                  className="ios-input w-full px-3.5 py-2 pr-10 rounded-xl text-xs font-mono"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowDingtalkSecret(!showDingtalkSecret)}
+                  aria-label={showDingtalkSecret ? '隐藏钉钉密钥' : '显示钉钉密钥'}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-tertiary hover:text-ink-primary"
+                >
+                  {showDingtalkSecret ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <p className="text-[11px] text-ink-tertiary leading-relaxed">
+            填好后即可在不开启代理的情况下，接收校园网断线恢复与宿舍低电量/断电预警推送。
+          </p>
+        </section>
+
+        {/* 分组 6: 后台守护策略 */}
         <section className="ios-glass-card rounded-2xl p-5 space-y-4 relative z-10">
           <div className="flex items-center gap-2 pb-2.5 border-b border-[#142033]/[0.07]">
             <Battery className="w-4 h-4 text-[#9a5b13]" />

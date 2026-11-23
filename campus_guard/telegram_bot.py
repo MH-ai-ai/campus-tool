@@ -117,7 +117,7 @@ class TelegramBot:
         return Application.builder().token(self._config()["telegram_bot_token"]).build()
 
     async def _health_check(self) -> None:
-        if not self.app:
+        if not self.app or not self._ready:
             return
 
         # 1. 前置网络状态检查：如果当前网络处于离线或断网判定，绝不发起无效 Telegram 探测或重启 polling
@@ -217,7 +217,6 @@ class TelegramBot:
         self.app = self._build_app()
         self._register_handlers()
         self.loop = asyncio.get_running_loop()
-        register_bot_health_check(self.loop, self._health_check)
 
         log.info("Telegram Bot 启动中...")
         try:
@@ -251,6 +250,7 @@ class TelegramBot:
                 log.warning("注册 Telegram Bot 命令菜单失败: %s", cmd_err)
 
             self._ready = True
+            register_bot_health_check(self.loop, self._health_check)
             log.info("Telegram Bot 已启动，命令菜单已注册")
 
             await self._flush_message_queue()

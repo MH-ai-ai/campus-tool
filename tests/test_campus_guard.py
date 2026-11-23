@@ -150,9 +150,11 @@ class CampusGuardTests(unittest.TestCase):
         mock_app.updater.running = True
         mock_app.bot.get_me = AsyncMock(return_value=SimpleNamespace(username="test_bot"))
         bot.app = mock_app
+        bot._ready = True
 
         asyncio.run(bot._health_check())
         self.assertEqual(bot._consecutive_probe_failures, 0)
+        mock_app.bot.get_me.assert_awaited_once()
 
     def test_telegram_bot_health_check_skips_when_network_offline(self):
         import asyncio
@@ -167,10 +169,28 @@ class CampusGuardTests(unittest.TestCase):
         mock_app.updater.running = False  # updater not running
         mock_app.updater.start_polling = AsyncMock()
         bot.app = mock_app
+        bot._ready = True
 
         # Because network.is_online is False, _health_check should return immediately without restarting polling
         asyncio.run(bot._health_check())
         mock_app.updater.start_polling.assert_not_called()
+
+    def test_telegram_bot_health_check_skips_before_ready(self):
+        import asyncio
+        from campus_guard.telegram_bot import TelegramBot
+        from unittest.mock import AsyncMock
+
+        bot = TelegramBot(None, None, BatteryTracker())
+        mock_app = MagicMock()
+        mock_app.updater.running = False
+        mock_app.updater.start_polling = AsyncMock()
+        mock_app.bot.get_me = AsyncMock()
+        bot.app = mock_app
+        bot._ready = False
+
+        asyncio.run(bot._health_check())
+        mock_app.updater.start_polling.assert_not_called()
+        mock_app.bot.get_me.assert_not_called()
 
     def test_sensitive_data_filter(self):
         import logging

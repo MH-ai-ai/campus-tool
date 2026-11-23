@@ -275,6 +275,29 @@ class TestApiBridge(unittest.TestCase):
         mock_post.assert_called_once()
         mock_bot.ensure_started_in_background.assert_called_once()
 
+    def test_test_domestic_notify(self) -> None:
+        with patch("campus_guard.bridge.get_config_dict", return_value={}):
+            empty_res = self.bridge.test_domestic_notify({})
+            self.assertFalse(empty_res["success"])
+
+        with (
+            patch("campus_guard.bridge.get_config_dict", return_value={}),
+            patch("campus_guard.notifier.UnifiedNotifier._send_feishu_card", return_value=True) as mock_feishu,
+            patch("campus_guard.notifier.UnifiedNotifier._send_dingtalk", return_value=True) as mock_ding,
+        ):
+            ok_res = self.bridge.test_domestic_notify(
+                {
+                    "feishu_webhook_url": "https://open.feishu.cn/open-apis/bot/v2/hook/demo",
+                    "dingtalk_webhook_url": "https://oapi.dingtalk.com/robot/send?access_token=demo",
+                    "dingtalk_secret": "SECdemo",
+                }
+            )
+            self.assertTrue(ok_res["success"])
+            self.assertIn("飞书发送成功", ok_res["message"])
+            self.assertIn("钉钉发送成功", ok_res["message"])
+            mock_feishu.assert_called_once()
+            mock_ding.assert_called_once()
+
 
 if __name__ == "__main__":
     unittest.main()
