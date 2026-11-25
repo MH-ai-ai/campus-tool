@@ -220,7 +220,7 @@ class TestProxyManager(unittest.TestCase):
             internal_dir.mkdir(parents=True)
             dll_path = internal_dir / "Python.Runtime.dll"
             dll_path.write_bytes(b"MZ")
-            exe_path = base / "AnLan.exe"
+            exe_path = base / "AutoCampusNet.exe"
             exe_path.write_bytes(b"MZ")
 
             # 先在无数据流文件上调用应返回 0 且无异常

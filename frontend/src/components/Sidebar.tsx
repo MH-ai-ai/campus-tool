@@ -28,7 +28,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab, state
             <Waves className="w-4 h-4 stroke-[2.2]" />
           </div>
           <div className="min-w-0">
-            <h1 className="text-[15px] font-bold tracking-wide text-ink-primary truncate">安澜</h1>
+            <h1 className="text-[14px] font-bold tracking-wide text-ink-primary truncate">AutoCampusNet</h1>
             <p className="text-[11px] text-ink-tertiary truncate">校园网无感守护</p>
           </div>
         </div>
@@ -99,7 +99,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab, state
         </div>
 
         <div className="px-2 flex items-center justify-between text-[10px] text-ink-tertiary">
-          <span>安澜 · 桌面端</span>
+          <span>AutoCampusNet</span>
           <span className="font-mono">{state?.version ? `v${state.version}` : 'v2.3.2'}</span>
         </div>
       </div>

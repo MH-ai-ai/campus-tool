@@ -7,9 +7,9 @@ param(
 $ErrorActionPreference = "Stop"
 $RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $Python = Join-Path $RepoRoot ".venv\Scripts\python.exe"
-$Spec = Join-Path $RepoRoot "AnLan.spec"
-$DistDir = Join-Path $RepoRoot "dist\AnLan"
-$ExePath = Join-Path $DistDir "AnLan.exe"
+$Spec = Join-Path $RepoRoot "AutoCampusNet.spec"
+$DistDir = Join-Path $RepoRoot "dist\AutoCampusNet"
+$ExePath = Join-Path $DistDir "AutoCampusNet.exe"
 
 Set-Location $RepoRoot
 
@@ -57,8 +57,8 @@ if (-not (Test-Path -LiteralPath $ExePath)) {
     throw "Expected executable was not created: $ExePath"
 }
 
-$ExeConfigSource = Join-Path $RepoRoot "assets\AnLan.exe.config"
-$ExeConfigDest = Join-Path $DistDir "AnLan.exe.config"
+$ExeConfigSource = Join-Path $RepoRoot "assets\AutoCampusNet.exe.config"
+$ExeConfigDest = Join-Path $DistDir "AutoCampusNet.exe.config"
 if (-not (Test-Path -LiteralPath $ExeConfigSource)) {
     throw "Expected .NET runtime config was not found: $ExeConfigSource"
 }
@@ -70,5 +70,5 @@ if (-not (Test-Path -LiteralPath $ExeConfigDest)) {
 
 Copy-Item -LiteralPath (Join-Path $RepoRoot "config.example.json") -Destination (Join-Path $DistDir "config.example.json") -Force
 
-Write-Host "安澜 packaged successfully:"
+Write-Host "AutoCampusNet packaged successfully:"
 Write-Host $ExePath

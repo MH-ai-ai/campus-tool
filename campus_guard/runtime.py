@@ -21,9 +21,10 @@ from .version import APP_VERSION
 
 log = get_logger()
 
-# 开机自启项名称：改名后使用 AnLan；旧版（CampusGuard）名称仅用于迁移清理
-AUTOSTART_NAME = "AnLan"
-LEGACY_AUTOSTART_NAME = "CampusGuard"
+# 开机自启项名称：使用 AutoCampusNet；旧版（AnLan / CampusGuard）名称仅用于迁移清理
+AUTOSTART_NAME = "AutoCampusNet"
+LEGACY_AUTOSTART_NAMES = ("AnLan", "CampusGuard")
+LEGACY_AUTOSTART_NAME = "AnLan"
 
 
 def check_disk_space(notify_callback) -> None:
@@ -176,7 +177,7 @@ def build_autostart_command(minimized: bool = False) -> str:
 
 
 def _remove_legacy_autostart() -> None:
-    """清理改名前（CampusGuard）遗留的自启项，避免开机重复拉起两个实例。"""
+    """清理改名前（AnLan / CampusGuard）遗留的自启项，避免开机重复拉起旧实例。"""
     if platform.system() != "Windows":
         return
     try:
@@ -189,22 +190,25 @@ def _remove_legacy_autostart() -> None:
             winreg.KEY_SET_VALUE,
         )
         try:
-            winreg.DeleteValue(key, LEGACY_AUTOSTART_NAME)
-            log.info("已迁移并清理旧版开机自启项: %s", LEGACY_AUTOSTART_NAME)
-        except FileNotFoundError:
-            pass
+            for legacy_name in LEGACY_AUTOSTART_NAMES:
+                try:
+                    winreg.DeleteValue(key, legacy_name)
+                    log.info("已迁移并清理旧版开机自启项: %s", legacy_name)
+                except FileNotFoundError:
+                    pass
         finally:
             winreg.CloseKey(key)
     except Exception:
         pass
-    try:
-        subprocess.run(
-            ["schtasks", "/delete", "/tn", LEGACY_AUTOSTART_NAME, "/f"],
-            capture_output=True,
-            creationflags=0x08000000,
-        )
-    except Exception:
-        pass
+    for legacy_name in LEGACY_AUTOSTART_NAMES:
+        try:
+            subprocess.run(
+                ["schtasks", "/delete", "/tn", legacy_name, "/f"],
+                capture_output=True,
+                creationflags=0x08000000,
+            )
+        except Exception:
+            pass
 
 
 def setup_autostart() -> None:
@@ -287,12 +291,12 @@ def _run_main() -> None:
         try:
             import ctypes
 
-            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(f"MH.AnLan.Desktop.{APP_VERSION}")
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(f"LunarMH.AutoCampusNet.Desktop.{APP_VERSION}")
         except Exception:
             pass
 
     log.info("=" * 40)
-    log.info("安澜 v%s 启动", APP_VERSION)
+    log.info("AutoCampusNet v%s 启动", APP_VERSION)
     log.info("Python: %s", sys.version)
     log.info("应用路径: %s", APP_DIR)
 
@@ -355,7 +359,7 @@ def main() -> None:
 
         tb = traceback.format_exc()
         try:
-            log.critical("安澜 启动异常: %s\n%s", err, tb)
+            log.critical("AutoCampusNet 启动异常: %s\n%s", err, tb)
         except Exception:
             pass
         if sys.platform == "win32":
@@ -364,8 +368,8 @@ def main() -> None:
 
                 ctypes.windll.user32.MessageBoxW(
                     0,
-                    f"安澜 启动异常:\n{err}\n\n详细调用栈:\n{tb[:800]}",
-                    "安澜 错误拦截",
+                    f"AutoCampusNet 启动异常:\n{err}\n\n详细调用栈:\n{tb[:800]}",
+                    "AutoCampusNet 错误拦截",
                     0x10,
                 )
             except Exception:

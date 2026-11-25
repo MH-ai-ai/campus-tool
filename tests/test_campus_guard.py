@@ -1019,8 +1019,8 @@ class CampusGuardTests(unittest.TestCase):
             sys_mod._wlan_cache = old_cache
             sys_mod._wlan_sig_cache = old_sig
 
-    def test_setup_autostart_migrates_legacy_campusguard_entry(self):
-        """验证 setup_autostart 写入新 AnLan 自启项并清理旧 CampusGuard 残留项。"""
+    def test_setup_autostart_migrates_legacy_entries(self):
+        """验证 setup_autostart 写入新 AutoCampusNet 自启项并清理旧 AnLan / CampusGuard 残留项。"""
         import sys
         import types
         from campus_guard import runtime
@@ -1042,19 +1042,27 @@ class CampusGuardTests(unittest.TestCase):
         ):
             runtime.setup_autostart()
             mock_winreg.SetValueEx.assert_called_once()
-            self.assertEqual(mock_winreg.SetValueEx.call_args[0][1], "AnLan")
-            mock_winreg.DeleteValue.assert_called_with(mock_key, "CampusGuard")
+            self.assertEqual(mock_winreg.SetValueEx.call_args[0][1], "AutoCampusNet")
+            mock_winreg.DeleteValue.assert_any_call(mock_key, "AnLan")
+            mock_winreg.DeleteValue.assert_any_call(mock_key, "CampusGuard")
             # 确认调用过清理旧计划任务
             schtasks_cmds = [c[0][0] for c in mock_subproc.call_args_list]
+            self.assertTrue(any("/delete" in cmd and "AnLan" in cmd for cmd in schtasks_cmds))
             self.assertTrue(any("/delete" in cmd and "CampusGuard" in cmd for cmd in schtasks_cmds))
 
     def test_build_autostart_command_minimized_flag(self):
         with (
-            patch.object(runtime.sys, "executable", r"C:\Apps\AnLan\AnLan.exe"),
+            patch.object(runtime.sys, "executable", r"C:\Apps\AutoCampusNet\AutoCampusNet.exe"),
             patch.object(runtime.sys, "frozen", True, create=True),
         ):
-            self.assertEqual(runtime.build_autostart_command(minimized=False), r'"C:\Apps\AnLan\AnLan.exe"')
-            self.assertEqual(runtime.build_autostart_command(minimized=True), r'"C:\Apps\AnLan\AnLan.exe" --minimized')
+            self.assertEqual(
+                runtime.build_autostart_command(minimized=False),
+                r'"C:\Apps\AutoCampusNet\AutoCampusNet.exe"',
+            )
+            self.assertEqual(
+                runtime.build_autostart_command(minimized=True),
+                r'"C:\Apps\AutoCampusNet\AutoCampusNet.exe" --minimized',
+            )
 
     def test_setup_autostart_appends_minimized_when_enabled(self):
         import sys

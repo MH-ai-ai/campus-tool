@@ -535,7 +535,7 @@ export const SettingsView: React.FC = () => {
           </div>
 
           <p className="text-[11px] text-ink-tertiary leading-relaxed">
-            建议关闭 Clash 自身的开机自启，改由安澜在连上校园网后再启动，彻底避免开机代理抢占导致校园网无法认证。
+            建议关闭 Clash 自身的开机自启，改由 AutoCampusNet 在连上校园网后再启动，彻底避免开机代理抢占导致校园网无法认证。
           </p>
         </section>
 

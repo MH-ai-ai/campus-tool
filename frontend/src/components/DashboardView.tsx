@@ -149,7 +149,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ state, onRefresh }
       <header className="shrink-0 ios-glass-header px-6 pt-5 pb-4 flex items-center justify-between gap-4 z-20">
         <div className="min-w-0">
           <div className="flex items-center gap-2.5 flex-wrap">
-            <h2 className="text-lg font-bold tracking-tight text-ink-primary">安澜 · 守护中枢</h2>
+            <h2 className="text-lg font-bold tracking-tight text-ink-primary">AutoCampusNet · 守护中枢</h2>
             <span
               className={`px-2.5 py-0.5 rounded-full text-[11px] font-medium border inline-flex items-center gap-1.5 whitespace-nowrap ${
                 isOnline

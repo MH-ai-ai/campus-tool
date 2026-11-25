@@ -10,7 +10,8 @@
 - **版本号单一真源同步** (`campus_guard/version.py`)：新增 `APP_VERSION = "2.3.2"` 唯一版本真源，前端侧边栏版本号由后端状态接口实时下发并同步至 `pyproject.toml`、`frontend/package.json` 及 Windows `AppUserModelID`，同时新增自动化防呆一致性单元测试。
 - **点击窗口关闭按钮 (×) 选择弹窗** (`campus_guard/ui.py`、`bridge.py`、`frontend/src/App.tsx`)：拦截关闭事件并在界面弹出 iOS 浅色磨砂确认对话框，支持选择「最小化到托盘」「直接退出程序」及勾选「记住我的选择」，核心配置页同步新增 `close_action` 下拉开关，退出时优雅停止监控并清理系统托盘图标。
 - **国内免代理消息通知配置与一键测试** (`campus_guard/bridge.py`、`frontend/src/components/SettingsView.tsx`)：在核心配置页补全飞书 Webhook、钉钉 Webhook 与加签密钥输入卡片，并新增 `test_domestic_notify` 测试推送接口。
-- **一键网络诊断与脱敏诊断包导出** (`campus_guard/diagnostics.py`、`runtime.py`、`bridge.py`、`LogView.tsx`)：新增 `--diagnose`、`--export-diagnostics` CLI 开关及界面「诊断包」按钮，生成自动遮蔽敏感凭据与日志的 `anlan_diagnostic_*.zip`。
+- **品牌命名全面统一为 AutoCampusNet**：应用可执行文件（`AutoCampusNet.exe`）、打包配置（`AutoCampusNet.spec` / `AutoCampusNet.exe.config`）、发行包名称、界面标题、系统托盘、通知推送、诊断包及开机自启项全面统一为 `AutoCampusNet`（保留 `config.json` 与 `campus_guard.key` 兼容并自动迁移清理旧版 `AnLan` / `CampusGuard` 自启项）。
+- **一键网络诊断与脱敏诊断包导出** (`campus_guard/diagnostics.py`、`runtime.py`、`bridge.py`、`LogView.tsx`)：新增 `--diagnose`、`--export-diagnostics` CLI 开关及界面「诊断包」按钮，生成自动遮蔽敏感凭据与日志的 `autocampusnet_diagnostic_*.zip`。
 - **开源仓库标准件与 Release SHA256 校验** (`LICENSE`、`CONTRIBUTING.md`、`SECURITY.md`、`.github/workflows/ci.yml`)：补齐 MIT 协议与社区安全文档，CI 发布自动生成并上传 `SHA256SUMS.txt`。
 
 ### 修复 (Fixed)

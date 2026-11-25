@@ -1,10 +1,10 @@
 @echo off
 chcp 65001 >nul
-title 安澜
+title AutoCampusNet
 cd /d "%~dp0"
 
 echo ====================================================
-echo        安澜 高校校园网守护控制中心
+echo        AutoCampusNet 高校校园网守护控制中心
 echo ====================================================
 echo.
 

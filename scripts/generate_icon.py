@@ -1,4 +1,4 @@
-"""生成「安澜 AnLan」应用图标（iOS 风连续圆角黛蓝底板 + 三道平缓水波）。
+"""生成「AutoCampusNet」应用图标（iOS 风连续圆角黛蓝底板 + 三道平缓水波）。
 
 输出：assets/app_icon.png（512px）与多尺寸 assets/app_icon.ico。
 运行：.venv\\Scripts\\python.exe scripts/generate_icon.py
@@ -75,8 +75,8 @@ def stroke(img: Image.Image, pts, width: float, rgb, alpha: int = 255) -> None:
     img.paste(Image.new("RGBA", (S, S), tuple(rgb) + (255,)), (0, 0), mask)
 
 
-def draw_anlan(size: int = SIZE) -> Image.Image:
-    """绘制「澜」：三道自上而下渐淡的平缓水波，寓意风平浪静。"""
+def draw_autocampusnet(size: int = SIZE) -> Image.Image:
+    """绘制「AutoCampusNet」图标：三道自上而下渐淡的平缓水波，寓意网络稳如平波。"""
     img = base_tile()
     x0, x1 = S * 0.25, S * 0.75
     amp = S * 0.04
@@ -95,7 +95,7 @@ def main() -> None:
     assets_dir = root / "assets"
     assets_dir.mkdir(parents=True, exist_ok=True)
 
-    img = draw_anlan(SIZE)
+    img = draw_autocampusnet(SIZE)
     png_path = assets_dir / "app_icon.png"
     ico_path = assets_dir / "app_icon.ico"
 

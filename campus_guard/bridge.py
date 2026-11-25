@@ -558,10 +558,10 @@ class ApiBridge:
             self.minimize_to_tray()
             return {"success": True, "action": "tray", "message": "已最小化至系统托盘"}
 
-        log.info("用户选择直接退出 安澜 程序")
+        log.info("用户选择直接退出 AutoCampusNet 程序")
         self._force_closing = True
         threading.Timer(0.15, self.close_app).start()
-        return {"success": True, "action": "exit", "message": "正在退出安澜"}
+        return {"success": True, "action": "exit", "message": "正在退出 AutoCampusNet"}
 
     def test_telegram_bot(self) -> dict[str, Any]:
         """向绑定的手机 Telegram 发送握手测试消息（仅 Bot 真就绪时走内部通道，否则直连 HTTP API）。"""
@@ -572,7 +572,7 @@ class ApiBridge:
             return {"success": False, "message": "尚未配置 Telegram Bot Token 或 用户 ID"}
 
         test_msg = (
-            "🛰️ 安澜 控制中枢握手成功\n"
+            "🛰️ AutoCampusNet 控制中枢握手成功\n"
             f"{'─' * 28}\n"
             f"📱 设备已成功与本客户端建立加密双向链路\n"
             f"🕒 握手时间: {time.strftime('%Y-%m-%d %H:%M:%S')}\n"
@@ -627,7 +627,7 @@ class ApiBridge:
                 return {"success": False, "message": "请先填写飞书或钉钉机器人 Webhook 地址"}
 
             test_text = (
-                "🔔 安澜 国内通知通道握手测试成功\n"
+                "🔔 AutoCampusNet 国内通知通道握手测试成功\n"
                 f"🕒 测试时间: {time.strftime('%Y-%m-%d %H:%M:%S')}\n"
                 "✅ 后续断网恢复与宿舍断电预警将通过此通道实时送达"
             )
@@ -636,14 +636,14 @@ class ApiBridge:
 
             if feishu_url:
                 ok_feishu = UnifiedNotifier._send_feishu_card(
-                    feishu_url, test_text, title="安澜 · 通知测试", level="success"
+                    feishu_url, test_text, title="AutoCampusNet · 通知测试", level="success"
                 )
                 any_ok = any_ok or ok_feishu
                 results.append("飞书发送成功" if ok_feishu else "飞书发送失败")
 
             if dingtalk_url:
                 ok_dingtalk = UnifiedNotifier._send_dingtalk(
-                    dingtalk_url, dingtalk_secret, test_text, title="安澜 · 通知测试"
+                    dingtalk_url, dingtalk_secret, test_text, title="AutoCampusNet · 通知测试"
                 )
                 any_ok = any_ok or ok_dingtalk
                 results.append("钉钉发送成功" if ok_dingtalk else "钉钉发送失败")

@@ -109,7 +109,7 @@ class TestDiagnostics(unittest.TestCase):
                 bundle_path = diagnostics.export_diagnostic_bundle(output_dir=out_dir)
 
             self.assertTrue(bundle_path.exists())
-            self.assertTrue(bundle_path.name.startswith("anlan_diagnostic_"))
+            self.assertTrue(bundle_path.name.startswith("autocampusnet_diagnostic_"))
             with zipfile.ZipFile(bundle_path, "r") as zf:
                 names = set(zf.namelist())
                 self.assertEqual(names, {"diagnostics.json", "diagnostics.txt", "campus_guard.log"})

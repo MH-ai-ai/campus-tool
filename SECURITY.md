@@ -2,12 +2,12 @@
 
 ## 本地隐私与安全设计
 
-**安澜 (AnLan)** 将用户校园网账号密码与推送凭据的安全放在首位：
+**AutoCampusNet** 将用户校园网账号密码与推送凭据的安全放在首位：
 
 1. **本地对称加密存储**：学号、密码、Telegram Bot Token、飞书/钉钉 Webhook 及加签密钥等敏感字段均使用本地 **Fernet 对称加密**持久化到 `config.json`，密钥仅保存在本地 `campus_guard.key`，不会以明文落盘，也不会上传至任何第三方服务器。
-2. **日志与诊断包脱敏**：内置 `SensitiveDataFilter` 与诊断配置脱敏器，在写入运行日志及导出 `anlan_diagnostic_*.zip` 时会自动遮蔽密码参数、Bot Token、Webhook 密钥等敏感字段。
+2. **日志与诊断包脱敏**：内置 `SensitiveDataFilter` 与诊断配置脱敏器，在写入运行日志及导出 `autocampusnet_diagnostic_*.zip` 时会自动遮蔽密码参数、Bot Token、Webhook 密钥等敏感字段。
 3. **远程指令白名单校验**：Telegram Bot 仅响应 `telegram_user_id` 白名单用户的指令，高危操作（远程关机、截图）强制要求二次确认。
-4. **Windows 下载锁定兼容**：发布包随附 `AnLan.exe.config` 并提供启动前置解除 `Zone.Identifier` 机制，无需以不安全方式关闭系统防护即可正常运行。
+4. **Windows 下载锁定兼容**：发布包随附 `AutoCampusNet.exe.config` 并提供启动前置解除 `Zone.Identifier` 机制，无需以不安全方式关闭系统防护即可正常运行。
 
 ---
 

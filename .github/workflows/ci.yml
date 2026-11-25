@@ -1,4 +1,4 @@
-name: 安澜 CI & Release Build
+name: AutoCampusNet CI & Release Build
 
 on:
   push:
@@ -87,36 +87,36 @@ jobs:
 
       - name: Package Windows Executable with PyInstaller
         run: |
-          python -m PyInstaller --noconfirm --clean AnLan.spec
-          Copy-Item "config.example.json" -Destination "dist\AnLan\config.example.json" -Force
+          python -m PyInstaller --noconfirm --clean AutoCampusNet.spec
+          Copy-Item "config.example.json" -Destination "dist\AutoCampusNet\config.example.json" -Force
 
       - name: Archive Release Bundle (Zip)
         run: |
-          Compress-Archive -Path "dist\AnLan\*" -DestinationPath "AnLan-Windows-x64.zip"
-          Copy-Item "AnLan-Windows-x64.zip" -Destination "AnLan-${{ github.ref_name }}-Windows-x64.zip" -Force
-          $h1 = (Get-FileHash "AnLan-${{ github.ref_name }}-Windows-x64.zip" -Algorithm SHA256).Hash.ToLower()
-          $h2 = (Get-FileHash "AnLan-Windows-x64.zip" -Algorithm SHA256).Hash.ToLower()
+          Compress-Archive -Path "dist\AutoCampusNet\*" -DestinationPath "AutoCampusNet-Windows-x64.zip"
+          Copy-Item "AutoCampusNet-Windows-x64.zip" -Destination "AutoCampusNet-${{ github.ref_name }}-Windows-x64.zip" -Force
+          $h1 = (Get-FileHash "AutoCampusNet-${{ github.ref_name }}-Windows-x64.zip" -Algorithm SHA256).Hash.ToLower()
+          $h2 = (Get-FileHash "AutoCampusNet-Windows-x64.zip" -Algorithm SHA256).Hash.ToLower()
           @(
-            "$h1  AnLan-${{ github.ref_name }}-Windows-x64.zip",
-            "$h2  AnLan-Windows-x64.zip"
+            "$h1  AutoCampusNet-${{ github.ref_name }}-Windows-x64.zip",
+            "$h2  AutoCampusNet-Windows-x64.zip"
           ) | Set-Content -Path "SHA256SUMS.txt" -Encoding UTF8
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: AnLan-Windows-x64
-          path: AnLan-Windows-x64.zip
+          name: AutoCampusNet-Windows-x64
+          path: AutoCampusNet-Windows-x64.zip
           retention-days: 14
 
       - name: Create GitHub Release and Upload Asset
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          name: "安澜 ${{ github.ref_name }} (Windows x64)"
+          name: "AutoCampusNet ${{ github.ref_name }} (Windows x64)"
           body_path: RELEASE_NOTES.md
           files: |
-            AnLan-${{ github.ref_name }}-Windows-x64.zip
-            AnLan-Windows-x64.zip
+            AutoCampusNet-${{ github.ref_name }}-Windows-x64.zip
+            AutoCampusNet-Windows-x64.zip
             SHA256SUMS.txt
           draft: false
           prerelease: false

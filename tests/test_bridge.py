@@ -301,12 +301,12 @@ class TestApiBridge(unittest.TestCase):
     def test_export_diagnostic_bundle(self):
         from pathlib import Path
 
-        fake_path = Path("anlan_diagnostic_test.zip")
+        fake_path = Path("autocampusnet_diagnostic_test.zip")
         with patch("campus_guard.diagnostics.export_diagnostic_bundle", return_value=fake_path):
             res = self.bridge.export_diagnostic_bundle()
 
         self.assertTrue(res["success"])
-        self.assertIn("anlan_diagnostic_test.zip", res["message"])
+        self.assertIn("autocampusnet_diagnostic_test.zip", res["message"])
         self.assertEqual(res["path"], str(fake_path))
 
 

@@ -82,7 +82,7 @@ class BatteryTracker:
         hours = stats["battery_time_secs"] // 3600
         minutes = (stats["battery_time_secs"] % 3600) // 60
         return (
-            "📈 安澜 周报\n"
+            "📈 AutoCampusNet 周报\n"
             f"{'─' * 24}\n"
             f"⚡ 断电次数: {stats['power_outage_count']}\n"
             f"🔋 电池供电时长: {hours}小时{minutes}分钟\n"
@@ -97,7 +97,7 @@ class BatteryTracker:
         hours = stats["battery_time_secs"] // 3600
         minutes = (stats["battery_time_secs"] % 3600) // 60
         return (
-            "📋 安澜 日报\n"
+            "📋 AutoCampusNet 日报\n"
             f"{'─' * 24}\n"
             f"⚡ 断电次数: {stats['power_outage_count']}\n"
             f"🔋 电池供电时长: {hours}小时{minutes}分钟\n"

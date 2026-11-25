@@ -308,10 +308,10 @@ export const api = {
       success: true,
       message: "日志文件就绪",
       content: "[INFO] 模拟日志导出测试\n[INFO] 运行状态良好",
-      path: "C:\\Users\\User\\AppData\\Roaming\\AnLan\\campus_guard.log",
+      path: "C:\\Users\\User\\AppData\\Roaming\\AutoCampusNet\\campus_guard.log",
       data: {
         content: "[INFO] 模拟日志导出测试\n[INFO] 运行状态良好",
-        path: "C:\\Users\\User\\AppData\\Roaming\\AnLan\\campus_guard.log",
+        path: "C:\\Users\\User\\AppData\\Roaming\\AutoCampusNet\\campus_guard.log",
       },
     };
   },
@@ -333,8 +333,8 @@ export const api = {
     }
     return {
       success: true,
-      message: "模拟脱敏诊断包已生成: anlan_diagnostic_mock.zip",
-      path: "C:\\Users\\User\\AppData\\Roaming\\AnLan\\anlan_diagnostic_mock.zip",
+      message: "模拟脱敏诊断包已生成: autocampusnet_diagnostic_mock.zip",
+      path: "C:\\Users\\User\\AppData\\Roaming\\AutoCampusNet\\autocampusnet_diagnostic_mock.zip",
     };
   },
 

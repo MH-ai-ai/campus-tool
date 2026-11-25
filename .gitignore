@@ -16,6 +16,7 @@ config.json
 !data/universities.json
 campus_guard.key
 campus_guard.log*
+autocampusnet_diagnostic_*.zip
 anlan_diagnostic_*.zip
 SHA256SUMS.txt
 screenshot_tmp.png

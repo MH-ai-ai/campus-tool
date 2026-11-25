@@ -54,11 +54,11 @@ export function App() {
       }
     };
 
-    window.addEventListener('anlan:close-requested', onCloseRequested);
+    window.addEventListener('autocampusnet:close-requested', onCloseRequested);
     window.addEventListener('keydown', onKeyDown);
     return () => {
       clearInterval(interval);
-      window.removeEventListener('anlan:close-requested', onCloseRequested);
+      window.removeEventListener('autocampusnet:close-requested', onCloseRequested);
       window.removeEventListener('keydown', onKeyDown);
     };
   }, []);
@@ -108,10 +108,10 @@ export function App() {
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <h3 id="close-dialog-title" className="text-sm font-bold text-ink-primary">
-                    关闭 安澜
+                    关闭 AutoCampusNet
                   </h3>
                   <p className="text-xs text-ink-secondary mt-1 leading-relaxed">
-                    选择最小化到系统托盘后，安澜将继续在后台守护校园网断线重连与电量安全；选择直接退出将停止全部守护服务。
+                    选择最小化到系统托盘后，AutoCampusNet 将继续在后台守护校园网断线重连与电量安全；选择直接退出将停止全部守护服务。
                   </p>
                 </div>
                 <button

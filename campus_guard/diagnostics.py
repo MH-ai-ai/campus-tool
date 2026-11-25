@@ -80,7 +80,7 @@ def format_diagnostics_text(report: dict[str, Any]) -> str:
 
     cfg = report.get("config_summary") if isinstance(report.get("config_summary"), dict) else {}
     lines = [
-        f"=== 安澜 (AnLan) v{report.get('app_version', APP_VERSION)} 网络诊断报告 ===",
+        f"=== AutoCampusNet v{report.get('app_version', APP_VERSION)} 网络诊断报告 ===",
         f"生成时间   : {report.get('generated_at', '')}",
         f"运行环境   : {report.get('platform', '')} (Python {report.get('python_version', '')})",
         f"当前 Wi-Fi : {report.get('wifi', '未知')}",
@@ -104,7 +104,7 @@ def export_diagnostic_bundle(output_dir: Path | None = None) -> Path:
     target_dir.mkdir(parents=True, exist_ok=True)
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    bundle_path = target_dir / f"anlan_diagnostic_{timestamp}.zip"
+    bundle_path = target_dir / f"autocampusnet_diagnostic_{timestamp}.zip"
 
     report = collect_diagnostics()
     text_summary = format_diagnostics_text(report)

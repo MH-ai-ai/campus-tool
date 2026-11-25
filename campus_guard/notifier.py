@@ -25,7 +25,7 @@ class UnifiedNotifier:
     def __init__(self, tg_bot=None) -> None:
         self.tg_bot = tg_bot
 
-    def notify(self, text: str, title: str = "安澜 状态提醒", level: str = "info") -> None:
+    def notify(self, text: str, title: str = "AutoCampusNet 状态提醒", level: str = "info") -> None:
         """多通道并行异步发送通知。"""
         # 1. 投递 Telegram Bot
         if self.tg_bot:
@@ -93,7 +93,7 @@ class UnifiedNotifier:
                         "elements": [
                             {
                                 "tag": "plain_text",
-                                "content": f"安澜 守护中 · {time.strftime('%H:%M:%S')}",
+                                "content": f"AutoCampusNet 守护中 · {time.strftime('%H:%M:%S')}",
                             }
                         ],
                     },
@@ -131,7 +131,7 @@ class UnifiedNotifier:
             "msgtype": "markdown",
             "markdown": {
                 "title": title,
-                "text": f"### {title}\n\n{text}\n\n> 安澜 · {time.strftime('%H:%M:%S')}",
+                "text": f"### {title}\n\n{text}\n\n> AutoCampusNet · {time.strftime('%H:%M:%S')}",
             },
         }
 

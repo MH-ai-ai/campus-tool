@@ -1,8 +1,8 @@
-# 安澜 一键启动脚本 (PowerShell)
+﻿# AutoCampusNet 一键启动脚本 (PowerShell)
 Set-Location $PSScriptRoot
 
 Write-Host "====================================================" -ForegroundColor Cyan
-Write-Host "       安澜 高校校园网守护控制中心          " -ForegroundColor Cyan
+Write-Host "       AutoCampusNet 高校校园网守护控制中心          " -ForegroundColor Cyan
 Write-Host "====================================================" -ForegroundColor Cyan
 Write-Host ""
 

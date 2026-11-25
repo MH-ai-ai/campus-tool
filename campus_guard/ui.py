@@ -53,7 +53,7 @@ def launch_gui(
         # 开发模式或产物缺失时的后备内置简易页面
         target_url = "data:text/html;charset=utf-8," + (
             "<!DOCTYPE html><html><body style='background:#eef2f7;color:#18202c;font-family:sans-serif;padding:40px;'>"
-            "<h2>安澜 控制中心载入中...</h2>"
+            "<h2>AutoCampusNet 控制中心载入中...</h2>"
             "<p style='color:#526075;'>前端资源正在构建中，请在 frontend/ 目录下运行 npm run build 生成静态包。</p>"
             "</body></html>"
         )
@@ -61,7 +61,7 @@ def launch_gui(
     log.info("启动 Webview 窗口，加载资源: %s", target_url)
 
     window = webview.create_window(
-        title="安澜",
+        title="AutoCampusNet",
         url=target_url,
         js_api=bridge,
         width=960,
@@ -85,7 +85,7 @@ def launch_gui(
 
     def _notify_frontend_close_prompt() -> None:
         try:
-            window.evaluate_js("window.dispatchEvent(new CustomEvent('anlan:close-requested'))")
+            window.evaluate_js("window.dispatchEvent(new CustomEvent('autocampusnet:close-requested'))")
         except Exception as err:
             log.debug("派发前端关闭确认弹窗失败，回退最小化至托盘: %s", err)
             try:
@@ -113,7 +113,7 @@ def launch_gui(
             return False
 
         if close_action == "exit":
-            log.info("根据配置直接退出 安澜")
+            log.info("根据配置直接退出 AutoCampusNet")
             bridge._force_closing = True
             try:
                 battery.stop()
@@ -129,7 +129,7 @@ def launch_gui(
 
     window.events.closing += on_closing
 
-    # 查找「安澜」专属图标文件
+    # 查找「AutoCampusNet」专属图标文件
     icon_file = APP_DIR / "assets" / "app_icon.ico"
     if not icon_file.exists():
         icon_file = APP_DIR / "_internal" / "assets" / "app_icon.ico"
@@ -141,7 +141,7 @@ def launch_gui(
             import ctypes
 
             # 注册独立 Windows AppUserModelID，彻底剥离 Python 任务栏标识
-            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(f"MH.AnLan.Desktop.{APP_VERSION}")
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(f"LunarMH.AutoCampusNet.Desktop.{APP_VERSION}")
         except Exception as e:
             log.debug("注册 AppUserModelID 异常: %s", e)
 
@@ -170,8 +170,8 @@ def launch_gui(
 
                 ctypes.windll.user32.MessageBoxW(
                     0,
-                    f"安澜 启动异常: {err}\n\n可能原因：缺失 pythonnet 或 Edge WebView2 运行时。\n请尝试在终端执行: pip install pythonnet",
-                    "安澜 错误",
+                    f"AutoCampusNet 启动异常: {err}\n\n可能原因：缺失 pythonnet 或 Edge WebView2 运行时。\n请尝试在终端执行: pip install pythonnet",
+                    "AutoCampusNet 错误",
                     0x10,
                 )
             except Exception:

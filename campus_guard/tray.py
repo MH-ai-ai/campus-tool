@@ -83,11 +83,11 @@ class PystrayTrayManager:
                 MenuItem("立即认证校园网", self._on_auth_campus),
                 MenuItem("启动代理并开系统代理", self._on_launch_proxy),
                 Menu.SEPARATOR,
-                MenuItem("退出 安澜", self._on_exit),
+                MenuItem("退出 AutoCampusNet", self._on_exit),
             )
 
             initial_icon = create_tray_icon("green")
-            self.icon = pystray.Icon("AnLan", initial_icon, "安澜 · 校园网守护", menu=menu)
+            self.icon = pystray.Icon("AutoCampusNet", initial_icon, "AutoCampusNet · 校园网守护", menu=menu)
             self._running = True
 
             def _run():

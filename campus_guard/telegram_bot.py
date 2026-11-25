@@ -894,7 +894,7 @@ class TelegramBot:
         if not self._is_authorized(update):
             return
         await update.message.reply_text(
-            "📖 安澜 命令\n\n"
+            "📖 AutoCampusNet 命令\n\n"
             "/status — 查看电量、电源、网络状态\n"
             "/network — 查看网络、网关、代理和 Clash/TUN 状态\n"
             "/battery — 查看电量阈值和关机策略\n"

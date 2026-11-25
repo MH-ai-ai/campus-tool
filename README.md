@@ -1,6 +1,6 @@
 <div align="center">
   <img src="assets/app_icon.png" width="84" alt="AutoCampusNet Logo" />
-  <h1>AutoCampusNet · 安澜</h1>
+  <h1>AutoCampusNet</h1>
   <p>Windows 高校校园网全自动认证、断网自愈、Clash 代理联动与宿舍电源守护工具</p>
 
   <p>
@@ -38,8 +38,8 @@
 
 ### 绿色便携版（推荐）
 
-1. 前往 [Releases](https://github.com/Lunar-mh/AutoCampusNet/releases/latest) 下载 `AnLan-v2.3.2-Windows-x64.zip`（含 `SHA256SUMS.txt` 校验文件）。
-2. 解压后直接运行 `AnLan.exe`（Windows 10/11 自带 WebView2，无需安装 Python / Node.js；启动自动解除下载 MOTW 锁定）。
+1. 前往 [Releases](https://github.com/Lunar-mh/AutoCampusNet/releases/latest) 下载 `AutoCampusNet-v2.3.2-Windows-x64.zip`（含 `SHA256SUMS.txt` 校验文件）。
+2. 解压后直接运行 `AutoCampusNet.exe`（Windows 10/11 自带 WebView2，无需安装 Python / Node.js；启动自动解除下载 MOTW 锁定）。
 3. 填入校园网账号密码并点击 **「一键极速联网」**；如需联动代理，在 **「核心配置」** 开启 Clash 自动启动即可。
 
 ### 从源码运行
@@ -75,11 +75,11 @@ py -3.12 -m venv .venv
 
 ## 诊断与配置
 
-界面「运行日志」页点击 **「诊断包」** 可生成脱敏诊断压缩包 `anlan_diagnostic_*.zip`，也支持命令行只读诊断：
+界面「运行日志」页点击 **「诊断包」** 可生成脱敏诊断压缩包 `autocampusnet_diagnostic_*.zip`，也支持命令行只读诊断：
 
 ```powershell
-.\AnLan.exe --diagnose             # 输出当前网络、网关、Clash 与脱敏配置摘要
-.\AnLan.exe --export-diagnostics   # 导出脱敏诊断压缩包 (.zip)
+.\AutoCampusNet.exe --diagnose             # 输出当前网络、网关、Clash 与脱敏配置摘要
+.\AutoCampusNet.exe --export-diagnostics   # 导出脱敏诊断压缩包 (.zip)
 ```
 
 <details>
@@ -87,7 +87,7 @@ py -3.12 -m venv .venv
 
 | 常见现象 | 处理建议 |
 | :--- | :--- |
-| 下载解压后无法启动 | 随包已附带 `AnLan.exe.config` 并自动解除 `Zone.Identifier`；若仍被拦截，右键属性勾选「解除锁定」 |
+| 下载解压后无法启动 | 随包已附带 `AutoCampusNet.exe.config` 并自动解除 `Zone.Identifier`；若仍被拦截，右键属性勾选「解除锁定」 |
 | 开启移动热点后掉线不重连 | `v2.3.2+` 已自动过滤 `192.168.137.*` 热点虚拟网卡并启用严格 204 / HTTPS 校验 |
 | Telegram Bot 无法上线 | 在「核心配置」开启 Clash 联动，或改用飞书 / 钉钉国内免代理推送 |
 
