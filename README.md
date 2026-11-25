@@ -1,7 +1,7 @@
 <div align="center">
   <img src="assets/app_icon.png" width="84" alt="AutoCampusNet Logo" />
   <h1>AutoCampusNet</h1>
-  <p>Windows 高校校园网全自动认证、断网自愈、Clash 代理联动与宿舍电源守护工具</p>
+  <p>Windows 高校校园网全自动认证、断网自愈、Clash 代理联动与宿舍电源守护工具<br />以 <strong>延安大学 (YAU)</strong> 校园网为原型构建并默认适配，可通过自动嗅探与适配器扩展至其他高校</p>
 
   <p>
     <a href="https://github.com/Lunar-mh/AutoCampusNet/releases/latest"><img src="https://img.shields.io/badge/Release-v2.3.2-2B5797?style=flat-square&logo=github" alt="Release" /></a>
@@ -40,7 +40,7 @@
 
 1. 前往 [Releases](https://github.com/Lunar-mh/AutoCampusNet/releases/latest) 下载 `AutoCampusNet-v2.3.2-Windows-x64.zip`（含 `SHA256SUMS.txt` 校验文件）。
 2. 解压后直接运行 `AutoCampusNet.exe`（Windows 10/11 自带 WebView2，无需安装 Python / Node.js；启动自动解除下载 MOTW 锁定）。
-3. 填入校园网账号密码并点击 **「一键极速联网」**；如需联动代理，在 **「核心配置」** 开启 Clash 自动启动即可。
+3. 默认已配置为 **延安大学 (YAU)** 校园网参数，填入账号密码点击 **「一键极速联网」** 即可（其他高校可在界面选择预设或自动嗅探）；如需联动代理，在 **「核心配置」** 开启 Clash 自动启动。
 
 ### 从源码运行
 
@@ -64,12 +64,12 @@ py -3.12 -m venv .venv
 
 | 协议体系 | 覆盖典型高校 / 网关特征 | 状态 |
 | :--- | :--- | :--- |
-| **Dr.COM / 城市热点** | ePortal / `10.200.84.3` / 运营商后缀（延安大学等） | ✅ 原生支持 |
+| **Dr.COM / 城市热点** | ePortal / `10.200.84.3` / 运营商后缀（**延安大学 YAU** 等） | ✅ 原生支持 |
 | **Srun / 深澜 4000** | `srun_portal` / XEncode + HMAC-SHA1 动态签名 | ✅ 原生支持 |
 | **Ruijie / 锐捷 ePortal** | `/eportal/InterFace.do` 表单动态参数提取 | ✅ 原生支持 |
 | **Generic Portal** | 标准表单 HTML 解析与正则自动提交 | ✅ 自动回退 |
 
-> 欢迎通过 PR 为 [data/universities.json](data/universities.json) 补充更多高校预设，详见 [CONTRIBUTING.md](CONTRIBUTING.md)。
+> 默认配置（`university_id = "yau"`）以 **延安大学 (YAU)** 校园网 Dr.COM 体系为原型，欢迎通过 PR 为 [data/universities.json](data/universities.json) 补充更多高校预设，详见 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
 ---
 
