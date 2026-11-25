@@ -282,12 +282,14 @@ def ping_check(host: str, timeout_ms: int = 800) -> bool:
             cmd = ["ping", "-n", "1", "-w", str(timeout_ms), host]
         else:
             cmd = ["ping", "-c", "1", "-W", str(max(1, int(timeout_ms / 1000))), host]
-        proc = subprocess.run(
-            cmd,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            timeout=(timeout_ms / 1000) + 0.5,
-        )
+        kwargs: dict[str, Any] = {
+            "stdout": subprocess.DEVNULL,
+            "stderr": subprocess.DEVNULL,
+            "timeout": (timeout_ms / 1000) + 0.5,
+        }
+        if sys.platform == "win32":
+            kwargs["creationflags"] = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
+        proc = subprocess.run(cmd, **kwargs)
         return proc.returncode == 0
     except Exception:
         return False

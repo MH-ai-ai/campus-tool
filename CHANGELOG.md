@@ -20,8 +20,9 @@
   - 新增 PyInstaller 运行时 SSL 兼容钩子 `rthook_ssl_compat.py` 与 `ensure_frozen_ssl_compat()` 双保险，解决冻结环境下 `ssl.SSLContext` 相对路径 CA 文件缺失引发的 Bot 与 HTTPS 请求失败。
 - **断网自愈精度强化** (`campus_guard/system.py`、`network.py`)：
   - 过滤 Windows 移动热点虚拟网卡（`本地连接*`、`192.168.137.*` 等），防止重连 Wi-Fi 时提前误判已拿到 IP 而退出等待；
-  - 将 `check_internet()` 升级为严格 Captive Portal 204 / 特征正文 / HTTPS 证书并发校验，彻底消除高校未认证前放行 DNS 53 端口导致的假在线漏认证问题。
-- **测试脱敏**：完成 109 项全量单元测试覆盖与测试占位数据脱敏。
+  - 将 `check_internet()` 升级为严格 Captive Portal 204 / 特征正文 / HTTPS 证书并发校验，彻底消除高校未认证前放行 DNS 53 端口导致的假在线漏认证问题；
+  - 为 Windows 下 `ping_check()` 补充 `CREATE_NO_WINDOW` 标志，彻底消除后台网关 ICMP 探测偶发闪烁终端黑框的问题。
+- **测试脱敏**：完成 110 项全量单元测试覆盖与测试占位数据脱敏。
 
 ---
 

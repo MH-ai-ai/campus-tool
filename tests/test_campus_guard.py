@@ -1206,6 +1206,21 @@ class CampusGuardTests(unittest.TestCase):
         with patch("campus_guard.system.requests.Session", side_effect=OnlineSession):
             self.assertTrue(sys_mod.check_internet())
 
+    def test_ping_check_uses_create_no_window_on_windows(self):
+        from campus_guard import system as sys_mod
+
+        fake_proc = SimpleNamespace(returncode=0)
+        with (
+            patch.object(sys_mod.sys, "platform", "win32"),
+            patch("campus_guard.system.subprocess.run", return_value=fake_proc) as mock_run,
+        ):
+            self.assertTrue(sys_mod.ping_check("10.200.84.3", timeout_ms=500))
+
+        mock_run.assert_called_once()
+        kwargs = mock_run.call_args.kwargs
+        expected_flag = getattr(sys_mod.subprocess, "CREATE_NO_WINDOW", 0x08000000)
+        self.assertEqual(kwargs.get("creationflags"), expected_flag)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -7,7 +7,7 @@
     <a href="https://github.com/Lunar-mh/AutoCampusNet/releases/latest"><img src="https://img.shields.io/badge/Release-v2.3.2-2B5797?style=flat-square&logo=github" alt="Release" /></a>
     <a href="https://github.com/Lunar-mh/AutoCampusNet/stargazers"><img src="https://img.shields.io/github/stars/Lunar-mh/AutoCampusNet?style=flat-square&color=CF8A27&logo=github" alt="Stars" /></a>
     <img src="https://img.shields.io/badge/Platform-Windows%2010%2F11%20x64-0078D4?style=flat-square&logo=windows" alt="Platform" />
-    <img src="https://img.shields.io/badge/Tests-109%20Passed-1F7A53?style=flat-square" alt="Tests" />
+    <img src="https://img.shields.io/badge/Tests-110%20Passed-1F7A53?style=flat-square" alt="Tests" />
     <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-64748B?style=flat-square" alt="License" /></a>
   </p>
 
